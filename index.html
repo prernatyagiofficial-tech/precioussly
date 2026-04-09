@@ -1139,6 +1139,7 @@
         logoWidth: Number(row.logo_width) || 60,
         logoOffsetX: Number(row.logo_offset_x) || 0,
         logoOffsetY: Number(row.logo_offset_y) || 0,
+        headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16, // <--- ADD THIS LINE
         whatsappNumber: row.whatsapp_number || '',
         emailId: row.email_id || '',
         announcementText: row.announcement_text || '',
@@ -1365,6 +1366,13 @@
         }
         
         function applyGlobalSettings() {
+    // --- NEW: Apply dynamic header vertical spacing ---
+    const navBar = document.querySelector('.nav-bar');
+    if (navBar && appData.settings.headerPaddingY !== undefined) {
+        navBar.style.paddingTop = appData.settings.headerPaddingY + 'px';
+        navBar.style.paddingBottom = appData.settings.headerPaddingY + 'px';
+    }
+
     if (appData.settings.logoUrl) {
         siteLogoImage.src = appData.settings.logoUrl;
         siteLogoImage.style.display = 'block';
