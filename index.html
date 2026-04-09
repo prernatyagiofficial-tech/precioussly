@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  
+  
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shria - E-Commerce</title>
@@ -9,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         :root {
@@ -41,7 +44,7 @@
 
         body {
             font-family: 'Poppins', sans-serif;
-            background-color: #f5f5f7; /* Slightly gray body to make container pop on desktop */
+            background-color: #f5f5f7;
             color: var(--text-dark);
             line-height: 1.5;
             overflow-x: hidden;
@@ -936,7 +939,7 @@
                     <div class="dynamic-logo-container" id="siteLogoContainer">
                         <img src="" id="siteLogoImage" alt="Logo">
                     </div>
-                    Shria
+                    <span id="brandNameDisplay">Shria</span>
                 </a>
 
                 <div class="header-icons">
@@ -980,7 +983,7 @@
         <footer>
             <div class="footer-content">
                 <div class="footer-brand-section">
-                    <div class="footer-brand">Shria</div>
+                    <div class="footer-brand" id="footerBrandName">Shria</div>
                     <p class="footer-desc">Curated collections tailored for elegance. Experience seamless shopping from anywhere.</p>
                 </div>
 
@@ -1002,13 +1005,10 @@
                 <div class="footer-brand-section">
                     <div class="footer-links-title">Connect With Us</div>
                     <div class="footer-social">
-                        <a href="https://wa.me/8744841734" target="_blank" title="WhatsApp">
+                        <a href="#" id="whatsappLink" target="_blank" title="WhatsApp">
                             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                         </a>
-                        <a href="javascript:void(0)" title="Instagram">
-                            <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                        </a>
-                        <a href="mailto:shria@gmail.com" title="Email">
+                        <a href="mailto:" id="emailLink" title="Email">
                             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                         </a>
                     </div>
@@ -1020,7 +1020,7 @@
                     <span>•</span>
                     <a href="javascript:void(0)" onclick="renderPolicies()">Terms of Service</a>
                 </div>
-                <div>&copy; <span id="year"></span> Shria Store. All rights reserved.</div>
+                <div>&copy; <span id="year"></span> <span id="copyrightBrand">Shria</span> Store. All rights reserved.</div>
             </div>
         </footer>
 
@@ -1030,7 +1030,7 @@
         <button class="fab-btn fab-scroll-top" id="scrollTopBtn" onclick="scrollToTop()" title="Scroll to Top">
             <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"></polyline></svg>
         </button>
-        <a href="https://wa.me/8744841734" target="_blank" class="fab-btn fab-whatsapp" title="Chat on WhatsApp">
+        <a href="#" id="fabWhatsappLink" target="_blank" class="fab-btn fab-whatsapp" title="Chat on WhatsApp">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
         </a>
     </div>
@@ -1104,134 +1104,182 @@
         </div>
     </div>
 
-    <script>
+<script>
+        // 💀 Initialize Supabase
+        const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co'; // Replace with your actual URL
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM'; 
+        
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
         document.getElementById('year').textContent = new Date().getFullYear();
+        const imageSvg = `<svg viewBox="0 0 24 24">...`;
 
-        const imageSvg = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
-
+        // Persistent User State
         const state = {
             cart: [],
             wishlist: [],
             itemToRemove: null
         };
 
-        const storeData = {
-            bannerConfig: {
-                imageUrl: "",
-                actionType: "category",
-                targetId: "all"
-            },
-            logoUrl: "", 
-            announcementText: "Secure Checkout | Min Order ₹149", 
-            minOrderAmount: 149,
-            minCODAmount: 500, 
-            codUpfrontFee: 49,
-            
-            autoDiscounts: [
-                { minThreshold: 2000, discountAmount: 200 },
-                { minThreshold: 1000, discountAmount: 100 },
-                { minThreshold: 500, discountAmount: 50 }
-            ],
+        // Dynamic Application Data (Populated by Supabase later)
+        const appData = {
+            settings: {},
+            categories: [],
+            products: [],
+            coupons: [],
+            menuLinks: [],
+            reviews: []
+        };
 
-            reviews: [
-                { id: 1, image: "" },
-                { id: 2, image: "" },
-                { id: 3, image: "" },
-                { id: 4, image: "" },
-                { id: 5, image: "" }
-            ],
 
-            menuLinks: [
+function mapSettings(row) {
+    return {
+        brandName: row?.brand_name || 'Shria',
+        logoUrl: row?.logo_url || '',
+        whatsappNumber: row?.whatsapp_number || '',
+        emailId: row?.email_id || '',
+        announcementText: row?.announcement_text || '',
+        minOrderAmount: Number(row?.min_order_amount || 149),
+        codUpfrontFee: Number(row?.cod_upfront_fee || 49),
+        minCODAmount: Number(row?.min_cod_amount || 500),
+        bannerConfig: row?.banner_config || { actionType: 'category', targetId: 'all', imageUrl: '' }
+    };
+}
+
+function mapCategory(row) {
+    return {
+        id: row.id,
+        name: row.name,
+        img: row.img || ''
+    };
+}
+
+function mapProduct(row) {
+    return {
+        id: row.id,
+        name: row.name,
+        price: Number(row.price || 0),
+        catId: row.cat_id,
+        desc: row.description || '',
+        isBestSeller: !!row.is_best_seller,
+        media: Array.isArray(row.media) ? row.media : [],
+        variants: Array.isArray(row.variants) ? row.variants : [],
+        sizes: Array.isArray(row.sizes) ? row.sizes : [],
+        isRing: !!row.is_ring,
+        isAlphabet: !!row.is_alphabet
+    };
+}
+
+function mapCoupon(row) {
+    return {
+        id: row.id,
+        minThreshold: Number(row.min_threshold || 0),
+        discountAmount: Number(row.discount_amount || 0),
+        active: row.active !== false
+    };
+}
+
+function mapReview(row) {
+    return {
+        id: row.id,
+        image: row.image_url
+    };
+}
+
+        // --- 💀 LIVE SUPABASE FETCH FUNCTIONS --- //
+        async function getSettings() {
+    const { data, error } = await db
+        .from('settings')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+    if (error) {
+        console.error("Error fetching settings:", error);
+        return mapSettings(null);
+    }
+    return mapSettings(data);
+}
+
+async function getCategories() {
+    const { data, error } = await db
+        .from('categories')
+        .select('*')
+        .order('id', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching categories:", error);
+        return [];
+    }
+    return (data || []).map(mapCategory);
+}
+
+async function getProducts() {
+    const { data, error } = await db
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching products:", error);
+        return [];
+    }
+    return (data || []).map(mapProduct);
+}
+
+async function getCoupons() {
+    const { data, error } = await db
+        .from('coupons')
+        .select('*')
+        .eq('active', true)
+        .order('min_threshold', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching coupons:", error);
+        return [];
+    }
+    return (data || []).map(mapCoupon);
+}
+
+async function getReviews() {
+    const { data, error } = await db
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching reviews:", error);
+        return [];
+    }
+    return (data || []).map(mapReview);
+}
+
+
+        function generateMenuLinks() {
+            const baseLinks = [
                 { name: "Home", action: 'home', icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>' },
                 { name: "Shop All", id: 'all', icon: '<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>' },
                 { name: "Best Sellers", id: 'bestsellers', icon: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>' },
                 { name: "Orders", action: 'orders', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>' },
                 { name: "Track Order", id: 'track', icon: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>' },
                 { name: "Wishlist", action: 'wishlist', icon: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>' },
-                { name: "Categories", isTitle: true },
-                { name: "Apparel", id: 5, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' },
-                { name: "Car Keychains", id: 1, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' },
-                { name: "Resin Jewellery", id: 2, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' },
-                { name: "Artificial Jewellery", id: 3, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' },
-                { name: "Crochet", id: 4, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' },
+                { name: "Categories", isTitle: true }
+            ];
+
+            const categoryLinks = appData.categories.filter(c => c.id !== 'all').map(c => ({
+                name: c.name, id: c.id, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>'
+            }));
+
+            const supportLinks = [
                 { name: "Support", isTitle: true },
                 { name: "Policies", action: 'policies', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>' }
-            ],
-            categories: [
-                { id: 'all', name: "Shop All", img: "" },
-                { id: 5, name: "Apparel", img: "" },
-                { id: 1, name: "Car Keychains", img: "" },
-                { id: 2, name: "Resin Jewellery", img: "" },
-                { id: 3, name: "Artificial Jewellery", img: "" },
-                { id: 4, name: "Crochet", img: "" }
-            ],
-            products: [
-                { 
-                    id: 101, 
-                    catId: 1, 
-                    name: "Hydration Steel Bottle", 
-                    price: 499, 
-                    media: [""], 
-                    variants: [
-                        { name: "Matte Black", media: [""] },
-                        { name: "Ocean Blue", media: [""] },
-                        { name: "Rose Gold", media: [""] }
-                    ],
-                    desc: "Premium insulated stainless steel bottle. Keeps drinks cold for 24 hours or hot for 12 hours.", 
-                    isBestSeller: true 
-                },
-                { id: 102, catId: 2, name: "Crescent Moon Necklace", price: 499, media: [""], desc: "Handcrafted resin pendant with a delicate silver chain. Perfect for evening wear.", isBestSeller: true },
-                { id: 103, catId: 3, name: "Pink Blossom Bracelet", price: 349, media: [""], desc: "Elegant beaded bracelet with floral charms. A beautiful gift for loved ones.", isBestSeller: false },
-                { id: 104, catId: 4, name: "Crochet Rose Bouquet", price: 899, media: [""], desc: "Everlasting handmade crochet flowers wrapped beautifully. Never fades.", isBestSeller: true },
-                { id: 105, catId: 1, name: "Leather Loop Keychain", price: 199, media: [""], desc: "Minimalist leather loop with a sturdy metal ring.", isBestSeller: false },
-                { id: 106, catId: 3, name: "Gold Plated Hoop Earrings", price: 599, media: [""], desc: "Classic medium-sized hoop earrings for a timeless look.", isBestSeller: false },
-                { 
-                    id: 107, 
-                    catId: 5, 
-                    name: "Classic Crewneck T-Shirt", 
-                    price: 699, 
-                    media: [""], 
-                    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-                    variants: [
-                        { name: "White", media: [""] },
-                        { name: "Black", media: [""] }
-                    ],
-                    desc: "100% pure premium cotton t-shirt with a comfortable fit and breathable fabric. Perfect for everyday wear.", 
-                    isBestSeller: true 
-                },
-                { 
-                    id: 108, 
-                    catId: 3, 
-                    name: "Diamond Solitaire Ring", 
-                    price: 1499, 
-                    media: [""], 
-                    isRing: true, 
-                    desc: "Elegant solitaire ring with a stunning finish. Enter your custom ring size before adding to cart.", 
-                    isBestSeller: true 
-                },
-                { 
-                    id: 109, 
-                    catId: 3, 
-                    name: "Classic Gold Band Ring", 
-                    price: 999, 
-                    media: [""], 
-                    isRing: true, 
-                    desc: "A timeless classic gold band ring. Perfect for any occasion.", 
-                    isBestSeller: false 
-                },
-                { 
-                    id: 110, 
-                    catId: 1, 
-                    name: "Custom Alphabet Resin Keychain", 
-                    price: 299, 
-                    media: [""], 
-                    isAlphabet: true, 
-                    desc: "Beautiful resin keychain customized with your initial. Swipe to select your alphabet.", 
-                    isBestSeller: true 
-                }
-            ]
-        };
+            ];
 
+            appData.menuLinks = [...baseLinks, ...categoryLinks, ...supportLinks];
+        }
+
+        // --- APP LOGIC --- //
         let selectedProductVariantIndex = 0;
         let selectedProductSize = null;
         let selectedAlphabet = null;
@@ -1250,12 +1298,36 @@
         const menuOverlay = document.getElementById('menuOverlay');
         const confirmModal = document.getElementById('confirmModal');
         const confirmRemoveBtn = document.getElementById('confirmRemoveBtn');
-        const siteLogoContainer = document.getElementById('siteLogoContainer');
         const siteLogoImage = document.getElementById('siteLogoImage');
         const sizeChartModal = document.getElementById('sizeChartModal');
         const ringSizeModal = document.getElementById('ringSizeModal');
 
         let isPopState = false;
+
+        function updateFabVisibility(view) {
+            const waFab = document.querySelector('.fab-whatsapp');
+            if (waFab) {
+                if (['product', 'cart', 'checkout'].includes(view)) {
+                    waFab.style.display = 'none';
+                } else {
+                    waFab.style.display = 'flex';
+                }
+            }
+
+            const scrollTopBtn = document.getElementById('scrollTopBtn');
+            if (scrollTopBtn) {
+                if (['home', 'category'].includes(view)) {
+                    scrollTopBtn.style.display = 'flex';
+                    if (window.scrollY > 300) {
+                        scrollTopBtn.classList.add('visible');
+                    }
+                } else {
+                    scrollTopBtn.style.display = 'none';
+                    scrollTopBtn.classList.remove('visible');
+                }
+            }
+        }
+
         function navigate(stateObj) {
             if (!isPopState) {
                 const current = history.state;
@@ -1267,6 +1339,7 @@
                     history.pushState(stateObj, "");
                 }
             }
+            updateFabVisibility(stateObj.view);
             isPopState = false;
         }
 
@@ -1283,6 +1356,7 @@
             
             if (e.state) {
                 const s = e.state;
+                updateFabVisibility(s.view);
                 if (s.view === 'home') renderHome();
                 else if (s.view === 'category') renderCategory(s.id);
                 else if (s.view === 'product') renderProduct(s.id);
@@ -1295,6 +1369,7 @@
                 else if (s.view === 'search') executeSearch(s.query);
                 else if (s.view === 'track') renderTrackOrder();
             } else {
+                updateFabVisibility('home');
                 renderHome();
             }
         });
@@ -1308,30 +1383,61 @@
             setTimeout(() => { toast.classList.remove('show'); }, 2500);
         }
         
-        function updateDynamicLogo() {
-            if (storeData.logoUrl) {
-                siteLogoImage.src = storeData.logoUrl;
+        function applyGlobalSettings() {
+            // Apply dynamic logo and brand name
+            if (appData.settings.logoUrl) {
+                siteLogoImage.src = appData.settings.logoUrl;
                 siteLogoImage.style.display = 'block';
+                document.getElementById('brandNameDisplay').style.display = 'none';
             } else {
                 siteLogoImage.style.display = 'none';
+                document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
+                document.getElementById('brandNameDisplay').style.display = 'block';
             }
-        }
 
-        function initApp() {
+            document.getElementById('footerBrandName').innerText = appData.settings.brandName;
+            document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+            document.title = `${appData.settings.brandName} - E-Commerce`;
+
+            // Apply Contact Links
+            const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
+            document.getElementById('whatsappLink').href = waLink;
+            document.getElementById('fabWhatsappLink').href = waLink;
+            document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
+
+            // Announcement Bar
             const announcementBar = document.getElementById('announcement-bar');
-            if (storeData.announcementText) {
-                announcementBar.innerHTML = storeData.announcementText;
+            if (appData.settings.announcementText) {
+                announcementBar.innerHTML = appData.settings.announcementText;
                 announcementBar.style.display = 'flex';
             } else {
                 announcementBar.style.display = 'none';
             }
+        }
 
-            updateBadges();
-            updateDynamicLogo();
-            renderMenu();
-            history.replaceState({view: 'home'}, "");
-            isPopState = true;
-            renderHome();
+        async function initApp() {
+            try {
+                // Phase 1 Async Data Fetching
+                appData.settings = await getSettings();
+                appData.categories = await getCategories();
+                appData.products = await getProducts();
+                appData.coupons = await getCoupons();
+                appData.reviews = await getReviews();
+                generateMenuLinks();
+
+                applyGlobalSettings();
+                updateBadges();
+                renderMenu();
+
+                history.replaceState({view: 'home'}, "");
+                isPopState = true;
+                updateFabVisibility('home');
+                renderHome();
+
+            } catch (error) {
+                console.error("Failed to load store data:", error);
+                showToast("Error loading app data.");
+            }
         }
 
         function toggleSearch() {
@@ -1355,7 +1461,7 @@
                 searchInput.value = query;
             }
             const q = query.toLowerCase();
-            const results = storeData.products.filter(p => p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q));
+            const results = appData.products.filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
             renderProductList("Search Results", results);
         }
 
@@ -1369,7 +1475,7 @@
             let html = '';
             const categoryIcon = '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>';
             
-            storeData.menuLinks.forEach(link => {
+            appData.menuLinks.forEach(link => {
                 if (link.isTitle) {
                     html += `<div class="menu-label">${link.name}</div>`;
                 } else {
@@ -1411,7 +1517,7 @@
                     </div>
                     <div class="policy-section">
                         <h4>Terms of Service</h4>
-                        <p>By using the Shria platform, you agree to comply with our guidelines. All product details, pricing, and availability are subject to change. We reserve the right to cancel orders if necessary, with a full refund provided.</p>
+                        <p>By using the ${appData.settings.brandName} platform, you agree to comply with our guidelines. All product details, pricing, and availability are subject to change. We reserve the right to cancel orders if necessary, with a full refund provided.</p>
                     </div>
                     <div class="policy-section">
                         <h4>Shipping & Returns</h4>
@@ -1419,7 +1525,7 @@
                     </div>
                     <div class="policy-section">
                         <h4>Contact Information</h4>
-                        <p>For any queries, please email us at shria@gmail.com or contact us via WhatsApp.</p>
+                        <p>For any queries, please email us at ${appData.settings.emailId} or contact us via WhatsApp.</p>
                     </div>
                 </div>
             `;
@@ -1512,7 +1618,7 @@
             navigate({view: 'home'});
             searchContainer.style.display = 'none';
             
-            const bannerConfig = storeData.bannerConfig || { actionType: 'category', targetId: 'all', imageUrl: '' };
+            const bannerConfig = appData.settings.bannerConfig || { actionType: 'category', targetId: 'all', imageUrl: '' };
             const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
             const bannerClickAction = bannerConfig.actionType === 'product' ? `renderProduct(${bannerConfig.targetId})` : `renderCategory('${bannerConfig.targetId}')`;
 
@@ -1522,7 +1628,7 @@
                 <div class="grid-container">
             `;
 
-            storeData.categories.forEach(cat => {
+            appData.categories.forEach(cat => {
                 const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
                 html += `
                     <div class="category-card" onclick="renderCategory('${cat.id}')">
@@ -1532,16 +1638,16 @@
             });
             html += `</div>`;
 
-            const bestSellers = storeData.products.filter(p => p.isBestSeller);
+            const bestSellers = appData.products.filter(p => p.isBestSeller);
             if (bestSellers.length > 0) {
                 html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll">`;
                 bestSellers.forEach(prod => html += getProductCardHTML(prod));
                 html += `</div>`;
             }
 
-            if (storeData.reviews && storeData.reviews.length > 0) {
+            if (appData.reviews && appData.reviews.length > 0) {
                 html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll">`;
-                storeData.reviews.forEach(review => {
+                appData.reviews.forEach(review => {
                     let imgContent = review.image ? `<img src="${review.image}" alt="Review">` : `<div class="img-placeholder">${imageSvg}</div>`;
                     html += `<div class="review-card">${imgContent}</div>`;
                 });
@@ -1563,14 +1669,14 @@
             let catName;
             
             if (catId === 'all') {
-                filteredProds = storeData.products;
+                filteredProds = appData.products;
                 catName = 'Shop All';
             } else if (catId === 'bestsellers') {
-                filteredProds = storeData.products.filter(p => p.isBestSeller);
+                filteredProds = appData.products.filter(p => p.isBestSeller);
                 catName = 'Best Sellers';
             } else {
-                filteredProds = storeData.products.filter(p => p.catId == catId);
-                catName = storeData.categories.find(c => c.id == catId)?.name || 'Products';
+                filteredProds = appData.products.filter(p => p.catId == catId);
+                catName = appData.categories.find(c => c.id == catId)?.name || 'Products';
             }
             
             renderProductList(catName, filteredProds);
@@ -1635,7 +1741,7 @@
         function renderWishlist() {
             navigate({view: 'wishlist'});
             searchContainer.style.display = 'none';
-            const products = storeData.products.filter(p => state.wishlist.includes(p.id));
+            const products = appData.products.filter(p => state.wishlist.includes(p.id));
             let html = `
                 <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
                 <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Wishlist</h3></div>
@@ -1833,7 +1939,7 @@
             triggerHaptic('pop');
             selectedProductVariantIndex = variantIndex;
             
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = appData.products.find(p => p.id === prodId);
             if (!prod || !prod.variants) return;
             
             const variant = prod.variants[variantIndex];
@@ -1942,7 +2048,7 @@
         function renderProduct(prodId) {
             navigate({view: 'product', id: prodId});
             searchContainer.style.display = 'none';
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = appData.products.find(p => p.id === prodId);
             if(!prod) return;
 
             selectedProductVariantIndex = 0;
@@ -2124,7 +2230,7 @@
                                 <div class="trust-badge-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
                                 </div>
-                                <div class="trust-badge-text">COD available above ₹${storeData.minCODAmount}</div>
+                                <div class="trust-badge-text">COD available above ₹${appData.settings.minCODAmount}</div>
                             </div>
                         </div>
                         
@@ -2158,7 +2264,7 @@
         }
 
         function addToCart(btn, prodId) {
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = appData.products.find(p => p.id === prodId);
             
             if (prod.isRing && (!prod.sizes || prod.sizes.length === 0)) {
                 const sizeVal = selectedProductSize ? selectedProductSize.trim() : "";
@@ -2221,7 +2327,7 @@
         }
 
         function buyNow(btn, prodId) {
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = appData.products.find(p => p.id === prodId);
             
             if (prod.isRing && (!prod.sizes || prod.sizes.length === 0)) {
                 const sizeVal = selectedProductSize ? selectedProductSize.trim() : "";
@@ -2380,7 +2486,7 @@
 
                 let discount = 0;
                 let appliedThreshold = 0;
-                for (let rule of storeData.autoDiscounts) {
+                for (let rule of appData.coupons) {
                     if (subtotal >= rule.minThreshold) {
                         discount = rule.discountAmount;
                         appliedThreshold = rule.minThreshold;
@@ -2392,7 +2498,7 @@
                     <h4>Available Offers</h4>
                     <div class="coupon-scroll">`;
                 
-                const displayDiscounts = [...storeData.autoDiscounts].sort((a,b) => a.minThreshold - b.minThreshold);
+                const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
                 displayDiscounts.forEach(rule => {
                     const isApplied = (rule.minThreshold === appliedThreshold);
                     couponsHtml += `
@@ -2406,7 +2512,7 @@
 
                 const shipping = subtotal > 499 ? 0 : 50;
                 const total = subtotal + shipping - discount;
-                const isMinOrderMet = total >= storeData.minOrderAmount;
+                const isMinOrderMet = total >= appData.settings.minOrderAmount;
 
                 html += `
                     ${couponsHtml}
@@ -2429,7 +2535,7 @@
                         ${isMinOrderMet ? 
                             `<button class="btn-primary" onclick="triggerHaptic('success'); renderCheckout()">Proceed to Checkout</button>` : 
                             `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">
-                                Minimum order amount is ₹${storeData.minOrderAmount}. Add items worth ₹${storeData.minOrderAmount - total} more.
+                                Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.
                              </div>
                              <button class="btn-primary" disabled>Proceed to Checkout</button>`
                         }
@@ -2455,10 +2561,10 @@
             const codInfo = document.getElementById('codInfoText');
 
             if (radio.value === 'cod') {
-                btnText.innerText = `Pay Advance ${formatPrice(storeData.codUpfrontFee)} & Place Order`;
+                btnText.innerText = `Pay Advance ${formatPrice(appData.settings.codUpfrontFee)} & Place Order`;
                 if (codInfo) {
-                    const remaining = totalAmount - storeData.codUpfrontFee;
-                    codInfo.innerHTML = `Advance payment of <strong>${formatPrice(storeData.codUpfrontFee)}</strong> required. Remaining <strong>${formatPrice(remaining)}</strong> to be paid on delivery.`;
+                    const remaining = totalAmount - appData.settings.codUpfrontFee;
+                    codInfo.innerHTML = `Advance payment of <strong>${formatPrice(appData.settings.codUpfrontFee)}</strong> required. Remaining <strong>${formatPrice(remaining)}</strong> to be paid on delivery.`;
                     codInfo.style.display = 'block';
                 }
             } else {
@@ -2473,7 +2579,7 @@
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const shipping = subtotal > 499 ? 0 : 50;
             let discount = 0;
-            for (let rule of storeData.autoDiscounts) {
+            for (let rule of appData.coupons) {
                 if (subtotal >= rule.minThreshold) {
                     discount = rule.discountAmount;
                     break;
@@ -2483,7 +2589,7 @@
 
             navigate({view: 'checkout', amount: totalAmount});
             
-            const isCODAvailable = totalAmount >= storeData.minCODAmount;
+            const isCODAvailable = totalAmount >= appData.settings.minCODAmount;
             
             let html = `
                 <div class="back-nav" onclick="renderCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Cart</div>
@@ -2560,7 +2666,7 @@
                             <label class="radio-label ${!isCODAvailable ? 'disabled' : ''}">
                                 <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this, ${totalAmount})" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
                             </label>
-                            ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${storeData.minCODAmount}</span>` : ''}
+                            ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${appData.settings.minCODAmount}</span>` : ''}
                             <div id="codInfoText" style="display: none; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);"></div>
                         </div>
                         
@@ -2633,8 +2739,8 @@
             let amountDueOnDelivery = 0;
 
             if (paymentMethod === 'cod') {
-                amountToCharge = storeData.codUpfrontFee;
-                amountDueOnDelivery = totalAmount - storeData.codUpfrontFee;
+                amountToCharge = appData.settings.codUpfrontFee;
+                amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
             }
 
             const orderDetails = {
@@ -2651,9 +2757,9 @@
                         "key": "rzp_test_YOUR_KEY_HERE", 
                         "amount": amountToCharge * 100, 
                         "currency": "INR",
-                        "name": "Shria Store",
+                        "name": appData.settings.brandName,
                         "description": "Purchase Description",
-                        "image": "https://example.com/your_logo.jpg",
+                        "image": appData.settings.logoUrl,
                         "handler": function (response){
                             processOrderPlacement(totalAmount, orderDetails);
                         },
@@ -2677,6 +2783,7 @@
                         rzp.open();
                     } catch (e) {
                         console.error("Razorpay error", e);
+                        // For testing/development, proceed even if Razorpay fails
                         processOrderPlacement(totalAmount, orderDetails);
                     }
                 });
@@ -2687,31 +2794,35 @@
             }
         }
 
-        function processOrderPlacement(totalAmount, orderDetails) {
+        async function processOrderPlacement(totalAmount, orderDetails) {
             triggerHaptic('success');
             
-            const newOrder = {
+            const orderData = {
                 id: 'ORD' + Math.floor(100000 + Math.random() * 900000),
-                date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-                items: JSON.parse(JSON.stringify(state.cart)),
-                total: totalAmount || 0,
-                status: "Order Confirmed",
-                details: orderDetails || {}
+                total_amount: totalAmount,
+                items: state.cart,
+                customer_details: orderDetails,
+                status: 'Pending'
             };
+
+            // 💀 Insert the order into Supabase
+            const { error } = await db.from('orders').insert([orderData]);
             
-            let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-            orders.unshift(newOrder);
-            localStorage.setItem('shria_orders', JSON.stringify(orders));
-
-            state.cart = [];
-            updateBadges();
-            renderThankYou(newOrder.id);
+            if (!error) {
+                state.cart = [];
+                updateBadges();
+                renderThankYou(orderData.id);
+            } else {
+                console.error("Order insertion failed:", error);
+                showToast("Error placing order. Please try again.");
+            }
         }
-
+        
         const scrollTopBtn = document.getElementById('scrollTopBtn');
 
         window.addEventListener('scroll', () => {
-            if (window.scrollY > 300) {
+            const currentView = history.state ? history.state.view : 'home';
+            if (window.scrollY > 300 && ['home', 'category'].includes(currentView)) {
                 scrollTopBtn.classList.add('visible');
             } else {
                 scrollTopBtn.classList.remove('visible');
@@ -2725,6 +2836,7 @@
             });
         }
 
+        // Kickoff
         initApp();
     </script>
 </body>
