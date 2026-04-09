@@ -37,7 +37,7 @@
         main { flex: 1; padding-bottom: 40px; }
 
         /* Header */
-        header { position: sticky; top: 0; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); z-index: 100; }
+        header { position: sticky; top: 0; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.02); }
         .nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
         .icon-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 8px; color: var(--text-dark); transition: var(--transition); }
         .icon-btn:active { transform: scale(0.85); }
@@ -53,7 +53,7 @@
         .announcement { background: #000; color: #fff; font-size: 11.5px; padding: 10px 15px; text-align: center; font-weight: 400; letter-spacing: 0.5px; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid var(--border-color); }
 
         /* Side Menu */
-        .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; touch-action: none; }
+        .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; touch-action: none; backdrop-filter: blur(2px); }
         .side-menu-overlay.active { opacity: 1; visibility: visible; }
         .side-menu { position: fixed; top: 0; left: -100%; width: 280px; height: 100%; background: #fff; z-index: 1001; padding: 0; transition: left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); overflow-y: auto; display: flex; flex-direction: column; box-shadow: 2px 0 15px rgba(0,0,0,0.1); }
         .side-menu.active { left: 0; }
@@ -73,12 +73,12 @@
         .search-container { display: none; padding: 15px 20px; background: #fff; border-bottom: 1px solid var(--border-color); animation: slideDown 0.2s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .search-box { display: flex; align-items: center; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 8px 15px; }
-        .search-box input { border: none; background: none; outline: none; flex: 1; padding: 5px; font-family: inherit; font-size: 14px; }
+        .search-box input { border: none; background: none; outline: none; flex: 1; padding: 5px; font-family: inherit; font-size: 14px; color: var(--text-dark); }
 
         /* Elements */
         .img-placeholder { width: 100%; height: 100%; background-color: var(--placeholder-bg); display: flex; align-items: center; justify-content: center; color: #ccc; }
-        .img-placeholder svg { width: 30%; height: 30%; stroke: #d0d0d0; stroke-width: 1; fill: none; }
-        .banner { position: relative; width: 100%; aspect-ratio: 4/5; background-color: var(--placeholder-bg); overflow: hidden; }
+        .img-placeholder svg { width: 30%; height: 30%; stroke: #d0d0d0; stroke-width: 1.5; fill: none; }
+        .banner { position: relative; width: 100%; aspect-ratio: 4/5; background-color: var(--placeholder-bg); overflow: hidden; display: flex; align-items: center; justify-content: center;}
         .section-title-wrapper { display: flex; align-items: center; justify-content: center; padding: 30px 20px 20px; }
         .section-title-wrapper h3 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; }
         .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 0 20px 20px; }
@@ -88,7 +88,7 @@
         .category-card span { font-size: 13px; font-weight: 500; }
         .horizontal-scroll { display: flex; overflow-x: auto; gap: 15px; padding: 0 20px 20px; scrollbar-width: none; }
         .horizontal-scroll::-webkit-scrollbar { display: none; }
-        .product-card { background: #fff; border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; border: 1px solid var(--border-color); position: relative; min-width: 160px; flex: 0 0 auto; }
+        .product-card { background: #fff; border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: transform 0.2s; border: 1px solid var(--border-color); position: relative; min-width: 160px; flex: 0 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .product-card:active { transform: scale(0.97); }
         .product-card .img-wrapper { width: 100%; aspect-ratio: 1/1; overflow: hidden; position: relative; }
         .product-info { padding: 15px; text-align: left; }
@@ -122,9 +122,9 @@
         .policy-section { margin-bottom: 30px; }
         .policy-section h4 { font-size: 16px; margin-bottom: 10px; color: var(--text-dark); }
         .policy-section p { font-size: 13px; color: var(--text-gray); line-height: 1.6; margin-bottom: 10px;}
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-gray); width: 100%; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-gray); width: 100%; font-size: 14px; }
         .empty-state svg { width: 48px; height: 48px; stroke: var(--border-color); margin-bottom: 15px; }
-        .toast { position: fixed; top: 120px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--text-dark); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 500; z-index: 2000; opacity: 0; transition: var(--transition); pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .toast { position: fixed; top: 120px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--text-dark); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 500; z-index: 2000; opacity: 0; transition: var(--transition); pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; white-space: nowrap; }
         .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
         /* Product Details */
@@ -160,7 +160,7 @@
         .color-options-scroll { display: flex; overflow-x: auto; gap: 16px; padding: 6px 6px 14px 6px; scrollbar-width: none; margin: 0 -6px; }
         .color-options-scroll::-webkit-scrollbar { display: none; }
         .color-option-btn { width: 72px; height: 72px; border-radius: var(--radius-sm); border: none; background: var(--placeholder-bg); flex-shrink: 0; cursor: pointer; padding: 0; transition: all 0.2s ease; position: relative; box-shadow: 0 0 0 1px var(--border-color); }
-        .color-option-btn img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); display: block; }
+        .color-option-btn img, .color-option-btn video { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); display: block; }
         .color-option-btn.selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--text-dark); }
         .color-option-btn:active { transform: scale(0.96); }
         .color-option-btn.has-video::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: rgba(0,0,0,0.5) url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>') no-repeat center center; background-size: 10px; border-radius: 50%; pointer-events: none; }
@@ -185,7 +185,7 @@
         .trust-badge-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
         .trust-badge-icon { width: 44px; height: 44px; background: var(--placeholder-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-dark); transition: transform 0.3s ease; }
         .trust-badge-item:hover .trust-badge-icon { transform: translateY(-3px); }
-        .trust-badge-icon svg { width: 20px; height: 20px; stroke-width: 1.5; }
+        .trust-badge-icon svg { width: 20px; height: 20px; stroke-width: 1.5; fill: none; }
         .trust-badge-text { font-size: 11px; font-weight: 600; color: var(--text-gray); line-height: 1.4; }
         .product-section { margin-bottom: 25px; }
         .product-section h4 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text-dark); }
@@ -196,7 +196,7 @@
         .cart-container { padding: 0 20px; }
         .cart-item { display: flex; gap: 15px; padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--secondary-bg); margin-bottom: 15px; position: relative; }
         .cart-item-img { width: 90px; height: 90px; border-radius: var(--radius-md); background: var(--placeholder-bg); flex-shrink: 0; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .cart-item-img img, .cart-item-img video { width: 100%; height: 100%; object-fit: cover; }
+        .cart-item-img img, .cart-item-img video { width: 100%; height: 100%; object-fit: cover; display: block;}
         .cart-item-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
         .cart-item-title { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 4px; padding-right: 25px;}
         .cart-item-variant { font-size: 12px; color: var(--text-gray); margin-bottom: 6px; }
@@ -229,7 +229,7 @@
         /* Checkout Form */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--text-gray); }
-        .form-group input, .form-group textarea { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; transition: border-color 0.2s, box-shadow 0.2s; color: var(--text-dark); }
         .form-group input:focus, .form-group textarea:focus { border-color: var(--text-dark); box-shadow: 0 0 0 2px rgba(26,26,26,0.1); }
         .form-group input.error, .form-group textarea.error { border-color: var(--error-color); background: #fff5f5; }
         .error-message { color: var(--error-color); font-size: 11px; margin-top: 5px; display: none; }
@@ -269,6 +269,7 @@
         .footer-social { display: flex; gap: 12px; }
         .footer-social a { color: var(--text-dark); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #fff; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.02); transition: all 0.3s; }
         .footer-social a:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); color: var(--brand-color); border-color: var(--brand-color); }
+        .footer-social a svg { stroke: currentColor; fill: none; }
         .footer-bottom { margin-top: 40px; padding-top: 20px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 12px; color: var(--text-gray); }
         .footer-bottom-links { display: flex; gap: 15px; }
         .footer-bottom-links a { color: var(--text-gray); text-decoration: none; transition: color 0.2s; }
@@ -291,7 +292,7 @@
         .order-items { padding: 15px 20px; display: flex; flex-direction: column; gap: 15px; }
         .order-item-row { display: flex; gap: 15px; align-items: center; }
         .order-item-img { width: 60px; height: 60px; border-radius: var(--radius-sm); background: var(--placeholder-bg); overflow: hidden; flex-shrink: 0; }
-        .order-item-img img, .order-item-img video { width: 100%; height: 100%; object-fit: cover; }
+        .order-item-img img, .order-item-img video { width: 100%; height: 100%; object-fit: cover; display: block; }
         .order-item-details { flex: 1; }
         .order-item-name { font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 3px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         .order-item-meta { font-size: 11px; color: var(--text-gray); }
@@ -448,13 +449,17 @@
 
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
-        const imageSvg = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+        const imageSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
 
-        // === SUPABASE INITIALIZATION ===
-        // IMPORTANT: Replace with your actual Supabase Project URL and ANON KEY
+        let supabase;
         const supabaseUrl = 'https://tqqprnrdfkohyjflsajn.supabase.co'; 
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcXBybnJkZmtvaHlqZmxzYWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MTg3NDcsImV4cCI6MjA5MTI5NDc0N30.Viw7J8YXocc5ZoOX6aX7wrC2BU7m4WJSEpQ0rYjSSi0'; 
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        if (window.supabase) {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        } else {
+            console.error("Supabase CDN failed to load.");
+        }
 
         const state = { cart: [], wishlist: [], itemToRemove: null };
 
@@ -464,47 +469,38 @@
             autoDiscounts: [], reviews: [], menuLinks: [], categories: [], products: []
         };
 
-        // === DATA FETCHING ===
         async function fetchSupabaseData() {
+            if (!supabase) return;
             try {
                 // Fetch Store Config
-                const { data: configData, error: configErr } = await supabase.from('store_config').select('*').limit(1).single();
-                if (configData && !configErr) {
-                    storeData.logoUrl = configData.logoUrl || "";
-                    storeData.announcementText = configData.announcementText || "";
-                    storeData.minOrderAmount = configData.minOrderAmount || 0;
-                    storeData.minCODAmount = configData.minCODAmount || 0;
-                    storeData.codUpfrontFee = configData.codUpfrontFee || 0;
-                    storeData.bannerConfig = configData.bannerConfig || storeData.bannerConfig;
+                const { data: configData, error: configErr } = await supabase.from('store_config').select('*').limit(1);
+                if (configData && configData.length > 0 && !configErr) {
+                    const c = configData[0];
+                    storeData.logoUrl = c.logoUrl || "";
+                    storeData.announcementText = c.announcementText || "";
+                    storeData.minOrderAmount = c.minOrderAmount || 0;
+                    storeData.minCODAmount = c.minCODAmount || 0;
+                    storeData.codUpfrontFee = c.codUpfrontFee || 0;
+                    if(c.bannerConfig) storeData.bannerConfig = c.bannerConfig;
                 }
 
                 // Fetch Categories
                 const { data: categoriesData, error: catErr } = await supabase.from('categories').select('*');
-                if (categoriesData && !catErr) {
-                    storeData.categories = [{ id: 'all', name: "Shop All", img: "" }, ...categoriesData];
-                } else {
-                    storeData.categories = [{ id: 'all', name: "Shop All", img: "" }];
-                }
+                storeData.categories = [{ id: 'all', name: "Shop All", img: "" }, ...(categoriesData || [])];
 
                 // Fetch Products
                 const { data: productsData, error: prodErr } = await supabase.from('products').select('*');
-                if (productsData && !prodErr) {
-                    storeData.products = productsData;
-                }
+                storeData.products = productsData || [];
 
                 // Fetch Auto Discounts
                 const { data: discountsData, error: discErr } = await supabase.from('discounts').select('*');
-                if (discountsData && !discErr) {
-                    storeData.autoDiscounts = discountsData;
-                }
+                storeData.autoDiscounts = discountsData || [];
 
                 // Fetch Reviews
                 const { data: reviewsData, error: revErr } = await supabase.from('reviews').select('*');
-                if (reviewsData && !revErr) {
-                    storeData.reviews = reviewsData;
-                }
+                storeData.reviews = reviewsData || [];
 
-                buildMenuLinks(categoriesData || []);
+                buildMenuLinks(storeData.categories.filter(c => c.id !== 'all'));
 
             } catch (error) {
                 console.error("Error loading data from Supabase:", error);
@@ -522,7 +518,7 @@
                 { name: "Categories", isTitle: true }
             ];
 
-            categoriesData.forEach(cat => {
+            (categoriesData || []).forEach(cat => {
                 storeData.menuLinks.push({ name: cat.name, id: cat.id, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>' });
             });
 
@@ -587,7 +583,7 @@
             }
         });
 
-        const formatPrice = (amount) => `₹${amount.toLocaleString()}`;
+        const formatPrice = (amount) => `₹${(amount || 0).toLocaleString()}`;
         function triggerHaptic(type) {
             if (!window.navigator || !navigator.vibrate) return;
             if (type === 'pop') navigator.vibrate(40);
@@ -646,7 +642,7 @@
                 searchInput.value = query;
             }
             const q = query.toLowerCase();
-            const results = (storeData.products || []).filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
+            const results = (storeData.products || []).filter(p => (p.name || '').toLowerCase().includes(q) || ((p.desc || '').toLowerCase().includes(q)));
             renderProductList("Search Results", results);
         }
 
@@ -660,6 +656,8 @@
             let html = '';
             const categoryIcon = '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>';
             
+            if (!storeData.menuLinks || storeData.menuLinks.length === 0) return;
+
             storeData.menuLinks.forEach(link => {
                 if (link.isTitle) {
                     html += `<div class="menu-label">${link.name}</div>`;
@@ -753,7 +751,7 @@
             let mediaContent = `<div class="img-placeholder">${imageSvg}</div>`;
             if (displayMediaStr) {
                 if (displayMediaStr.toLowerCase().endsWith('.mp4')) mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline></video>`;
-                else mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}">`;
+                else mediaContent = `<img src="${displayMediaStr}" alt="${prod.name || 'Product'}">`;
             }
 
             return `
@@ -763,8 +761,8 @@
                         <button class="wishlist-float" onclick="toggleWishlist(event, ${prod.id})">${getHeartSvg(prod.id)}</button>
                     </div>
                     <div class="product-info">
-                        <div class="product-title">${prod.name}</div>
-                        <div class="product-price">${formatPrice(prod.price)}</div>
+                        <div class="product-title">${prod.name || 'Unnamed Product'}</div>
+                        <div class="product-price">${formatPrice(prod.price || 0)}</div>
                     </div>
                 </div>
             `;
@@ -775,7 +773,11 @@
             searchContainer.style.display = 'none';
             
             const bannerConfig = storeData.bannerConfig || { actionType: 'category', targetId: 'all', imageUrl: '' };
-            const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
+            let bannerContent = `<div class="img-placeholder">${imageSvg}</div>`;
+            if (bannerConfig.imageUrl) {
+                bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+            }
+            
             const bannerClickAction = bannerConfig.actionType === 'product' ? `renderProduct(${bannerConfig.targetId})` : `renderCategory('${bannerConfig.targetId}')`;
 
             let html = `
@@ -784,12 +786,17 @@
                 <div class="grid-container">
             `;
 
-            if(storeData.categories) {
+            let hasCategories = false;
+            if(storeData.categories && storeData.categories.length > 1) {
                 storeData.categories.forEach(cat => {
-                    if(cat.id === 'all') return; // Hide "Shop All" from visual grid usually, optional
+                    if(cat.id === 'all') return; 
+                    hasCategories = true;
                     const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
                     html += `<div class="category-card" onclick="renderCategory('${cat.id}')"><div class="category-img-box">${imgContent}</div><span>${cat.name}</span></div>`;
                 });
+            }
+            if (!hasCategories) {
+                html += `<div class="empty-state" style="grid-column: 1/-1;">No categories added yet.</div>`;
             }
             html += `</div>`;
 
@@ -828,8 +835,8 @@
                 filteredProds = (storeData.products || []).filter(p => p.isBestSeller);
                 catName = 'Best Sellers';
             } else {
-                filteredProds = (storeData.products || []).filter(p => p.catId == catId);
-                const foundCat = storeData.categories.find(c => c.id == catId);
+                filteredProds = (storeData.products || []).filter(p => String(p.catId) === String(catId));
+                const foundCat = (storeData.categories || []).find(c => String(c.id) === String(catId));
                 if(foundCat) catName = foundCat.name;
             }
             renderProductList(catName, filteredProds);
@@ -844,7 +851,7 @@
                 <div class="tracking-wrapper">
                     <p style="font-size: 13px; color: var(--text-gray); margin-bottom: 25px; text-align: center; line-height: 1.6;">To track your order, please enter your tracking ID. You will be securely redirected to our universal tracking partner.</p>
                     <div class="tracking-form">
-                        <input type="text" id="trackingInput" class="form-group" style="padding: 14px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; width:100%;" placeholder="Enter Tracking ID">
+                        <input type="text" id="trackingInput" class="form-group" style="padding: 14px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; width:100%; color: var(--text-dark);" placeholder="Enter Tracking ID">
                         <button class="btn-primary" onclick="executeTracking(this)"><span class="btn-text">Track Order</span></button>
                     </div>
                 </div>
@@ -868,7 +875,7 @@
                 <div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>
                 <div class="grid-container">
             `;
-            if(!products || products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;">No products found.</div>`;
+            if(!products || products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;">No products found in this collection.</div>`;
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
             mainContent.innerHTML = html;
@@ -921,11 +928,11 @@
                             <div class="order-item-row">
                                 <div class="order-item-img">${imgContent}</div>
                                 <div class="order-item-details">
-                                    <div class="order-item-name">${item.name}</div>
+                                    <div class="order-item-name">${item.name || 'Item'}</div>
                                     <div class="order-item-meta">${specs.join(' | ')}</div>
                                 </div>
                                 <div class="order-item-price-qty">
-                                    <div class="order-item-price">${formatPrice(item.price)}</div>
+                                    <div class="order-item-price">${formatPrice(item.price || 0)}</div>
                                     <div class="order-item-qty">Qty: ${item.qty}</div>
                                 </div>
                             </div>
@@ -1015,7 +1022,7 @@
         function changeProductVariant(prodId, variantIndex) {
             triggerHaptic('pop');
             selectedProductVariantIndex = variantIndex;
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = (storeData.products || []).find(p => p.id === prodId);
             if (!prod || !prod.variants) return;
             
             const variant = prod.variants[variantIndex];
@@ -1043,7 +1050,7 @@
                 idx === variantIndex ? btn.classList.add('selected') : btn.classList.remove('selected');
             });
             const colorNameEl = document.getElementById('selectedColorNameText');
-            if(colorNameEl) colorNameEl.innerText = variant.name;
+            if(colorNameEl) colorNameEl.innerText = variant.name || 'Default';
         }
 
         function changeProductSize(size, btnElement) {
@@ -1070,7 +1077,7 @@
         function renderProduct(prodId) {
             navigate({view: 'product', id: prodId});
             searchContainer.style.display = 'none';
-            const prod = storeData.products.find(p => p.id === prodId);
+            const prod = (storeData.products || []).find(p => p.id === prodId);
             if(!prod) return;
 
             selectedProductVariantIndex = 0; selectedProductSize = null; selectedAlphabet = null;
@@ -1086,7 +1093,7 @@
                 slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
             } else {
                 initialMediaArr.forEach((src, i) => {
-                    const content = src.toLowerCase().endsWith('.mp4') ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="${prod.name}">`;
+                    const content = src.toLowerCase().endsWith('.mp4') ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="${prod.name || 'Product'}">`;
                     slidesHtml += `<div class="carousel-slide">${content}</div>`;
                     indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
                 });
@@ -1108,11 +1115,11 @@
                         if(v.media[0].toLowerCase().endsWith('.mp4')) {
                             thumbContent = `<video src="${v.media[0]}" muted playsinline style="width:100%; height:100%; object-fit:cover; border-radius: var(--radius-sm); display: block;"></video>`;
                             hasVideoClass = 'has-video';
-                        } else { thumbContent = `<img src="${v.media[0]}" alt="${v.name}">`; }
+                        } else { thumbContent = `<img src="${v.media[0]}" alt="${v.name || 'Variant'}">`; }
                     }
-                    optionsHtml += `<button class="color-option-btn ${idx === 0 ? 'selected' : ''} ${hasVideoClass}" onclick="changeProductVariant(${prod.id}, ${idx})" title="${v.name}">${thumbContent}</button>`;
+                    optionsHtml += `<button class="color-option-btn ${idx === 0 ? 'selected' : ''} ${hasVideoClass}" onclick="changeProductVariant(${prod.id}, ${idx})" title="${v.name || 'Color'}">${thumbContent}</button>`;
                 });
-                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">Color: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
+                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">Color: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || 'Default'}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
             let sizeHtml = '';
@@ -1124,7 +1131,7 @@
                 if (prod.isRing) {
                     selectedProductSize = ""; 
                     sizeOptions = `<div class="form-group" style="margin-bottom: 0;">
-                        <input type="text" id="customRingSizeInput" placeholder="e.g., 7 or 7.5" style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none;" oninput="selectedProductSize = this.value; this.classList.remove('error'); document.getElementById('errRingSize').style.display='none';">
+                        <input type="text" id="customRingSizeInput" placeholder="e.g., 7 or 7.5" style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; color: var(--text-dark);" oninput="selectedProductSize = this.value; this.classList.remove('error'); document.getElementById('errRingSize').style.display='none';">
                         <div class="error-message" id="errRingSize" style="display: none; margin-top: 5px;">Please enter a valid ring size.</div>
                     </div>`;
                 } else if (prod.sizes && prod.sizes.length > 0) {
@@ -1143,22 +1150,22 @@
 
             mainContent.innerHTML = `
                 <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-                    <button class="hero-back-btn" onclick="renderCategory('${prod.catId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
+                    <button class="hero-back-btn" onclick="renderCategory('${prod.catId || 'all'}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button>
                     <button class="hero-wishlist-btn" onclick="toggleWishlist(event, ${prod.id})">${getHeartSvg(prod.id)}</button>
                     <div class="carousel-track" id="carouselTrack">${slidesHtml}</div>
                     ${controlsHtml}
                 </div>
                 <div class="product-body">
                     ${prod.isBestSeller ? '<span class="product-badge">Best Seller</span>' : ''}
-                    <h2 class="product-detail-title">${prod.name}</h2>
-                    <div class="product-detail-price-box"><span class="product-detail-price">${formatPrice(prod.price)}</span><span class="tax-info">MRP incl. of all taxes</span></div>
+                    <h2 class="product-detail-title">${prod.name || 'Unnamed Product'}</h2>
+                    <div class="product-detail-price-box"><span class="product-detail-price">${formatPrice(prod.price || 0)}</span><span class="tax-info">MRP incl. of all taxes</span></div>
                     ${variantsHtml} ${sizeHtml} ${alphabetHtml}
                     <div class="trust-badges">
                         <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div><div class="trust-badge-text">Delivery all over India</div></div>
                         <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></div><div class="trust-badge-text">Affordable Price</div></div>
-                        <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg></div><div class="trust-badge-text">COD available above ₹${storeData.minCODAmount}</div></div>
+                        <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg></div><div class="trust-badge-text">COD available above ₹${storeData.minCODAmount || 0}</div></div>
                     </div>
-                    <div class="product-section"><h4>Description</h4><p class="product-detail-desc">${prod.desc}</p></div>
+                    <div class="product-section"><h4>Description</h4><p class="product-detail-desc">${prod.desc || 'No description available.'}</p></div>
                 </div>
                 <div class="product-bottom-bar">
                     <button class="btn-secondary" onclick="addToCart(this, ${prod.id})"><span class="btn-text">Add to Cart</span></button>
@@ -1204,13 +1211,13 @@
         function pushToCartState(prodId) {
             const prod = storeData.products.find(p => p.id === prodId);
             let selectedVariantStr = "Default";
-            if(prod.variants && prod.variants.length > 0) selectedVariantStr = prod.variants[selectedProductVariantIndex].name;
+            if(prod.variants && prod.variants.length > 0) selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
             
             const existing = state.cart.find(i => i.id === prodId && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
             if(existing) { existing.qty++; } 
             else {
                 let cartMedia = prod.media;
-                if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media.length > 0) cartMedia = prod.variants[selectedProductVariantIndex].media;
+                if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media && prod.variants[selectedProductVariantIndex].media.length > 0) cartMedia = prod.variants[selectedProductVariantIndex].media;
                 state.cart.push({ ...prod, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
             }
             updateBadges();
@@ -1256,6 +1263,7 @@
         }
 
         function closeModal() { state.itemToRemove = null; confirmModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
+        
         confirmRemoveBtn.addEventListener('click', () => {
             if (state.itemToRemove !== null && state.itemToRemove >= 0 && state.itemToRemove < state.cart.length) {
                 state.cart.splice(state.itemToRemove, 1);
@@ -1273,7 +1281,7 @@
             } else {
                 let subtotal = 0; html += `<div class="cart-container">`;
                 state.cart.forEach((item) => {
-                    subtotal += (item.price * item.qty);
+                    subtotal += ((item.price || 0) * item.qty);
                     const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
                     let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
                     if (firstMedia) imgContent = firstMedia.toLowerCase().endsWith('.mp4') ? `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` : `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;">`;
@@ -1289,9 +1297,9 @@
                             <button class="remove-icon-btn" onclick="modifyQty(${item.id}, '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                             <div class="cart-item-img" onclick="renderProduct(${item.id})" style="cursor:pointer;">${imgContent}</div>
                             <div class="cart-item-info">
-                                <div class="cart-item-title" onclick="renderProduct(${item.id})" style="cursor:pointer;">${item.name}</div>
+                                <div class="cart-item-title" onclick="renderProduct(${item.id})" style="cursor:pointer;">${item.name || 'Item'}</div>
                                 ${variantDisplay}
-                                <div class="cart-item-price">${formatPrice(item.price)}</div>
+                                <div class="cart-item-price">${formatPrice(item.price || 0)}</div>
                                 <div class="qty-controls">
                                     <button class="qty-btn" onclick="modifyQty(${item.id}, '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
                                     <span class="qty-value">${item.qty}</span>
@@ -1321,7 +1329,7 @@
                 const isMinOrderMet = total >= storeData.minOrderAmount;
 
                 html += `
-                    ${couponsHtml}
+                    ${storeData.autoDiscounts.length > 0 ? couponsHtml : ''}
                     <div class="cart-summary">
                         ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
                         <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
@@ -1357,7 +1365,7 @@
         }
 
         function renderCheckout() {
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const subtotal = state.cart.reduce((sum, item) => sum + ((item.price || 0) * item.qty), 0);
             const shipping = subtotal > 499 ? 0 : 50;
             let discount = 0;
             for (let rule of storeData.autoDiscounts) { if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; } }
@@ -1453,7 +1461,6 @@
 
             if (amountToCharge > 0) {
                 withLoading(btn, () => {
-                    // RAZORPAY INTEGRATION (Remember to replace 'rzp_test_YOUR_KEY_HERE' with your real key)
                     const options = {
                         "key": "rzp_test_YOUR_KEY_HERE", 
                         "amount": amountToCharge * 100, 
