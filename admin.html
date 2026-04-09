@@ -134,6 +134,7 @@
                 <div class="nav-link" onclick="switchView('coupons', this)">Coupons</div>
                 <div class="nav-link" onclick="switchView('reviews', this)">Reviews</div>
                 <div class="nav-link" onclick="switchView('settings', this)">Store Settings</div>
+                <div class="nav-link" onclick="switchView('users', this)">Registered Users</div>
             </aside>
 
             <main>
@@ -151,6 +152,10 @@
                         <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
                             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Live Products</div>
                             <div id="statProducts" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+                      <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+    <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Users</div>
+    <div id="statUsers" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+</div>
                         </div>
                     </div>
                 </div>
@@ -284,7 +289,17 @@
                         </div>
                     </div>
                 </div>
-
+<div id="view-users" class="view-section">
+    <div class="section-header">
+        <h1>Registered Users</h1>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead><tr><th>Name / Email</th><th>Wishlist Items</th><th>Joined Date</th></tr></thead>
+            <tbody id="usersTableBody"><tr><td colspan="3" style="text-align:center; padding: 20px;">Loading users...</td></tr></tbody>
+        </table>
+    </div>
+</div>
             </main>
         </div>
     </div>
@@ -429,25 +444,50 @@
         // Data Loading
         async function loadAllData() {
     loadDashboard();
-    await loadCategories(); // Must wait for categories to populate the dropdown
-    loadSettings();         // Now load settings
+    await loadCategories(); 
+    loadSettings();         
     loadProducts();
     loadCoupons();
     loadReviews();
     loadOrders();
+    loadUsers(); 
 }
 
         async function loadDashboard() {
-            const [ {count: ordCount}, {data: prods}, {data: revs} ] = await Promise.all([
-                db.from('orders').select('*', { count: 'exact', head: true }),
-                db.from('products').select('id'),
-                db.from('orders').select('total_amount').eq('status', 'Completed') // Assumes completed means revenue
-            ]);
-            document.getElementById('statOrders').innerText = ordCount || 0;
-            document.getElementById('statProducts').innerText = prods?.length || 0;
-            const revenue = revs?.reduce((acc, row) => acc + (row.total_amount || 0), 0) || 0;
-            document.getElementById('statRevenue').innerText = `₹${revenue.toLocaleString()}`;
-        }
+    const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
+        db.from('orders').select('*', { count: 'exact', head: true }),
+        db.from('products').select('id'),
+        db.from('orders').select('total_amount').eq('status', 'Completed'),
+        db.from('profiles').select('*', { count: 'exact', head: true }) 
+    ]);
+    document.getElementById('statOrders').innerText = ordCount || 0;
+    document.getElementById('statProducts').innerText = prods?.length || 0;
+    document.getElementById('statUsers').innerText = userCount || 0; 
+    const revenue = revs?.reduce((acc, row) => acc + (row.total_amount || 0), 0) || 0;
+    document.getElementById('statRevenue').innerText = `₹${revenue.toLocaleString()}`;
+}
+
+async function loadUsers() {
+    const { data, error } = await db.from('profiles').select('*').order('created_at', { ascending: false });
+    
+    if (error) console.error("Error loading users:", error);
+    
+    let html = '';
+    if(data && data.length > 0) {
+        data.forEach(u => {
+            const date = new Date(u.created_at).toLocaleDateString();
+            const wishlistCount = u.wishlist ? u.wishlist.length : 0;
+            const displayName = u.full_name || u.email;
+            
+            html += `<tr>
+                <td><strong>${displayName}</strong><br><span style="font-size:11px; color:#666;">${u.email}</span></td>
+                <td><span class="badge">${wishlistCount} items</span></td>
+                <td>${date}</td>
+            </tr>`;
+        });
+    }
+    document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No users registered yet</td></tr>';
+}
 
         // Settings Management
         async function loadSettings() {
