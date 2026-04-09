@@ -120,24 +120,21 @@
         }
 
         .dynamic-logo-container {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: var(--placeholder-bg);
-            border: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
+    /* Removed the fixed 40x40 width, border-radius, border, and hidden overflow */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+}
 
-        .dynamic-logo-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
+.dynamic-logo-container img {
+    /* Height will automatically scale with the width to keep the image proportionate */
+    height: auto; 
+    object-fit: contain;
+    display: none;
+    transition: transform 0.2s ease, width 0.2s ease;
+}
 
         .header-icons {
             display: flex;
@@ -1135,19 +1132,22 @@
         }
 
         function mapSettings(row) {
-            if (!row) row = {};
-            return {
-                brandName: row.brand_name || 'Shria',
-                logoUrl: row.logo_url || '',
-                whatsappNumber: row.whatsapp_number || '',
-                emailId: row.email_id || '',
-                announcementText: row.announcement_text || '',
-                minOrderAmount: Number(row.min_order_amount) || 149,
-                codUpfrontFee: Number(row.cod_upfront_fee) || 49,
-                minCODAmount: Number(row.min_cod_amount) || 500,
-                bannerConfig: safeParseJSON(row.banner_config, { actionType: 'category', targetId: 'all', imageUrl: '' })
-            };
-        }
+    if (!row) row = {};
+    return {
+        brandName: row.brand_name || 'Shria',
+        logoUrl: row.logo_url || '',
+        logoWidth: Number(row.logo_width) || 60,
+        logoOffsetX: Number(row.logo_offset_x) || 0,
+        logoOffsetY: Number(row.logo_offset_y) || 0,
+        whatsappNumber: row.whatsapp_number || '',
+        emailId: row.email_id || '',
+        announcementText: row.announcement_text || '',
+        minOrderAmount: Number(row.min_order_amount) || 149,
+        codUpfrontFee: Number(row.cod_upfront_fee) || 49,
+        minCODAmount: Number(row.min_cod_amount) || 500,
+        bannerConfig: safeParseJSON(row.banner_config, { actionType: 'category', targetId: 'all', imageUrl: '' })
+    };
+}
 
         function mapCategory(row) {
             return {
@@ -1365,33 +1365,38 @@
         }
         
         function applyGlobalSettings() {
-            if (appData.settings.logoUrl) {
-                siteLogoImage.src = appData.settings.logoUrl;
-                siteLogoImage.style.display = 'block';
-                document.getElementById('brandNameDisplay').style.display = 'none';
-            } else {
-                siteLogoImage.style.display = 'none';
-                document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
-                document.getElementById('brandNameDisplay').style.display = 'block';
-            }
+    if (appData.settings.logoUrl) {
+        siteLogoImage.src = appData.settings.logoUrl;
+        siteLogoImage.style.display = 'block';
+        
+        // Apply dynamic size and positioning from Admin Panel
+        siteLogoImage.style.width = appData.settings.logoWidth + 'px';
+        siteLogoImage.style.transform = `translate(${appData.settings.logoOffsetX}px, ${appData.settings.logoOffsetY}px)`;
+        
+        document.getElementById('brandNameDisplay').style.display = 'none';
+    } else {
+        siteLogoImage.style.display = 'none';
+        document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
+        document.getElementById('brandNameDisplay').style.display = 'block';
+    }
 
-            document.getElementById('footerBrandName').innerText = appData.settings.brandName;
-            document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
-            document.title = `${appData.settings.brandName} - E-Commerce`;
+    document.getElementById('footerBrandName').innerText = appData.settings.brandName;
+    document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+    document.title = `${appData.settings.brandName} - E-Commerce`;
 
-            const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
-            document.getElementById('whatsappLink').href = waLink;
-            document.getElementById('fabWhatsappLink').href = waLink;
-            document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
+    const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
+    document.getElementById('whatsappLink').href = waLink;
+    document.getElementById('fabWhatsappLink').href = waLink;
+    document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
 
-            const announcementBar = document.getElementById('announcement-bar');
-            if (appData.settings.announcementText) {
-                announcementBar.innerHTML = appData.settings.announcementText;
-                announcementBar.style.display = 'flex';
-            } else {
-                announcementBar.style.display = 'none';
-            }
-        }
+    const announcementBar = document.getElementById('announcement-bar');
+    if (appData.settings.announcementText) {
+        announcementBar.innerHTML = appData.settings.announcementText;
+        announcementBar.style.display = 'flex';
+    } else {
+        announcementBar.style.display = 'none';
+    }
+}
 
         async function initApp() {
             try {
