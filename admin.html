@@ -245,6 +245,10 @@
     <label>Logo Y Offset (Up/Down px)</label>
     <input type="number" id="setLogoOffsetY" placeholder="e.g. -5">
 </div>
+<div class="form-group">
+    <label>Header Vertical Spacing (Top/Bottom px)</label>
+    <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
+</div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
                         </div>
 
@@ -457,6 +461,8 @@
 document.getElementById('setLogoWidth').value = data.logo_width || 60;
 document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
 document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
+// Add this right under the logo offset lines
+document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
                 document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
                 document.getElementById('setEmail').value = data.email_id || '';
                 document.getElementById('setAnnouncement').value = data.announcement_text || '';
@@ -478,6 +484,7 @@ document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
         logo_width: Number(document.getElementById('setLogoWidth').value),
         logo_offset_x: Number(document.getElementById('setLogoOffsetX').value),
         logo_offset_y: Number(document.getElementById('setLogoOffsetY').value),
+        header_padding_y: Number(document.getElementById('setHeaderPaddingY').value), // <--- ADD THIS LINE
         whatsapp_number: document.getElementById('setWhatsapp').value,
         email_id: document.getElementById('setEmail').value,
         announcement_text: document.getElementById('setAnnouncement').value,
