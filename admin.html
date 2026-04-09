@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Panel - Shria</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            color: #000;
+            background-color: #f9f9f9;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+
+        /* Forms & Buttons */
+        input, button, select, textarea {
+            font-family: inherit;
+            font-size: 13px;
+            border: 1px solid #000;
+            padding: 8px 10px;
+            background: #fff;
+            border-radius: 0;
+            outline: none;
+            width: 100%;
+        }
+        button {
+            background: #000;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:active { background: #333; }
+        button.outline { background: #fff; color: #000; }
+        button.outline:active { background: #eee; }
+        
+        /* Layout Containers - FIXED TO SHOW LOGIN BY DEFAULT */
+        #loginContainer { display: block; min-height: 100vh; }
+        #adminContainer { display: none; min-height: 100vh; }
+        
+        /* Login Screen */
+        .login-box {
+            max-width: 320px;
+            margin: 15vh auto;
+            background: #fff;
+            padding: 30px 20px;
+            border: 1px solid #000;
+            box-shadow: 4px 4px 0px #000;
+        }
+        .login-box h2 { font-size: 18px; margin-bottom: 20px; text-align: center; text-transform: uppercase; letter-spacing: 1px;}
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .divider { text-align: center; margin: 15px 0; position: relative; }
+        .divider::before { content: ''; position: absolute; left: 0; top: 50%; width: 100%; height: 1px; background: #000; z-index: 1; }
+        .divider span { background: #fff; padding: 0 10px; position: relative; z-index: 2; color: #000; font-size: 11px; font-weight: bold;}
+        .error-msg { color: #fff; background: red; padding: 8px; margin-bottom: 15px; text-align: center; font-weight: 600; display: none; border: 1px solid #000; }
+
+        /* Admin Header */
+        header {
+            background: #fff;
+            border-bottom: 1px solid #000;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .menu-btn { width: 30px; height: 30px; padding: 0; border: none; background: transparent; color: #000; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        .header-title { font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 1px;}
+        .logout-btn { width: auto; padding: 4px 12px; font-size: 11px; }
+
+        /* Admin Layout */
+        .admin-wrapper { display: flex; height: calc(100vh - 50px); }
+        
+        /* Sidebar */
+        aside {
+            width: 220px;
+            background: #fff;
+            border-right: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transition: left 0.3s ease;
+        }
+        .nav-link {
+            padding: 12px 15px;
+            text-decoration: none;
+            color: #000;
+            border-bottom: 1px solid #000;
+            font-weight: 500;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        .nav-link:hover { background: #f0f0f0; }
+        .nav-link.active { background: #000; color: #fff; }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .section-header h1 { font-size: 18px; text-transform: uppercase; font-weight: 700;}
+        .section-header button { width: auto; padding: 6px 15px; }
+
+        /* Tables */
+        .table-responsive { overflow-x: auto; background: #fff; border: 1px solid #000; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #000; border-right: 1px solid #000;}
+        th:last-child, td:last-child { border-right: none; }
+        th { background: #f0f0f0; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 2px solid #000;}
+        tr:nth-child(even) { background-color: #fafafa; }
+        .action-btn { width: auto; padding: 3px 8px; font-size: 11px; margin-right: 5px; }
+
+        /* Content Views */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            aside { position: fixed; left: -220px; top: 50px; height: calc(100vh - 50px); z-index: 99; }
+            aside.open { left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginContainer">
+        <div class="login-box">
+            <h2>Admin Login</h2>
+            <div id="authError" class="error-msg">Invalid credentials</div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email ID</label>
+                    <input type="email" id="email" placeholder="admin@shria.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="loginBtn" style="margin-top: 10px; padding: 10px;">LOGIN SECURELY</button>
+            </form>
+            <div class="divider"><span>OR</span></div>
+            <button class="outline" onclick="signInWithGoogle()" style="padding: 10px;">SIGN IN WITH GOOGLE</button>
+        </div>
+    </div>
+
+    <div id="adminContainer">
+        <header>
+            <div class="header-left">
+                <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+                <div class="header-title">Shria Admin</div>
+            </div>
+            <button class="logout-btn outline" onclick="logout()">LOGOUT</button>
+        </header>
+        
+        <div class="admin-wrapper">
+            <aside id="sidebar">
+                <div class="nav-link active" onclick="switchView('dashboard', this)">Dashboard</div>
+                <div class="nav-link" onclick="switchView('orders', this)">Orders</div>
+                <div class="nav-link" onclick="switchView('products', this)">Products</div>
+                <div class="nav-link" onclick="switchView('categories', this)">Categories</div>
+                <div class="nav-link" onclick="switchView('coupons', this)">Coupons</div>
+                <div class="nav-link" onclick="switchView('settings', this)">Settings</div>
+            </aside>
+
+            <main>
+                <div id="view-dashboard" class="view-section active">
+                    <div class="section-header">
+                        <h1>Dashboard Overview</h1>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+                            <div style="color:#000; font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
+                            <div style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+                            <div style="color:#000; font-size:11px; text-transform:uppercase; font-weight: 600;">Total Revenue</div>
+                            <div style="font-size:24px; font-weight:bold; margin-top:5px;">₹0</div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+                            <div style="color:#000; font-size:11px; text-transform:uppercase; font-weight: 600;">Active Products</div>
+                            <div style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-orders" class="view-section">
+                    <div class="section-header">
+                        <h1>Recent Orders</h1>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <tr><td colspan="6" style="text-align:center; padding: 20px; font-weight: 500;">No orders found</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="view-products" class="view-section">
+                    <div class="section-header">
+                        <h1>Manage Products</h1>
+                        <button onclick="alert('Add product modal will open here')">+ ADD NEW</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Price</th>
+                                    <th>Category</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <tr><td colspan="5" style="text-align:center; padding: 20px; font-weight: 500;">No products found</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="view-categories" class="view-section">
+                    <div class="section-header">
+                        <h1>Categories</h1>
+                        <button>+ ADD NEW</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>ID</th><th>Name</th><th>Action</th></tr></thead>
+                            <tbody><tr><td colspan="3" style="text-align:center; padding:20px; font-weight: 500;">No categories found</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="view-coupons" class="view-section">
+                    <div class="section-header">
+                        <h1>Coupons</h1>
+                        <button>+ ADD NEW</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>ID</th><th>Discount</th><th>Min Amount</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody><tr><td colspan="5" style="text-align:center; padding:20px; font-weight: 500;">No coupons found</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="view-settings" class="view-section">
+                    <div class="section-header">
+                        <h1>Store Settings</h1>
+                        <button>SAVE CHANGES</button>
+                    </div>
+                    <div style="background:#fff; border:1px solid #000; padding:20px; max-width: 500px; box-shadow: 3px 3px 0px #000;">
+                        <div class="form-group"><label>Brand Name</label><input type="text" id="setBrand" value="Shria"></div>
+                        <div class="form-group"><label>Support Email</label><input type="email" id="setEmail"></div>
+                        <div class="form-group"><label>WhatsApp Number</label><input type="text" id="setWhatsApp"></div>
+                        <div class="form-group"><label>Minimum Order Amount (₹)</label><input type="number" id="setMinOrder"></div>
+                        <div class="form-group"><label>COD Upfront Fee (₹)</label><input type="number" id="setCodFee"></div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const loginContainer = document.getElementById('loginContainer');
+        const adminContainer = document.getElementById('adminContainer');
+        const authError = document.getElementById('authError');
+
+        // Check if user is already logged in
+        async function checkSession() {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (session) {
+                loginContainer.style.display = 'none';
+                adminContainer.style.display = 'block';
+            } else {
+                loginContainer.style.display = 'block';
+                adminContainer.style.display = 'none';
+            }
+        }
+
+        // Handle Email/Password Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            
+            loginBtn.innerText = 'LOGGING IN...';
+            
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            
+            loginBtn.innerText = 'LOGIN SECURELY';
+            
+            if (error) {
+                authError.innerText = error.message;
+                authError.style.display = 'block';
+            } else {
+                authError.style.display = 'none';
+                checkSession();
+            }
+        });
+
+        // Handle Google Login
+        async function signInWithGoogle() {
+            const { data, error } = await supabase.auth.signInWithOAuth({ 
+                provider: 'google' 
+            });
+            if(error) {
+                alert("Google login requires setup in Supabase dashboard first.");
+            }
+        }
+
+        // Handle Logout
+        async function logout() {
+            await supabase.auth.signOut();
+            checkSession();
+        }
+
+        // Mobile Menu Toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // Switch Tabs in Admin Panel
+        function switchView(viewId, element) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+            
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+
+        // Listen for login changes automatically
+        supabase.auth.onAuthStateChange((event, session) => {
+            checkSession();
+        });
+
+        // Run on load
+        checkSession();
+    </script>
+</body>
+</html>
