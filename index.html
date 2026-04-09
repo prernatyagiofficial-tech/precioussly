@@ -1139,14 +1139,14 @@
         logoWidth: Number(row.logo_width) || 60,
         logoOffsetX: Number(row.logo_offset_x) || 0,
         logoOffsetY: Number(row.logo_offset_y) || 0,
-        headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16, // <--- ADD THIS LINE
+        headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
         whatsappNumber: row.whatsapp_number || '',
         emailId: row.email_id || '',
         announcementText: row.announcement_text || '',
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
-        bannerConfig: safeParseJSON(row.banner_config, { actionType: 'category', targetId: 'all', imageUrl: '' })
+        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
     };
 }
 
@@ -1605,51 +1605,59 @@
         }
 
         function renderHome() {
-            navigate({view: 'home'});
-            searchContainer.style.display = 'none';
-            
-            const bannerConfig = appData.settings.bannerConfig || { actionType: 'category', targetId: 'all', imageUrl: '' };
-            const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
-            const bannerClickAction = bannerConfig.actionType === 'product' ? `renderProduct('${bannerConfig.targetId}')` : `renderCategory('${bannerConfig.targetId}')`;
+    navigate({view: 'home'});
+    searchContainer.style.display = 'none';
+    
+    const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
+    const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
 
-            let html = `
-                <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
-                <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
-                <div class="grid-container">
-            `;
+    // Decode the target to build the correct click action
+    let bannerClickAction = `renderCategory('all')`; // Default
+    if (bannerConfig.target === 'bestsellers') {
+        bannerClickAction = `renderCategory('bestsellers')`;
+    } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
+        const catId = bannerConfig.target.split('_')[1]; // Extract the ID
+        bannerClickAction = `renderCategory('${catId}')`;
+    }
 
-            appData.categories.forEach(cat => {
-                const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
-                html += `
-                    <div class="category-card" onclick="renderCategory('${cat.id}')">
-                        <div class="category-img-box">${imgContent}</div>
-                        <span>${cat.name}</span>
-                    </div>`;
-            });
-            html += `</div>`;
+    let html = `
+        <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
+        <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
+        <div class="grid-container">
+    `;
 
-            const bestSellers = appData.products.filter(p => p.isBestSeller);
-            if (bestSellers.length > 0) {
-                html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
-                bestSellers.forEach(prod => {
-                     html += `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(prod)}</div>`;
-                });
-                html += `</div>`;
-            }
+    appData.categories.forEach(cat => {
+        const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
+        html += `
+            <div class="category-card" onclick="renderCategory('${cat.id}')">
+                <div class="category-img-box">${imgContent}</div>
+                <span>${cat.name}</span>
+            </div>`;
+    });
+    html += `</div>`;
 
-            if (appData.reviews && appData.reviews.length > 0) {
-                html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
-                appData.reviews.forEach(review => {
-                    let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: 100%; object-fit: cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
-                    html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
-                });
-                html += `</div>`;
-            }
+    const bestSellers = appData.products.filter(p => p.isBestSeller);
+    if (bestSellers.length > 0) {
+        html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+        bestSellers.forEach(prod => {
+             html += `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(prod)}</div>`;
+        });
+        html += `</div>`;
+    }
 
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
-        }
+    if (appData.reviews && appData.reviews.length > 0) {
+        html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+        appData.reviews.forEach(review => {
+            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: 100%; object-fit: cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
+            html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
+        });
+        html += `</div>`;
+    }
 
+    mainContent.innerHTML = html;
+
+    window.scrollTo(0, 0);
+}
         function renderCategory(catId) {
             if (catId === 'refresh') return; 
             if(catId === 'track') { renderTrackOrder(); return; }
