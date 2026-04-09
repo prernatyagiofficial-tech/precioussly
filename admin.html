@@ -274,15 +274,13 @@
                                     <button class="outline" onclick="triggerFileUpload('fileBanner', 'setBannerUrl')">UPLOAD</button>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Action Type (On Click)</label>
-                                <select id="setBannerAction">
-                                    <option value="category">Open Category</option>
-                                    <option value="product">Open Product</option>
-                                    <option value="all">Shop All</option>
-                                </select>
-                            </div>
-                            <div class="form-group"><label>Target ID (Category or Product ID)</label><input type="text" id="setBannerTarget" placeholder="e.g. 1 or all"></div>
+                           <div class="form-group">
+    <label>Banner Click Action</label>
+    <select id="setBannerAction">
+        <option value="all">Shop All</option>
+        <option value="bestsellers">Best Sellers</option>
+    </select>
+</div>
                         </div>
                     </div>
                 </div>
@@ -430,14 +428,14 @@
 
         // Data Loading
         async function loadAllData() {
-            loadDashboard();
-            loadSettings();
-            loadCategories();
-            loadProducts();
-            loadCoupons();
-            loadReviews();
-            loadOrders();
-        }
+    loadDashboard();
+    await loadCategories(); // Must wait for categories to populate the dropdown
+    loadSettings();         // Now load settings
+    loadProducts();
+    loadCoupons();
+    loadReviews();
+    loadOrders();
+}
 
         async function loadDashboard() {
             const [ {count: ordCount}, {data: prods}, {data: revs} ] = await Promise.all([
@@ -453,30 +451,27 @@
 
         // Settings Management
         async function loadSettings() {
-            const { data } = await db.from('settings').select('*').eq('id', 1).single();
-            if(data) {
-                document.getElementById('setBrandName').value = data.brand_name || '';
-                document.getElementById('setLogoUrl').value = data.logo_url || '';
-                // Add these right under document.getElementById('setLogoUrl').value = data.logo_url || '';
-document.getElementById('setLogoWidth').value = data.logo_width || 60;
-document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
-document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
-// Add this right under the logo offset lines
-document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
-                document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
-                document.getElementById('setEmail').value = data.email_id || '';
-                document.getElementById('setAnnouncement').value = data.announcement_text || '';
-                document.getElementById('setMinOrder').value = data.min_order_amount || 0;
-                document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
-                document.getElementById('setMinCod').value = data.min_cod_amount || 0;
-                
-                const banner = data.banner_config || {};
-                document.getElementById('setBannerUrl').value = banner.imageUrl || '';
-                document.getElementById('setBannerAction').value = banner.actionType || 'all';
-                document.getElementById('setBannerTarget').value = banner.targetId || '';
-            }
-        }
-
+    const { data } = await db.from('settings').select('*').eq('id', 1).single();
+    if(data) {
+        document.getElementById('setBrandName').value = data.brand_name || '';
+        document.getElementById('setLogoUrl').value = data.logo_url || '';
+        document.getElementById('setLogoWidth').value = data.logo_width || 60;
+        document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
+        document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
+        document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
+        document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
+        document.getElementById('setEmail').value = data.email_id || '';
+        document.getElementById('setAnnouncement').value = data.announcement_text || '';
+        document.getElementById('setMinOrder').value = data.min_order_amount || 0;
+        document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
+        document.getElementById('setMinCod').value = data.min_cod_amount || 0;
+        
+        const banner = data.banner_config || {};
+        document.getElementById('setBannerUrl').value = banner.imageUrl || '';
+        // Set the dropdown to the saved target (fallback to 'all' if empty)
+        document.getElementById('setBannerAction').value = banner.target || 'all';
+   }
+}
         async function saveSettings() {
     const payload = {
         brand_name: document.getElementById('setBrandName').value,
@@ -484,7 +479,7 @@ document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== n
         logo_width: Number(document.getElementById('setLogoWidth').value),
         logo_offset_x: Number(document.getElementById('setLogoOffsetX').value),
         logo_offset_y: Number(document.getElementById('setLogoOffsetY').value),
-        header_padding_y: Number(document.getElementById('setHeaderPaddingY').value), // <--- ADD THIS LINE
+        header_padding_y: Number(document.getElementById('setHeaderPaddingY').value),
         whatsapp_number: document.getElementById('setWhatsapp').value,
         email_id: document.getElementById('setEmail').value,
         announcement_text: document.getElementById('setAnnouncement').value,
@@ -493,8 +488,7 @@ document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== n
         min_cod_amount: Number(document.getElementById('setMinCod').value),
         banner_config: {
             imageUrl: document.getElementById('setBannerUrl').value,
-            actionType: document.getElementById('setBannerAction').value,
-            targetId: document.getElementById('setBannerTarget').value
+            target: document.getElementById('setBannerAction').value
         }
     };
     const { error } = await db.from('settings').update(payload).eq('id', 1);
@@ -502,23 +496,33 @@ document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== n
     else alert("Settings saved successfully!");
 }
 
-        // Categories Management
-        async function loadCategories() {
-            const { data } = await db.from('categories').select('*').order('id', { ascending: true });
-            adminData.categories = data || [];
-            let html = '', options = '<option value="">Select Category</option>';
-            adminData.categories.forEach(c => {
-                const img = c.img ? `<img src="${c.img}" class="prod-img-thumb">` : '-';
-                html += `<tr><td>${img}</td><td>${c.id}</td><td>${c.name}</td>
-                         <td>
-                           <button class="outline" onclick="editCategory(${c.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                           <button class="danger" onclick="deleteRecord('categories', ${c.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                         </td></tr>`;
-                options += `<option value="${c.id}">${c.name}</option>`;
-            });
-            document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
-            document.getElementById('prodCat').innerHTML = options;
-        }
+async function loadCategories() {
+    const { data } = await db.from('categories').select('*').order('id', { ascending: true });
+    adminData.categories = data || [];
+    let html = '', options = '<option value="">Select Category</option>';
+    
+    // NEW: Base options for the banner dropdown
+    let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
+
+    adminData.categories.forEach(c => {
+        const img = c.img ? `<img src="${c.img}" class="prod-img-thumb">` : '-';
+        html += `<tr><td>${img}</td><td>${c.id}</td><td>${c.name}</td>
+                 <td>
+                   <button class="outline" onclick="editCategory(${c.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                   <button class="danger" onclick="deleteRecord('categories', ${c.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                 </td></tr>`;
+        options += `<option value="${c.id}">${c.name}</option>`;
+        
+        // NEW: Add each category to the banner options with a "cat_" prefix
+        bannerOptions += `<option value="cat_${c.id}">Category: ${c.name}</option>`;
+    });
+    
+    document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
+    document.getElementById('prodCat').innerHTML = options;
+    
+    // NEW: Inject options into the banner action dropdown
+    document.getElementById('setBannerAction').innerHTML = bannerOptions;
+}
 
         function editCategory(id) {
             const cat = adminData.categories.find(c => c.id === id);
