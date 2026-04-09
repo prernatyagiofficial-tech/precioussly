@@ -233,6 +233,18 @@
                                     <button class="outline" onclick="triggerFileUpload('fileLogo', 'setLogoUrl')">UPLOAD</button>
                                 </div>
                             </div>
+                            <div class="form-group">
+    <label>Logo Width (px)</label>
+    <input type="number" id="setLogoWidth" placeholder="e.g. 100">
+</div>
+<div class="form-group">
+    <label>Logo X Offset (Left/Right px)</label>
+    <input type="number" id="setLogoOffsetX" placeholder="e.g. 10">
+</div>
+<div class="form-group">
+    <label>Logo Y Offset (Up/Down px)</label>
+    <input type="number" id="setLogoOffsetY" placeholder="e.g. -5">
+</div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
                         </div>
 
@@ -441,6 +453,10 @@
             if(data) {
                 document.getElementById('setBrandName').value = data.brand_name || '';
                 document.getElementById('setLogoUrl').value = data.logo_url || '';
+                // Add these right under document.getElementById('setLogoUrl').value = data.logo_url || '';
+document.getElementById('setLogoWidth').value = data.logo_width || 60;
+document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
+document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
                 document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
                 document.getElementById('setEmail').value = data.email_id || '';
                 document.getElementById('setAnnouncement').value = data.announcement_text || '';
@@ -456,25 +472,28 @@
         }
 
         async function saveSettings() {
-            const payload = {
-                brand_name: document.getElementById('setBrandName').value,
-                logo_url: document.getElementById('setLogoUrl').value,
-                whatsapp_number: document.getElementById('setWhatsapp').value,
-                email_id: document.getElementById('setEmail').value,
-                announcement_text: document.getElementById('setAnnouncement').value,
-                min_order_amount: Number(document.getElementById('setMinOrder').value),
-                cod_upfront_fee: Number(document.getElementById('setCodFee').value),
-                min_cod_amount: Number(document.getElementById('setMinCod').value),
-                banner_config: {
-                    imageUrl: document.getElementById('setBannerUrl').value,
-                    actionType: document.getElementById('setBannerAction').value,
-                    targetId: document.getElementById('setBannerTarget').value
-                }
-            };
-            const { error } = await db.from('settings').update(payload).eq('id', 1);
-            if(error) alert("Error saving settings: " + error.message);
-            else alert("Settings saved successfully!");
+    const payload = {
+        brand_name: document.getElementById('setBrandName').value,
+        logo_url: document.getElementById('setLogoUrl').value,
+        logo_width: Number(document.getElementById('setLogoWidth').value),
+        logo_offset_x: Number(document.getElementById('setLogoOffsetX').value),
+        logo_offset_y: Number(document.getElementById('setLogoOffsetY').value),
+        whatsapp_number: document.getElementById('setWhatsapp').value,
+        email_id: document.getElementById('setEmail').value,
+        announcement_text: document.getElementById('setAnnouncement').value,
+        min_order_amount: Number(document.getElementById('setMinOrder').value),
+        cod_upfront_fee: Number(document.getElementById('setCodFee').value),
+        min_cod_amount: Number(document.getElementById('setMinCod').value),
+        banner_config: {
+            imageUrl: document.getElementById('setBannerUrl').value,
+            actionType: document.getElementById('setBannerAction').value,
+            targetId: document.getElementById('setBannerTarget').value
         }
+    };
+    const { error } = await db.from('settings').update(payload).eq('id', 1);
+    if(error) alert("Error saving settings: " + error.message);
+    else alert("Settings saved successfully!");
+}
 
         // Categories Management
         async function loadCategories() {
