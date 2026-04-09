@@ -670,17 +670,32 @@ if (error) console.error("Supabase Error loading products:", error);
 
         // Reviews Management
         async function loadReviews() {
-            const { data } = await db.from('reviews').select('*').order('created_at', { ascending: false });
-            let html = '';
-            if(data) {
-                data.forEach(r => {
-                    const date = new Date(r.created_at).toLocaleDateString();
-                    html += `<tr><td><img src="${r.image_url}" class="prod-img-thumb"></td><td>${date}</td>
-                             <td><button class="danger" onclick="deleteRecord('reviews', ${r.id})" style="padding:4px 8px; font-size:10px;">DEL</button></td></tr>`;
-                });
-            }
-            document.getElementById('reviewsTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No reviews</td></tr>';
-        }
+    // Removed the strict .order() requirement and added error logging
+    const { data, error } = await db.from('reviews').select('*');
+    
+    // Log the error so you aren't flying blind if it fails again!
+    if (error) {
+        console.error("Supabase Error fetching reviews:", error);
+    }
+
+    let html = '';
+    if(data && data.length > 0) {
+        // Manually sort by ID descending so newest is still on top
+        const sortedData = data.sort((a, b) => b.id - a.id);
+
+        sortedData.forEach(r => {
+            // Safely grab the date if it exists, otherwise show 'N/A'
+            const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A';
+            
+            // Mirroring your website's safe image fallback logic
+            const imgUrl = r.image_url || r.image || r.media || '';
+
+            html += `<tr><td><img src="${imgUrl}" class="prod-img-thumb"></td><td>${date}</td>
+                     <td><button class="danger" onclick="deleteRecord('reviews', ${r.id})" style="padding:4px 8px; font-size:10px;">DEL</button></td></tr>`;
+        });
+    }
+    document.getElementById('reviewsTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No reviews</td></tr>';
+}
 
         async function saveReview() {
             const url = document.getElementById('reviewImgUrl').value;
