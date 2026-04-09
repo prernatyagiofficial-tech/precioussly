@@ -547,7 +547,10 @@ document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== n
 
         // Products Management
         async function loadProducts() {
-            const { data } = await db.from('products').select('*').order('created_at', { ascending: false });
+            const { data, error } = await db.from('products').select('*').order('id', { ascending: false });
+
+// Optional but highly recommended: Add a quick console log so you catch future database errors!
+if (error) console.error("Supabase Error loading products:", error);
             adminData.products = data || [];
             let html = '';
             adminData.products.forEach(p => {
