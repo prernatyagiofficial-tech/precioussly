@@ -1402,6 +1402,14 @@
               });
               else if (table === 'coupons') getCoupons(true).then(c => { appData.coupons = c; });
               else if (table === 'reviews') getReviews(true).then(r => { appData.reviews = r; });
+              else if (table === 'orders') {
+                  // If an order status changes in Supabase, sync immediately
+                  syncLocalOrdersWithSupabase().then(() => {
+                      if (history.state && history.state.view === 'orders') {
+                          renderOrders(); // Re-render if they are currently viewing the Orders page
+                      }
+                  });
+              }
           }).subscribe();
 
         function applyGlobalSettings() {
@@ -2589,121 +2597,163 @@
         }
 
         async function processOrderPlacement(totalAmount, orderDetails) {
-            triggerHaptic('success');
-            
-            const orderData = {
-                id: 'ORD' + Math.floor(100000 + Math.random() * 900000),
-                total_amount: totalAmount,
-                items: state.cart,
-                customer_details: orderDetails,
-                status: 'Pending',
-                date: new Date().toLocaleDateString()
-            };
+    triggerHaptic('success');
+    
+    const orderData = {
+        id: 'ORD' + Math.floor(100000 + Math.random() * 900000),
+        total_amount: totalAmount,
+        items: state.cart,
+        customer_details: orderDetails,
+        status: 'In Progress', // Updated from 'Pending'
+        date: new Date().toLocaleDateString()
+    };
 
-            // Non-blocking write to Supabase (so UI stays snappy even if DB is slow)
-            db.from('orders').insert([orderData]).then(({ error }) => {
-                if (error) console.error("Order insertion failed (RLS issue likely):", error);
-            });
-            
-            const existingOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-            existingOrders.unshift(orderData); 
-            localStorage.setItem('shria_orders', JSON.stringify(existingOrders));
+    // Non-blocking write to Supabase
+    db.from('orders').insert([orderData]).then(({ error }) => {
+        if (error) console.error("Order insertion failed (RLS issue likely):", error);
+    });
+    
+    const existingOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    existingOrders.unshift(orderData); 
+    localStorage.setItem('shria_orders', JSON.stringify(existingOrders));
 
-            state.cart = [];
-            persistUserData(); // Clear local cart
-            updateBadges();
-            renderThankYou(orderData.id);
-        }
+    state.cart = [];
+    persistUserData(); // Clear local cart
+    updateBadges();
+    renderThankYou(orderData.id);
+}
 
-        function renderOrders() {
-            navigate({view: 'orders'});
-            searchContainer.style.display = 'none';
+        // --- NEW FUNCTION: Sync local storage with live DB status ---
+async function syncLocalOrdersWithSupabase() {
+    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    if (localOrders.length === 0) return;
 
-            let html = `
-                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>
-                <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Orders</h3></div>
-            `;
+    const orderIds = localOrders.map(o => o.id);
+    const { data, error } = await db.from('orders').select('*').in('id', orderIds);
 
-            let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    if (!error && data) {
+        const updatedOrders = localOrders.map(localOrder => {
+            const liveOrder = data.find(d => d.id === localOrder.id);
+            return liveOrder ? liveOrder : localOrder;
+        });
+        localStorage.setItem('shria_orders', JSON.stringify(updatedOrders));
+    }
+}
 
-            if(orders.length === 0) {
-                html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg><p>No orders found.</p></div>`;
-            } else {
-                html += `<div class="orders-wrapper">`;
-                orders.forEach(order => {
-                    let itemsHtml = '';
-                    order.items.forEach(item => {
-                        const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
-                        const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
-                        let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
-                        if (firstMedia) {
-                            if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                            else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
-                        }
+// --- REPLACED: renderOrders Function ---
+async function renderOrders() {
+    navigate({view: 'orders'});
+    searchContainer.style.display = 'none';
 
-                        let displaySpecs = [];
-                        if (item.variant && item.variant !== "Default") displaySpecs.push(item.variant);
-                        if (item.size) displaySpecs.push(item.size);
-                        if (item.alphabet) displaySpecs.push(item.alphabet);
-                        const variantDisplay = displaySpecs.length > 0 ? displaySpecs.join(' | ') : '';
+    let html = `
+        <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>
+        <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Orders</h3></div>
+    `;
 
-                        itemsHtml += `
-                            <div class="order-item-row">
-                                <div class="order-item-img">${imgContent}</div>
-                                <div class="order-item-details">
-                                    <div class="order-item-name">${item.name}</div>
-                                    <div class="order-item-meta">${variantDisplay}</div>
-                                </div>
-                                <div class="order-item-price-qty">
-                                    <div class="order-item-price">${formatPrice(item.price)}</div>
-                                    <div class="order-item-qty">Qty: ${item.qty}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
+    // Show loading state while fetching live data
+    mainContent.innerHTML = html + `<div style="text-align: center; padding: 40px; color: var(--text-gray); font-weight: 500;">Fetching live order status...</div>`;
 
-                    html += `
-                        <div class="order-card">
-                            <div class="order-header">
-                                <div class="order-id-date">
-                                    <span class="order-id">${order.id}</span>
-                                    <span class="order-date">${order.date || new Date().toLocaleDateString()}</span>
-                                </div>
-                                <div class="order-status">${order.status}</div>
-                            </div>
-                            <div class="order-items">${itemsHtml}</div>
-                            ${order.customer_details && order.customer_details.name ? `
-                            <div class="order-address">
-                                <strong>Delivery to: ${order.customer_details.name}</strong>
-                                ${order.customer_details.address}
-                            </div>
-                            ` : ''}
-                            <div class="order-footer" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                    <span class="order-total-label">Order Total</span>
-                                    <span class="order-total-amount">${formatPrice(order.total_amount)}</span>
-                                </div>
-                                ${order.customer_details && order.customer_details.paymentMethod === 'cod' ? `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
-                                        <span class="order-total-label" style="color: var(--error-color); font-weight:600;">Due on Delivery</span>
-                                        <span class="order-total-amount" style="color: var(--error-color);">${formatPrice(order.customer_details.amountDue)}</span>
-                                    </div>
-                                ` : `<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
-                                        <span class="order-total-label" style="color: var(--dark-green); font-weight:600;">Paid Online</span>
-                                        <span class="order-total-amount" style="color: var(--dark-green);">${formatPrice(order.total_amount)}</span>
-                                    </div>`}
-                            </div>
+    // Sync before rendering
+    await syncLocalOrdersWithSupabase();
+
+    let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+
+    if(orders.length === 0) {
+        html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg><p>No orders found.</p></div>`;
+    } else {
+        html += `<div class="orders-wrapper">`;
+        orders.forEach(order => {
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
+                const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
+                let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
+                if (firstMedia) {
+                    if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
+                    else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+                }
+
+                let displaySpecs = [];
+                if (item.variant && item.variant !== "Default") displaySpecs.push(item.variant);
+                if (item.size) displaySpecs.push(item.size);
+                if (item.alphabet) displaySpecs.push(item.alphabet);
+                const variantDisplay = displaySpecs.length > 0 ? displaySpecs.join(' | ') : '';
+
+                itemsHtml += `
+                    <div class="order-item-row">
+                        <div class="order-item-img">${imgContent}</div>
+                        <div class="order-item-details">
+                            <div class="order-item-name">${item.name}</div>
+                            <div class="order-item-meta">${variantDisplay}</div>
                         </div>
-                    `;
-                });
-                html += `</div>`;
-            }
-
-            requestAnimationFrame(() => {
-                mainContent.innerHTML = html;
-                window.scrollTo(0,0);
+                        <div class="order-item-price-qty">
+                            <div class="order-item-price">${formatPrice(item.price)}</div>
+                            <div class="order-item-qty">Qty: ${item.qty}</div>
+                        </div>
+                    </div>
+                `;
             });
-        }
+
+            // Status Styling Logic
+            let statusBgColor = 'var(--light-green)';
+            let statusTextColor = 'var(--dark-green)';
+            
+            if (order.status === 'In Progress') {
+                statusBgColor = '#fff5e6'; // Light orange
+                statusTextColor = '#e67e22'; // Orange
+            } else if (order.status === 'Confirmed') {
+                statusBgColor = '#e3f2fd'; // Light Blue
+                statusTextColor = '#1976d2'; // Blue
+            } else if (order.status === 'Cancelled') {
+                statusBgColor = '#ffebee'; // Light Red
+                statusTextColor = '#c62828'; // Red
+            } // Delivered uses the default green
+
+            html += `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-id-date">
+                            <span class="order-id">${order.id}</span>
+                            <span class="order-date">${order.date || new Date().toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: inline-flex; align-items: center; gap: 8px; background: ${statusBgColor}; color: ${statusTextColor}; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusTextColor};"></div>
+                            ${order.status}
+                        </div>
+                    </div>
+                    <div class="order-items">${itemsHtml}</div>
+                    ${order.customer_details && order.customer_details.name ? `
+                    <div class="order-address">
+                        <strong>Delivery to: ${order.customer_details.name}</strong>
+                        ${order.customer_details.address}
+                    </div>
+                    ` : ''}
+                    <div class="order-footer" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span class="order-total-label">Order Total</span>
+                            <span class="order-total-amount">${formatPrice(order.total_amount)}</span>
+                        </div>
+                        ${order.customer_details && order.customer_details.paymentMethod === 'cod' ? `
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
+                                <span class="order-total-label" style="color: var(--error-color); font-weight:600;">Due on Delivery</span>
+                                <span class="order-total-amount" style="color: var(--error-color);">${formatPrice(order.customer_details.amountDue)}</span>
+                            </div>
+                        ` : `<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
+                                <span class="order-total-label" style="color: var(--dark-green); font-weight:600;">Paid Online</span>
+                                <span class="order-total-amount" style="color: var(--dark-green);">${formatPrice(order.total_amount)}</span>
+                            </div>`}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
+        window.scrollTo(0,0);
+    });
+}
 
         function renderThankYou(orderId) {
             navigate({view: 'thankyou', id: orderId});
