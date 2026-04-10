@@ -339,6 +339,7 @@
                     <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
                     <label class="checkbox-label"><input type="checkbox" id="prodRing"> Is Ring (Custom Size input)</label>
                     <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
+                    <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
                 </div>
                 
                 <div class="form-group full-width">
@@ -365,6 +366,9 @@
                     <input type="text" id="catImgUrl">
                     <button type="button" class="outline" onclick="triggerFileUpload('fileCatImg', 'catImgUrl')">UPLOAD</button>
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label"><input type="checkbox" id="catHidden"> Hide Category</label>
             </div>
             <button type="button" onclick="saveCategory()">SAVE CATEGORY</button>
         </div>
@@ -645,7 +649,8 @@
                 
                 mainCats.forEach(main => {
                     const img = main.img ? `<img src="${escapeHTML(main.img)}" class="prod-img-thumb">` : '-';
-                    html += `<tr><td>${img}</td><td>${main.id}</td><td><strong>${escapeHTML(main.name)}</strong></td>
+                    const hiddenBadge = main.is_hidden ? '<span class="badge danger">Hidden</span> ' : '';
+                    html += `<tr><td>${img}</td><td>${main.id}</td><td>${hiddenBadge}<strong>${escapeHTML(main.name)}</strong></td>
                              <td>
                                <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'up', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↑</button>
                                <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'down', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↓</button>
@@ -660,7 +665,8 @@
                     const subCats = State.categories.filter(c => c.parent_id === main.id);
                     subCats.forEach(sub => {
                         const subImg = sub.img ? `<img src="${escapeHTML(sub.img)}" class="prod-img-thumb">` : '-';
-                        html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</td>
+                        const subHiddenBadge = sub.is_hidden ? '<span class="badge danger">Hidden</span> ' : '';
+                        html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${subHiddenBadge}${escapeHTML(sub.name)}</td>
                                  <td>
                                    <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'up', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↑</button>
                                    <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'down', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↓</button>
@@ -689,6 +695,7 @@
                 document.getElementById('catName').value = cat.name;
                 document.getElementById('catImgUrl').value = cat.img || '';
                 document.getElementById('catParentId').value = cat.parent_id || '';
+                document.getElementById('catHidden').checked = !!cat.is_hidden;
                 
                 Array.from(document.getElementById('catParentId').options).forEach(opt => {
                     opt.disabled = String(opt.value) === String(id);
@@ -704,7 +711,8 @@
                 const payload = { 
                     name: document.getElementById('catName').value.trim(), 
                     img: document.getElementById('catImgUrl').value.trim(),
-                    parent_id: parentIdVal ? Number(parentIdVal) : null
+                    parent_id: parentIdVal ? Number(parentIdVal) : null,
+                    is_hidden: document.getElementById('catHidden').checked
                 };
                 
                 if(!payload.name) return alert("Name is required");
@@ -745,6 +753,7 @@
                     if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
                     if(p.is_ring) badges.push('<span class="badge warning">Ring</span>');
                     if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
+                    if(p.is_hidden) badges.push('<span class="badge danger">Hidden</span>');
                     
                     html += `<tr><td>${img}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(catName)}</td><td>₹${p.price}</td><td>${badges.join(' ')}</td>
                              <td>
@@ -776,59 +785,61 @@
                 document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
                 document.getElementById('prodRing').checked = !!p.is_ring;
                 document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
+                document.getElementById('prodHidden').checked = !!p.is_hidden;
                 
                 openModal('productModal');
             }
         };
 
-        async function saveProduct() {
-            const btn = document.getElementById('saveProdBtn');
-            btn.disabled = true; 
-            btn.innerText = "SAVING...";
+  async function saveProduct() {
+    const btn = document.getElementById('saveProdBtn');
+    btn.disabled = true; 
+    btn.innerText = "SAVING...";
 
-            try {
-                let mediaArr = document.getElementById('prodMedia').value.split(',').map(s=>s.trim()).filter(Boolean);
-                let sizesArr = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
-                let variantsObj = [];
-                const varText = document.getElementById('prodVariants').value.trim();
-                
-                if(varText) {
-                    try { variantsObj = JSON.parse(varText); } 
-                    catch(e) { throw new Error("Invalid JSON in Variants field. Please fix format."); }
-                }
-
-                const payload = {
-                    name: document.getElementById('prodName').value.trim(),
-                    price: Number(document.getElementById('prodPrice').value),
-                    cat_id: Number(document.getElementById('prodCat').value),
-                    description: document.getElementById('prodDesc').value.trim(),
-                    media: mediaArr,
-                    sizes: sizesArr,
-                    variants: variantsObj,
-                    is_best_seller: document.getElementById('prodBestSeller').checked,
-                    is_ring: document.getElementById('prodRing').checked,
-                    is_alphabet: document.getElementById('prodAlphabet').checked
-                };
-
-                if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
-
-                if(State.currentEditId) {
-                    const { error } = await db.from('products').update(payload).eq('id', State.currentEditId);
-                    if (error) throw error;
-                } else {
-                    const { error } = await db.from('products').insert([payload]);
-                    if (error) throw error;
-                }
-
-                closeModal('productModal');
-                await loadProducts();
-            } catch(e) {
-                alert(e.message);
-            } finally {
-                btn.disabled = false; 
-                btn.innerText = "SAVE PRODUCT";
-            }
+    try {
+        let mediaArr = document.getElementById('prodMedia').value.split(',').map(s=>s.trim()).filter(Boolean);
+        let sizesArr = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
+        let variantsObj = [];
+        const varText = document.getElementById('prodVariants').value.trim();
+        
+        if(varText) {
+            try { variantsObj = JSON.parse(varText); } 
+            catch(e) { throw new Error("Invalid JSON in Variants field. Please fix format."); }
         }
+
+        const payload = {
+            name: document.getElementById('prodName').value.trim(),
+            price: Number(document.getElementById('prodPrice').value),
+            cat_id: Number(document.getElementById('prodCat').value),
+            description: document.getElementById('prodDesc').value.trim(),
+            media: mediaArr,
+            sizes: sizesArr,
+            variants: variantsObj,
+            is_best_seller: document.getElementById('prodBestSeller').checked,
+            is_ring: document.getElementById('prodRing').checked,
+            is_alphabet: document.getElementById('prodAlphabet').checked,
+            is_hidden: document.getElementById('prodHidden').checked // Ye line add ki gayi hai
+        };
+
+        if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
+
+        if(State.currentEditId) {
+            const { error } = await db.from('products').update(payload).eq('id', State.currentEditId);
+            if (error) throw error;
+        } else {
+            const { error } = await db.from('products').insert([payload]);
+            if (error) throw error;
+        }
+
+        closeModal('productModal');
+        await loadProducts();
+    } catch(e) {
+        alert(e.message);
+    } finally {
+        btn.disabled = false; 
+        btn.innerText = "SAVE PRODUCT";
+    }
+}
 
         // Coupons Management
         async function loadCoupons() {
