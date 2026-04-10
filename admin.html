@@ -255,6 +255,9 @@
                                 <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
                             </div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
+<div class="form-group">
+    <label class="checkbox-label"><input type="checkbox" id="setAnnouncementScrolling"> Scroll Announcement (Marquee)</label>
+</div>
                         </div>
 
                         <div class="settings-card">
@@ -596,6 +599,7 @@ db.channel('live-orders')
                     document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
                     document.getElementById('setEmail').value = data.email_id || '';
                     document.getElementById('setAnnouncement').value = data.announcement_text || '';
+                    document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
                     document.getElementById('setMinOrder').value = data.min_order_amount || 0;
                     document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
                     document.getElementById('setMinCod').value = data.min_cod_amount || 0;
@@ -621,6 +625,7 @@ db.channel('live-orders')
                     whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
                     email_id: document.getElementById('setEmail').value.trim(),
                     announcement_text: document.getElementById('setAnnouncement').value.trim(),
+                    announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
                     min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
                     cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
                     min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
