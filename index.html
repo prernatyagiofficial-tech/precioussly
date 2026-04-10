@@ -2079,8 +2079,6 @@
             }
 
             const controlsHtml = `
-                <button class="carousel-btn prev" onclick="updateCarousel(currentSlide - 1)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                <button class="carousel-btn next" onclick="updateCarousel(currentSlide + 1)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                 <div class="carousel-indicators" style="display: ${totalSlides > 1 ? 'flex' : 'none'};">${indicatorsHtml}</div>
             `;
 
@@ -2129,15 +2127,9 @@
                 alphabetHtml = `<div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper"><div class="alphabet-selection-header"><span class="alphabet-selection-title">Select Alphabet</span></div><div class="alphabet-options">${optionsHtml}</div></div>`;
             }
 
-            let html = `
-                <div class="back-nav" onclick="renderCategory('${prod.catId}')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back
-                </div>
+          let html = `
                 <div class="product-layout-wrapper">
                     <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-                        <button class="hero-back-btn" onclick="renderCategory('${prod.catId}')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                        </button>
                         <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
                             ${getHeartSvg(prod.id)}
                         </button>
