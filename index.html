@@ -2315,6 +2315,26 @@
                 alphabetHtml = `<div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper"><div class="alphabet-selection-header"><span class="alphabet-selection-title">Select Alphabet</span></div><div class="alphabet-options">${optionsHtml}</div></div>`;
             }
 
+      // --- NEW: Generate Related Products ---
+            // Find up to 8 products in the same category, excluding the currently viewed product
+            const relatedProducts = appData.products
+                .filter(p => String(p.catId) === String(prod.catId) && String(p.id) !== String(prod.id))
+                .slice(0, 8);
+                
+            let relatedProductsHtml = '';
+            if (relatedProducts.length > 0) {
+                // Formatting updated to sit outside the main container with the proper heading
+                relatedProductsHtml = `
+                    <div style="max-width: 1100px; margin: 20px auto 40px; padding: 0 20px;">
+                        <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600;">You May Also Like</h3>
+                        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 20px;">
+                            ${relatedProducts.map(p => `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(p)}</div>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            // ---------------------------------------
+
           let html = `
                 <div class="product-layout-wrapper">
                     <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
@@ -2352,6 +2372,8 @@
                         </div>
                     </div>
                 </div>
+
+                ${relatedProductsHtml}
             `;
             requestAnimationFrame(() => {
                 mainContent.innerHTML = html;
