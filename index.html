@@ -1483,13 +1483,18 @@
         }
 
         async function signInWithGoogle(btn) {
-            triggerHaptic('light');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<span class="btn-spinner"></span>`;
-            
-            const { data, error } = await db.auth.signInWithOAuth({
-                provider: 'google',
-            });
+    triggerHaptic('light');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="btn-spinner"></span>`;
+    
+    const { data, error } = await db.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            // Explicitly set your live domain here
+            redirectTo: window.location.origin 
+        }
+    });
+    
             if (error) {
                 showToast(error.message);
                 btn.innerHTML = originalHtml;
