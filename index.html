@@ -1120,19 +1120,8 @@
         };
 
         function persistUserData() {
-            // Save to local browser storage first
             localStorage.setItem('eco_cart', JSON.stringify(state.cart));
             localStorage.setItem('eco_wishlist', JSON.stringify(state.wishlist));
-
-            // If the user is logged in, sync the wishlist to Supabase
-            if (state.user) {
-                db.from('profiles')
-                  .update({ wishlist: state.wishlist })
-                  .eq('id', state.user.id)
-                  .then(({ error }) => {
-                      if (error) console.error("Error syncing wishlist to cloud:", error);
-                  });
-            }
         }
 
         // --- DYNAMIC APPLICATION DATA ---
@@ -1543,39 +1532,11 @@
             renderHome();
         }
 
-        db.auth.onAuthStateChange(async (event, session) => {
+        db.auth.onAuthStateChange((event, session) => {
             state.user = session?.user || null;
-            
-            if (state.user) {
-                // Fetch cloud wishlist on login
-                try {
-                    const { data, error } = await db.from('profiles')
-                        .select('wishlist')
-                        .eq('id', state.user.id)
-                        .single();
-
-                    if (!error && data && data.wishlist) {
-                        // Safely parse the cloud wishlist
-                        const cloudWishlist = Array.isArray(data.wishlist) ? data.wishlist : JSON.parse(data.wishlist);
-                        
-                        // Merge local and cloud wishlists, removing duplicates
-                        const mergedWishlist = [...new Set([...state.wishlist, ...cloudWishlist])];
-                        state.wishlist = mergedWishlist;
-                        
-                        // Re-save merged state to both local and cloud
-                        persistUserData(); 
-                    }
-                } catch (err) {
-                    console.error("Error fetching cloud wishlist:", err);
-                }
-            }
-
             generateMenuLinks(); 
             if(sideMenu.classList.contains('active')) renderMenu(); 
             if (history.state && history.state.view === 'login') renderLogin();
-            
-            // Re-render current view if they are on the wishlist page
-            if (history.state && history.state.view === 'wishlist') renderWishlist();
         });
 
         // --- APP INITIALIZATION ---
