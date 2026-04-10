@@ -298,6 +298,13 @@
             stroke: currentColor;
         }
 
+        /* Submenu Styles */
+        .submenu { display: none; background: var(--placeholder-bg); padding: 5px 0; }
+        .submenu-link { display: block; padding: 10px 20px 10px 53px; color: var(--text-gray); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+        .submenu-link:hover { color: var(--brand-color); }
+        .has-submenu { justify-content: space-between; }
+        .chevron { width: 16px !important; height: 16px !important; transition: transform 0.3s ease; }
+
         /* Search Overlay */
         .search-container {
             display: none;
@@ -1163,7 +1170,8 @@
             return {
                 id: row.id,
                 name: row.name || 'Category',
-                img: row.img || row.image_url || ''
+                img: row.img || row.image_url || '',
+                parentId: row.parent_id || null
             };
         }
 
@@ -1256,9 +1264,17 @@
                 { name: "Categories", isTitle: true }
             ];
 
-            const categoryLinks = appData.categories.filter(c => c.id !== 'all').map(c => ({
-                name: c.name, id: c.id, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>'
-            }));
+            // Groups subcategories under their respective main categories
+            const mainCategories = appData.categories.filter(c => !c.parentId && c.id !== 'all');
+            const categoryLinks = mainCategories.map(mainCat => {
+                const subCats = appData.categories.filter(c => c.parentId === mainCat.id);
+                return {
+                    name: mainCat.name, 
+                    id: mainCat.id, 
+                    icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>',
+                    subLinks: subCats.length > 0 ? subCats.map(sub => ({ name: sub.name, id: sub.id })) : null
+                };
+            });
 
             const supportLinks = [
                 { name: "Support", isTitle: true },
@@ -1610,20 +1626,55 @@
         function renderMenu() {
             let html = '';
             const categoryIcon = '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>';
+            const chevronIcon = '<polyline points="6 9 12 15 18 9"></polyline>';
             
             appData.menuLinks.forEach(link => {
                 if (link.isTitle) {
                     html += `<div class="menu-label">${link.name}</div>`;
                 } else {
                     let displayIcon = link.icon;
-                    if (typeof link.id === 'number' || typeof link.id === 'string' && link.id !== 'all' && link.id !== 'bestsellers' && link.id !== 'track') displayIcon = categoryIcon;
-                    html += `<a href="javascript:void(0)" class="menu-link" onclick="handleMenuClick('${link.action || ''}', '${link.id || ''}')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${displayIcon || ''}</svg>
-                        ${link.name}
-                    </a>`;
+                    if (typeof link.id === 'number' || (typeof link.id === 'string' && link.id !== 'all' && link.id !== 'bestsellers' && link.id !== 'track')) displayIcon = categoryIcon;
+
+                    if (link.subLinks && link.subLinks.length > 0) {
+                        // Generates Dropdown for Categories with Subcategories
+                        html += `
+                        <div class="menu-item-wrapper">
+                            <a href="javascript:void(0)" class="menu-link has-submenu" onclick="toggleSubmenu(event, 'submenu-${link.id}')">
+                                <div style="display:flex; align-items:center; gap:15px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${displayIcon}</svg>
+                                    ${link.name}
+                                </div>
+                                <svg class="chevron" id="chevron-${link.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${chevronIcon}</svg>
+                            </a>
+                            <div class="submenu" id="submenu-${link.id}">
+                                <a href="javascript:void(0)" class="submenu-link" onclick="handleMenuClick('', '${link.id}')">All ${link.name}</a>
+                                ${link.subLinks.map(sub => `<a href="javascript:void(0)" class="submenu-link" onclick="handleMenuClick('', '${sub.id}')">${sub.name}</a>`).join('')}
+                            </div>
+                        </div>`;
+                    } else {
+                        // Generates standard single link
+                        html += `<a href="javascript:void(0)" class="menu-link" onclick="handleMenuClick('${link.action || ''}', '${link.id || ''}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${displayIcon || ''}</svg>
+                            ${link.name}
+                        </a>`;
+                    }
                 }
             });
             document.getElementById('dynamicMenu').innerHTML = html;
+        }
+        
+        function toggleSubmenu(event, submenuId) {
+            event.stopPropagation(); // Prevents the sidebar from closing when clicking a dropdown
+            const submenu = document.getElementById(submenuId);
+            const chevron = document.getElementById(submenuId.replace('submenu-', 'chevron-'));
+            
+            if (submenu.style.display === 'block') {
+                submenu.style.display = 'none';
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            } else {
+                submenu.style.display = 'block';
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+            }
         }
 
         function handleMenuClick(action, id) {
@@ -1781,7 +1832,9 @@
         <div class="grid-container">
     `;
 
-    appData.categories.forEach(cat => {
+    // Filter to show ONLY Main Categories on the homepage grid
+    const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
+    mainCategories.forEach(cat => {
         const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
         html += `
             <div class="category-card" onclick="renderCategory('${cat.id}')">
@@ -1822,6 +1875,7 @@
 
             let filteredProds;
             let catName;
+            let subCategories = []; // Array to hold subcategories
             
             if (catId === 'all') {
                 filteredProds = appData.products;
@@ -1830,11 +1884,18 @@
                 filteredProds = appData.products.filter(p => p.isBestSeller);
                 catName = 'Best Sellers';
             } else {
-                filteredProds = appData.products.filter(p => String(p.catId) === String(catId));
-                catName = appData.categories.find(c => String(c.id) === String(catId))?.name || 'Products';
+                const cat = appData.categories.find(c => String(c.id) === String(catId));
+                catName = cat?.name || 'Products';
+                
+                // Find any categories that have this category as their parent
+                subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
+                
+                const allValidCatIds = [String(catId), ...subCategories.map(c => String(c.id))];
+                filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
             }
             
-            renderProductList(catName, filteredProds);
+            // Pass the subCategories array to the renderer
+            renderProductList(catName, filteredProds, subCategories);
         }
 
         function renderTrackOrder() {
@@ -1880,15 +1941,38 @@
             });
         }
 
-        function renderProductList(title, products) {
+        function renderProductList(title, products, subCats = []) {
             let html = `
                 <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>
-                <div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>
-                <div class="grid-container">
             `;
+
+            // If subcategories exist, show them in a grid first
+            if (subCats && subCats.length > 0) {
+                html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title} Categories</h3></div>
+                         <div class="grid-container" style="padding-bottom: 20px;">`;
+                
+                subCats.forEach(cat => {
+                    const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                    html += `
+                        <div class="category-card" onclick="renderCategory('${cat.id}')">
+                            <div class="category-img-box">${imgContent}</div>
+                            <span>${cat.name}</span>
+                        </div>`;
+                });
+                
+                html += `</div>`;
+                // Add a divider and title for the products section below it
+                html += `<div class="section-title-wrapper" style="padding-top: 30px; border-top: 1px dashed var(--border-color);"><h3>All ${title} Products</h3></div>`;
+            } else {
+                // Standard title if no subcategories exist
+                html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
+            }
+
+            html += `<div class="grid-container">`;
             if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
+            
             mainContent.innerHTML = html;
             window.scrollTo(0, 0);
         }
