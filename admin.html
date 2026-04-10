@@ -627,7 +627,11 @@
         // Categories Management
         async function loadCategories() {
             try {
-                const { data, error } = await db.from('categories').select('*').order('id', { ascending: true });
+                const { data, error } = await db.from('categories')
+                    .select('*')
+                    .order('sort_order', { ascending: true })
+                    .order('id', { ascending: true });
+                
                 if (error) throw error;
 
                 State.categories = data || [];
@@ -643,6 +647,8 @@
                     const img = main.img ? `<img src="${escapeHTML(main.img)}" class="prod-img-thumb">` : '-';
                     html += `<tr><td>${img}</td><td>${main.id}</td><td><strong>${escapeHTML(main.name)}</strong></td>
                              <td>
+                               <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'up', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↑</button>
+                               <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'down', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↓</button>
                                <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
                                <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
                              </td></tr>`;
@@ -656,6 +662,8 @@
                         const subImg = sub.img ? `<img src="${escapeHTML(sub.img)}" class="prod-img-thumb">` : '-';
                         html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</td>
                                  <td>
+                                   <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'up', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↑</button>
+                                   <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'down', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↓</button>
                                    <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
                                    <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
                                  </td></tr>`;
@@ -719,7 +727,11 @@
         // Products Management
         async function loadProducts() {
             try {
-                const { data, error } = await db.from('products').select('*').order('id', { ascending: false });
+                const { data, error } = await db.from('products')
+                    .select('*')
+                    .order('sort_order', { ascending: true })
+                    .order('id', { ascending: false });
+                    
                 if (error) throw error;
 
                 State.products = data || [];
@@ -736,6 +748,8 @@
                     
                     html += `<tr><td>${img}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(catName)}</td><td>₹${p.price}</td><td>${badges.join(' ')}</td>
                              <td>
+                               <button class="outline" onclick="reorderRecord('products', ${p.id}, 'up', 'cat_id', ${p.cat_id})" style="padding:4px 8px; font-size:10px;">↑</button>
+                               <button class="outline" onclick="reorderRecord('products', ${p.id}, 'down', 'cat_id', ${p.cat_id})" style="padding:4px 8px; font-size:10px;">↓</button>
                                <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
                                <button class="danger" onclick="deleteRecord('products', ${p.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
                              </td></tr>`;
@@ -972,7 +986,54 @@
                 }
             }
         };
+      // Reordering Logic
+        window.reorderRecord = async function(table, id, direction, groupColumn, groupId) {
+            try {
+                // Fetch all items in the same group (e.g., same parent category), ordered by sort_order
+                let query = db.from(table).select('id, sort_order').order('sort_order', { ascending: true }).order('id', { ascending: true });
+                
+                if (groupColumn) {
+                    if (groupId === null) {
+                        query = query.is(groupColumn, null);
+                    } else {
+                        query = query.eq(groupColumn, groupId);
+                    }
+                }
 
+                const { data, error } = await query;
+                if (error) throw error;
+
+                const index = data.findIndex(item => item.id === id);
+                if (index === -1) return;
+
+                const targetIndex = direction === 'up' ? index - 1 : index + 1;
+                if (targetIndex < 0 || targetIndex >= data.length) return; // Cannot move further
+
+                // Prepare updates (ensuring contiguous sorting values)
+                const updates = [];
+                data.forEach((item, i) => {
+                    let newSort = i;
+                    if (i === index) newSort = targetIndex;
+                    else if (i === targetIndex) newSort = index;
+
+                    if (item.sort_order !== newSort) {
+                        updates.push({ id: item.id, sort_order: newSort });
+                    }
+                });
+
+                // Update in Supabase
+                for (let update of updates) {
+                    await db.from(table).update({ sort_order: update.sort_order }).eq('id', update.id);
+                }
+
+                // Reload the specific table
+                if (table === 'categories') await loadCategories();
+                if (table === 'products') await loadProducts();
+
+            } catch (err) {
+                alert("Reorder failed: " + err.message);
+            }
+        };
         // File Upload Utilities
         window.triggerFileUpload = function(inputId, targetInputId) {
             const fileInput = document.getElementById(inputId);
