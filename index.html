@@ -2111,7 +2111,10 @@
                 html += `<div class="empty-state" style="grid-column: 1/-1;"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg><p>Your wishlist is empty.</p></div>`;
             } else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
-            requestAnimationFrame(() => { mainContent.innerHTML = html; window.scrollTo(0, 0); });
+            requestAnimationFrame(() => { 
+                mainContent.innerHTML = html; 
+                window.scrollTo(0, 0); 
+            });
         }
 
         // --- PRODUCT RENDERING & LOGIC ---
@@ -2558,9 +2561,9 @@
                 return;
             }
             updateBadges();
-            persistUserData();
-            renderCart();
-        }
+    persistUserData();
+    renderCart(true); // Passes a flag to preserve the scroll
+}
 
         function openRemoveModal(cartItemIndex) {
             state.itemToRemove = cartItemIndex;
@@ -2585,9 +2588,10 @@
             closeModal();
         });
 
-        function renderCart() {
-            navigate({view: 'cart'});
-            searchContainer.style.display = 'none';
+        function renderCart(preserveScroll = false) {
+    const currentScrollY = window.scrollY; // Save the exact scroll position
+    navigate({view: 'cart'});
+    searchContainer.style.display = 'none';
             let html = `
                 <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
                 <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
@@ -2686,10 +2690,13 @@
             }
             requestAnimationFrame(() => {
                 mainContent.innerHTML = html;
-                window.scrollTo(0, 0);
+                if (preserveScroll) {
+                    window.scrollTo(0, currentScrollY); // Stay in the same spot
+                } else {
+                    window.scrollTo(0, 0); // Scroll to top on fresh load
+                }
             });
         }
-
 
 function createSlug(text) {
             return text.toString().toLowerCase()
