@@ -2281,7 +2281,7 @@
 
             selectedProductVariantIndex = 0;
             selectedProductSize = null;
-            selectedAlphabet = null;
+            selectedAlphabet = selectedAlphabet = prod.isAlphabet ? 'A' : null; 
 
             let hasVariants = prod.variants && prod.variants.length > 0;
             let initialMediaArr = [""];
