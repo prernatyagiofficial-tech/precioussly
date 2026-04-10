@@ -352,6 +352,13 @@
             <h3><span id="catModalTitle">Add Category</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('categoryModal')">X</button></h3>
             <div class="form-group"><label>Category Name</label><input type="text" id="catName" required></div>
             <div class="form-group">
+                <label>Parent Category (Optional)</label>
+                <select id="catParentId">
+                    <option value="">None (Main Category)</option>
+                </select>
+                <span style="font-size: 11px; color: #666;">Leave as "None" to create a main category.</span>
+            </div>
+            <div class="form-group">
                 <label>Image URL</label>
                 <div class="flex-row">
                     <input type="text" id="catImgUrl">
@@ -537,32 +544,48 @@ async function loadUsers() {
 }
 
 async function loadCategories() {
-    const { data } = await db.from('categories').select('*').order('id', { ascending: true });
-    adminData.categories = data || [];
-    let html = '', options = '<option value="">Select Category</option>';
-    
-    // NEW: Base options for the banner dropdown
-    let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
+            const { data } = await db.from('categories').select('*').order('id', { ascending: true });
+            adminData.categories = data || [];
+            let html = '';
+            
+            let prodCatOptions = '<option value="">Select Category</option>';
+            let parentCatOptions = '<option value="">None (Main Category)</option>';
+            let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
 
-    adminData.categories.forEach(c => {
-        const img = c.img ? `<img src="${c.img}" class="prod-img-thumb">` : '-';
-        html += `<tr><td>${img}</td><td>${c.id}</td><td>${c.name}</td>
-                 <td>
-                   <button class="outline" onclick="editCategory(${c.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                   <button class="danger" onclick="deleteRecord('categories', ${c.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                 </td></tr>`;
-        options += `<option value="${c.id}">${c.name}</option>`;
-        
-        // NEW: Add each category to the banner options with a "cat_" prefix
-        bannerOptions += `<option value="cat_${c.id}">Category: ${c.name}</option>`;
-    });
-    
-    document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
-    document.getElementById('prodCat').innerHTML = options;
-    
-    // NEW: Inject options into the banner action dropdown
-    document.getElementById('setBannerAction').innerHTML = bannerOptions;
-}
+            // First loop: get main categories
+            const mainCats = adminData.categories.filter(c => !c.parent_id);
+            
+            mainCats.forEach(main => {
+                const img = main.img ? `<img src="${main.img}" class="prod-img-thumb">` : '-';
+                html += `<tr><td>${img}</td><td>${main.id}</td><td><strong>${main.name}</strong></td>
+                         <td>
+                           <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                           <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                         </td></tr>`;
+                
+                prodCatOptions += `<option value="${main.id}">${main.name}</option>`;
+                parentCatOptions += `<option value="${main.id}">${main.name}</option>`;
+                bannerOptions += `<option value="cat_${main.id}">Category: ${main.name}</option>`;
+
+                // Second loop: subcategories for this main category
+                const subCats = adminData.categories.filter(c => c.parent_id === main.id);
+                subCats.forEach(sub => {
+                    const subImg = sub.img ? `<img src="${sub.img}" class="prod-img-thumb">` : '-';
+                    html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${sub.name}</td>
+                             <td>
+                               <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                               <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                             </td></tr>`;
+                    prodCatOptions += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${sub.name}</option>`;
+                    bannerOptions += `<option value="cat_${sub.id}">Category: ${main.name} > ${sub.name}</option>`;
+                });
+            });
+            
+            document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
+            document.getElementById('prodCat').innerHTML = prodCatOptions;
+            document.getElementById('catParentId').innerHTML = parentCatOptions;
+            document.getElementById('setBannerAction').innerHTML = bannerOptions;
+        }
 
         function editCategory(id) {
             const cat = adminData.categories.find(c => c.id === id);
@@ -571,14 +594,24 @@ async function loadCategories() {
                 document.getElementById('catModalTitle').innerText = 'Edit Category';
                 document.getElementById('catName').value = cat.name;
                 document.getElementById('catImgUrl').value = cat.img || '';
+                document.getElementById('catParentId').value = cat.parent_id || '';
+                
+                // Prevent setting a category as its own parent
+                Array.from(document.getElementById('catParentId').options).forEach(opt => {
+                    if (String(opt.value) === String(id)) opt.disabled = true;
+                    else opt.disabled = false;
+                });
+                
                 openModal('categoryModal');
             }
         }
 
         async function saveCategory() {
+            const parentIdVal = document.getElementById('catParentId').value;
             const payload = { 
                 name: document.getElementById('catName').value, 
-                img: document.getElementById('catImgUrl').value 
+                img: document.getElementById('catImgUrl').value,
+                parent_id: parentIdVal ? Number(parentIdVal) : null
             };
             if(!payload.name) return alert("Name is required");
             
