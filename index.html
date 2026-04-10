@@ -1510,12 +1510,25 @@
         }
 
         async function signInWithGoogle(btn) {
-            triggerHaptic('light');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<span class="btn-spinner"></span>`;
-            const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
-            if (error) { showToast(error.message); btn.innerHTML = originalHtml; }
-        }
+    triggerHaptic('light');
+    
+    // Sirf button ko disable kar rahe hain taaki user baar-baar click na kare
+    btn.disabled = true; 
+    
+    // Yahan humne koi naya HTML (spinner) add nahi kiya, 
+    // isliye text aur logo waisa hi rahega.
+
+    const { error } = await db.auth.signInWithOAuth({ 
+        provider: 'google', 
+        options: { redirectTo: window.location.origin } 
+    });
+    
+    if (error) { 
+        showToast(error.message); 
+        // Agar error aaye toh button ko wapas enable kar dein
+        btn.disabled = false;
+    }
+}
 
         async function submitAuth(btn, isSignUp) {
             const email = document.getElementById('authEmail').value.trim();
