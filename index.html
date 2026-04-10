@@ -1626,11 +1626,11 @@
         async function signInWithGoogle(btn) {
     triggerHaptic('light');
     
-    // Sirf button ko disable kar rahe hain taaki user baar-baar click na kare
-    btn.disabled = true; 
-    
-    // Yahan humne koi naya HTML (spinner) add nahi kiya, 
-    // isliye text aur logo waisa hi rahega.
+    // Button ko disable kiya
+    btn.disabled = true;
+
+    // BAS YE EK NAYI LINE ADD KARNI HAI
+    setTimeout(() => { if (btn) btn.disabled = false; }, 1500);
 
     const { error } = await db.auth.signInWithOAuth({ 
         provider: 'google', 
@@ -1639,7 +1639,6 @@
     
     if (error) { 
         showToast(error.message); 
-        // Agar error aaye toh button ko wapas enable kar dein
         btn.disabled = false;
     }
 }
