@@ -1292,7 +1292,16 @@
                     .select('*')
                     .order('sort_order', { ascending: true })
                     .order('id', { ascending: true });
-                return data || [];
+                
+                // Filter out hidden categories. If a parent is hidden, hide its subcategories too.
+                return data ? data.filter(c => {
+                    if (c.is_hidden === true) return false;
+                    if (c.parent_id) {
+                        const parent = data.find(p => p.id === c.parent_id);
+                        if (parent && parent.is_hidden === true) return false;
+                    }
+                    return true;
+                }) : [];
             }, mapCategory, 300000, force);
         }
 
@@ -1302,7 +1311,9 @@
                     .select('*')
                     .order('sort_order', { ascending: true })
                     .order('id', { ascending: false });
-                return data || [];
+                
+                // Filter out completely hidden products
+                return data ? data.filter(p => p.is_hidden !== true) : [];
             }, mapProduct, 300000, force);
         }
 
