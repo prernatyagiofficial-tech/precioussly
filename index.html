@@ -1490,20 +1490,25 @@
         }
 
         function navigate(stateObj) {
-            if (!isPopState) {
-                const current = history.state;
-                let queryParams = `?view=${stateObj.view}`;
-                
-                // NEW: Use beautiful slug URLs for products
-                if (stateObj.view === 'product' && appData.products) {
-                    const prod = appData.products.find(p => String(p.id) === String(stateObj.id));
-                    if (prod) {
-                        queryParams = `?product=${createSlug(prod.name)}`;
-                    }
-                } else {
-                    if (stateObj.id) queryParams += `&id=${stateObj.id}`;
-                    if (stateObj.query) queryParams += `&query=${encodeURIComponent(stateObj.query)}`;
-                }
+    if (!isPopState) {
+        const current = history.state;
+        let queryParams = ""; // Start empty
+        
+        // Generate the correct URL string based on the view
+        if (stateObj.view === 'product' && appData.products) {
+            const prod = appData.products.find(p => String(p.id) === String(stateObj.id));
+            if (prod) {
+                queryParams = `?product=${createSlug(prod.name)}`;
+            }
+        } else if (stateObj.view === 'home') {
+            // Keep the URL clean for the homepage
+            queryParams = window.location.pathname; 
+        } else {
+            // Standard routing for other views
+            queryParams = `?view=${stateObj.view}`;
+            if (stateObj.id) queryParams += `&id=${stateObj.id}`;
+            if (stateObj.query) queryParams += `&query=${encodeURIComponent(stateObj.query)}`;
+        }
 
                 if (current && current.view === stateObj.view && current.id === stateObj.id && current.query === stateObj.query) {
                     history.replaceState(stateObj, "", queryParams);
@@ -1718,23 +1723,24 @@
                         renderHome();
                     }
                 } 
-                // 2. Fallback for old URL styles just in case
-                else if (viewParam === 'product' && idParam) {
-                    history.replaceState({view: 'product', id: idParam}, "", window.location.search);
-                    isPopState = true;
-                    updateFabVisibility('product');
-                    renderProduct(idParam);
-                } else if (viewParam === 'category' && idParam) {
-                    history.replaceState({view: 'category', id: idParam}, "", window.location.search);
-                    isPopState = true;
-                    updateFabVisibility('category');
-                    renderCategory(idParam);
-                } else {
-                    history.replaceState({view: 'home'}, "", "?view=home");
-                    isPopState = true;
-                    updateFabVisibility('home');
-                    renderHome();
-                }
+               // 2. Fallback for old URL styles just in case
+        else if (viewParam === 'product' && idParam) {
+            history.replaceState({view: 'product', id: idParam}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('product');
+            renderProduct(idParam);
+        } else if (viewParam === 'category' && idParam) {
+            history.replaceState({view: 'category', id: idParam}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('category');
+            renderCategory(idParam);
+        } else {
+            // REMOVED "?view=home" AND REPLACED WITH window.location.pathname
+            history.replaceState({view: 'home'}, "", window.location.pathname);
+            isPopState = true;
+            updateFabVisibility('home');
+            renderHome();
+        }
             } catch (error) {
                 console.error("Failed to load store data:", error);
                 showToast("Error loading app data.");
