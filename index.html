@@ -2332,7 +2332,7 @@
         }
 
         // --- CART LOGIC ---
-        function withLoading(btn, callback) {
+        function withLoading(btn, callback, delay = 500) {
             if (btn.disabled) return;
             const originalText = btn.querySelector('.btn-text').innerText;
             btn.disabled = true;
@@ -2342,7 +2342,7 @@
                 btn.disabled = false;
                 btn.innerHTML = `<span class="btn-text">${originalText}</span>`;
                 callback();
-            }, 500); // Optimized visual delay
+            }, delay); // Uses custom delay, defaults to 500ms
         }
 
         function addToCart(btn, prodId) {
@@ -2537,7 +2537,7 @@
                     </div>
                     <div class="cart-checkout-wrapper">
                         ${isMinOrderMet ? 
-                            `<button class="btn-primary" onclick="triggerHaptic('success'); renderCheckout()">Proceed to Checkout</button>` : 
+                            `<button class="btn-primary" onclick="triggerHaptic('success'); withLoading(this, () => renderCheckout(), 1200)"><span class="btn-text">Proceed to Checkout</span></button>` :
                             `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
                              <button class="btn-primary" disabled>Proceed to Checkout</button>`
                         }
@@ -2758,10 +2758,10 @@ function initiatePayment(btn, totalAmount) {
                 // If Razorpay fails to load, you might want to show an error instead of placing order
                 showToast("Payment Gateway Error. Please try again.");
             }
-        });
+        }, 1200); // <-- 1.2 second loading delay added here
     } else {
         // If amount is 0 (Free order or full discount), place order directly
-        withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails));
+        withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); // <-- 1.2 second loading delay added here
     }
 }
 
