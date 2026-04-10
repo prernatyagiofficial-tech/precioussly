@@ -164,19 +164,33 @@
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* Announcement Bar */
-        .announcement {
-            background: #000;
-            color: #fff;
-            font-size: 12px;
-            padding: 7px 15px;
-            text-align: center;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+/* Announcement Bar */
+.announcement {
+    background: #000;
+    color: #fff;
+    font-size: 12px;
+    padding: 7px 15px;
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* Important for scrolling */
+    white-space: nowrap;
+}
+
+.scrolling-wrapper {
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    animation: scrollText 15s linear infinite;
+}
+
+@keyframes scrollText {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+}
 
         /* Side Menu Overlay */
         .side-menu-overlay {
@@ -1282,6 +1296,7 @@
                 whatsappNumber: row.whatsapp_number || '',
                 emailId: row.email_id || '',
                 announcementText: row.announcement_text || '',
+                announcementScrolling: parseBool(row.announcement_scrolling),
                 minOrderAmount: Number(row.min_order_amount) || 149,
                 codUpfrontFee: Number(row.cod_upfront_fee) || 49,
                 minCODAmount: Number(row.min_cod_amount) || 500,
@@ -1562,42 +1577,48 @@
           }).subscribe();
 
         function applyGlobalSettings() {
-            const navBar = document.querySelector('.nav-bar');
-            if (navBar && appData.settings.headerPaddingY !== undefined) {
-                navBar.style.paddingTop = appData.settings.headerPaddingY + 'px';
-                navBar.style.paddingBottom = appData.settings.headerPaddingY + 'px';
-            }
+    const navBar = document.querySelector('.nav-bar');
+    if (navBar && appData.settings.headerPaddingY !== undefined) {
+        navBar.style.paddingTop = appData.settings.headerPaddingY + 'px';
+        navBar.style.paddingBottom = appData.settings.headerPaddingY + 'px';
+    }
 
-            if (appData.settings.logoUrl) {
-                siteLogoImage.src = appData.settings.logoUrl;
-                siteLogoImage.style.display = 'block';
-                siteLogoImage.style.width = appData.settings.logoWidth + 'px';
-                siteLogoImage.style.transform = `translate(${appData.settings.logoOffsetX}px, ${appData.settings.logoOffsetY}px)`;
-                document.getElementById('brandNameDisplay').style.display = 'none';
-            } else {
-                siteLogoImage.style.display = 'none';
-                document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
-                document.getElementById('brandNameDisplay').style.display = 'block';
-            }
+    if (appData.settings.logoUrl) {
+        siteLogoImage.src = appData.settings.logoUrl;
+        siteLogoImage.style.display = 'block';
+        siteLogoImage.style.width = appData.settings.logoWidth + 'px';
+        siteLogoImage.style.transform = `translate(${appData.settings.logoOffsetX}px, ${appData.settings.logoOffsetY}px)`;
+        document.getElementById('brandNameDisplay').style.display = 'none';
+    } else {
+        siteLogoImage.style.display = 'none';
+        document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
+        document.getElementById('brandNameDisplay').style.display = 'block';
+    }
 
-            document.getElementById('footerBrandName').innerText = appData.settings.brandName;
-            document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
-            document.title = `${appData.settings.brandName} - E-Commerce`;
+    document.getElementById('footerBrandName').innerText = appData.settings.brandName;
+    document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+    document.title = `${appData.settings.brandName} - E-Commerce`;
 
-            const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
-            document.getElementById('whatsappLink').href = waLink;
-            document.getElementById('fabWhatsappLink').href = waLink;
-            document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
+    const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
+    document.getElementById('whatsappLink').href = waLink;
+    document.getElementById('fabWhatsappLink').href = waLink;
+    document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
 
-            const announcementBar = document.getElementById('announcement-bar');
-            if (appData.settings.announcementText) {
-                announcementBar.innerHTML = appData.settings.announcementText;
-                announcementBar.style.display = 'flex';
-            } else {
-                announcementBar.style.display = 'none';
-            }
+    // Updated Announcement Bar Logic Here
+    const announcementBar = document.getElementById('announcement-bar');
+    if (appData.settings.announcementText) {
+        // Check if the scrolling toggle is ON
+        if (appData.settings.announcementScrolling) {
+            announcementBar.innerHTML = `<div class="scrolling-wrapper">${appData.settings.announcementText}</div>`;
+        } else {
+            // Normal static text
+            announcementBar.innerHTML = appData.settings.announcementText;
         }
-
+        announcementBar.style.display = 'flex';
+    } else {
+        announcementBar.style.display = 'none';
+    }
+}
 
 // --- AUTH LOGIC ---
         function renderLogin(isSignUp = false) {
