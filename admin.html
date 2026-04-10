@@ -784,28 +784,34 @@ if (error) console.error("Supabase Error loading products:", error);
 
         // Orders Management
         async function loadOrders() {
-            const { data } = await db.from('orders').select('*').order('created_at', { ascending: false });
-            let html = '';
-            if(data) {
-                data.forEach(o => {
-                    const customerName = o.customer_details?.name || 'Guest';
-                    const date = new Date(o.created_at).toLocaleDateString();
-                    const badgeClass = o.status === 'Completed' ? 'success' : (o.status === 'Pending' ? 'warning' : '');
-                    html += `<tr><td>${o.id}</td><td>${date}</td><td>${customerName}</td><td>₹${o.total_amount}</td>
-                             <td><span class="badge ${badgeClass}">${o.status}</span></td>
-                             <td>
-                               <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px;">
-                                 <option value="Pending" ${o.status==='Pending'?'selected':''}>Pending</option>
-                                 <option value="Processing" ${o.status==='Processing'?'selected':''}>Processing</option>
-                                 <option value="Shipped" ${o.status==='Shipped'?'selected':''}>Shipped</option>
-                                 <option value="Completed" ${o.status==='Completed'?'selected':''}>Completed</option>
-                                 <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-                               </select>
-                             </td></tr>`;
-                });
-            }
-            document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
-        }
+    const { data } = await db.from('orders').select('*').order('created_at', { ascending: false });
+    let html = '';
+    if(data) {
+        data.forEach(o => {
+            const customerName = o.customer_details?.name || 'Guest';
+            const date = new Date(o.created_at).toLocaleDateString();
+            
+            // Dynamic badge coloring based on your new flow
+            let badgeClass = '';
+            if (o.status === 'In Progress') badgeClass = 'warning';
+            else if (o.status === 'Confirmed') badgeClass = 'success'; // Blue/Green
+            else if (o.status === 'Delivered') badgeClass = 'success'; 
+            else if (o.status === 'Cancelled') badgeClass = 'danger';
+
+            html += `<tr><td>${o.id}</td><td>${date}</td><td>${customerName}</td><td>₹${o.total_amount}</td>
+                     <td><span class="badge ${badgeClass}">${o.status}</span></td>
+                     <td>
+                       <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-weight:600; cursor:pointer;">
+                         <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
+                         <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
+                         <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                         <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                       </select>
+                     </td></tr>`;
+        });
+    }
+    document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
+}
 
         async function updateOrderStatus(id, newStatus) {
             await db.from('orders').update({ status: newStatus }).eq('id', id);
