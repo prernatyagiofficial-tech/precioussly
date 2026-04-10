@@ -1254,16 +1254,22 @@
 
         async function getCategories(force = false) {
             return fetchWithCache('categories', async () => {
-                const { data } = await db.from('categories').select('*');
+                const { data } = await db.from('categories')
+                    .select('*')
+                    .order('sort_order', { ascending: true })
+                    .order('id', { ascending: true });
                 return data || [];
-            }, mapCategory, 300000, force).then(c => c.sort((a, b) => a.id - b.id));
+            }, mapCategory, 300000, force);
         }
 
         async function getProducts(force = false) {
             return fetchWithCache('products', async () => {
-                const { data } = await db.from('products').select('*');
+                const { data } = await db.from('products')
+                    .select('*')
+                    .order('sort_order', { ascending: true })
+                    .order('id', { ascending: false });
                 return data || [];
-            }, mapProduct, 300000, force).then(p => p.sort((a, b) => b.id - a.id));
+            }, mapProduct, 300000, force);
         }
 
         async function getCoupons(force = false) {
