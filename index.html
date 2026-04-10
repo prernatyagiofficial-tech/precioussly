@@ -1101,9 +1101,8 @@
             </div>
         </div>
     </div>
-
-    <script>
-        // 💀 Initialize Supabase
+<script>
+        // --- INITIALIZE SUPABASE ---
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM'; 
         
@@ -1112,15 +1111,20 @@
         document.getElementById('year').textContent = new Date().getFullYear();
         const imageSvg = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
 
-      // Persistent User State
+        // --- STATE MANAGEMENT WITH PERSISTENCE ---
         const state = {
-            user: null, // Tracks logged in user
-            cart: [],
-            wishlist: [],
+            user: null, 
+            cart: JSON.parse(localStorage.getItem('eco_cart') || '[]'),
+            wishlist: JSON.parse(localStorage.getItem('eco_wishlist') || '[]'),
             itemToRemove: null
         };
 
-        // Dynamic Application Data
+        function persistUserData() {
+            localStorage.setItem('eco_cart', JSON.stringify(state.cart));
+            localStorage.setItem('eco_wishlist', JSON.stringify(state.wishlist));
+        }
+
+        // --- DYNAMIC APPLICATION DATA ---
         const appData = {
             settings: {},
             categories: [],
@@ -1130,7 +1134,7 @@
             reviews: []
         };
 
-        // --- Robust Parsing Functions --- //
+        // --- UTILITY FUNCTIONS ---
         function safeParseJSON(val, defaultVal) {
             if (Array.isArray(val)) return val;
             if (typeof val === 'object' && val !== null) return val;
@@ -1147,112 +1151,136 @@
             return false;
         }
 
+        const formatPrice = (amount) => `₹${amount.toLocaleString()}`;
+
+        // Debounce function for performance
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastMsg');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function triggerHaptic(type) {
+            if (!window.navigator || !navigator.vibrate) return;
+            if (type === 'pop') navigator.vibrate(40);
+            else if (type === 'success') navigator.vibrate([30, 50, 30]);
+            else if (type === 'light') navigator.vibrate(20);
+        }
+
+        // --- DATA MAPPING ---
         function mapSettings(row) {
-    if (!row) row = {};
-    return {
-        brandName: row.brand_name || 'My Store', // Or leave as '' if you prefer
-        logoUrl: row.logo_url || '',
-        logoWidth: Number(row.logo_width) || 60,
-        logoOffsetX: Number(row.logo_offset_x) || 0,
-        logoOffsetY: Number(row.logo_offset_y) || 0,
-        headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
-        whatsappNumber: row.whatsapp_number || '',
-        emailId: row.email_id || '',
-        announcementText: row.announcement_text || '',
-        minOrderAmount: Number(row.min_order_amount) || 149,
-        codUpfrontFee: Number(row.cod_upfront_fee) || 49,
-        minCODAmount: Number(row.min_cod_amount) || 500,
-        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
-    };
-}
+            if (!row) row = {};
+            return {
+                brandName: row.brand_name || 'My Store',
+                logoUrl: row.logo_url || '',
+                logoWidth: Number(row.logo_width) || 60,
+                logoOffsetX: Number(row.logo_offset_x) || 0,
+                logoOffsetY: Number(row.logo_offset_y) || 0,
+                headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
+                whatsappNumber: row.whatsapp_number || '',
+                emailId: row.email_id || '',
+                announcementText: row.announcement_text || '',
+                minOrderAmount: Number(row.min_order_amount) || 149,
+                codUpfrontFee: Number(row.cod_upfront_fee) || 49,
+                minCODAmount: Number(row.min_cod_amount) || 500,
+                bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
+            };
+        }
 
         function mapCategory(row) {
-            return {
-                id: row.id,
-                name: row.name || 'Category',
-                img: row.img || row.image_url || '',
-                parentId: row.parent_id || null
-            };
+            return { id: row.id, name: row.name || 'Category', img: row.img || row.image_url || '', parentId: row.parent_id || null };
         }
 
         function mapProduct(row) {
             return {
-                id: row.id,
-                name: row.name || 'Product',
-                price: Number(row.price || 0),
-                catId: row.cat_id || row.category_id,
-                desc: row.description || row.desc || '',
-                isBestSeller: parseBool(row.is_best_seller || row.bestseller),
-                media: safeParseJSON(row.media, []),
-                variants: safeParseJSON(row.variants, []),
-                sizes: safeParseJSON(row.sizes, []),
-                isRing: parseBool(row.is_ring),
-                isAlphabet: parseBool(row.is_alphabet)
+                id: row.id, name: row.name || 'Product', price: Number(row.price || 0), catId: row.cat_id || row.category_id,
+                desc: row.description || row.desc || '', isBestSeller: parseBool(row.is_best_seller || row.bestseller),
+                media: safeParseJSON(row.media, []), variants: safeParseJSON(row.variants, []), sizes: safeParseJSON(row.sizes, []),
+                isRing: parseBool(row.is_ring), isAlphabet: parseBool(row.is_alphabet)
             };
         }
 
         function mapCoupon(row) {
-            return {
-                id: row.id,
-                minThreshold: Number(row.min_threshold || row.threshold || 0),
-                discountAmount: Number(row.discount_amount || row.discount || 0),
-                active: parseBool(row.active ?? true)
-            };
+            return { id: row.id, minThreshold: Number(row.min_threshold || row.threshold || 0), discountAmount: Number(row.discount_amount || row.discount || 0), active: parseBool(row.active ?? true) };
         }
 
         function mapReview(row) {
-            return {
-                id: row.id,
-                image: row.image_url || row.image || row.media || ''
-            };
+            return { id: row.id, image: row.image_url || row.image || row.media || '' };
         }
 
-        // --- 💀 LIVE SUPABASE FETCH FUNCTIONS --- //
-        async function getSettings() {
-            const { data, error } = await db.from('settings').select('*').limit(1);
-            if (error || !data || data.length === 0) {
-                console.error("Error fetching settings:", error);
-                return mapSettings(null);
+        // --- OPTIMIZED DATA FETCHING (Stale-While-Revalidate) ---
+        async function fetchWithCache(key, fetcher, mapper, cacheTimeMs = 300000, forceFetch = false) {
+            const cachedData = localStorage.getItem(`eco_cache_${key}`);
+            const cacheTimestamp = localStorage.getItem(`eco_cache_time_${key}`);
+            const now = Date.now();
+
+            if (!forceFetch && cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp) < cacheTimeMs)) {
+                // Background update for freshness
+                setTimeout(async () => {
+                    const freshData = await fetcher();
+                    if (freshData) {
+                        localStorage.setItem(`eco_cache_${key}`, JSON.stringify(freshData.map ? freshData.map(mapper) : mapper(freshData)));
+                        localStorage.setItem(`eco_cache_time_${key}`, now.toString());
+                    }
+                }, 100);
+                return JSON.parse(cachedData);
             }
-            return mapSettings(data[0]);
-        }
 
-        async function getCategories() {
-            const { data, error } = await db.from('categories').select('*');
-            if (error) {
-                console.error("Error fetching categories:", error);
-                return [];
+            const freshData = await fetcher();
+            if (freshData) {
+                const mappedData = freshData.map ? freshData.map(mapper) : mapper(freshData);
+                localStorage.setItem(`eco_cache_${key}`, JSON.stringify(mappedData));
+                localStorage.setItem(`eco_cache_time_${key}`, now.toString());
+                return mappedData;
             }
-            return (data || []).map(mapCategory).sort((a, b) => a.id - b.id);
+            return cachedData ? JSON.parse(cachedData) : null;
         }
 
-        async function getProducts() {
-            const { data, error } = await db.from('products').select('*');
-            if (error) {
-                console.error("Error fetching products:", error);
-                return [];
-            }
-            return (data || []).map(mapProduct).sort((a, b) => b.id - a.id);
+        async function getSettings(force = false) {
+            return fetchWithCache('settings', async () => {
+                const { data } = await db.from('settings').select('*').limit(1);
+                return data && data.length > 0 ? data[0] : null;
+            }, mapSettings, 600000, force);
         }
 
-        async function getCoupons() {
-            const { data, error } = await db.from('coupons').select('*');
-            if (error) {
-                console.error("Error fetching coupons:", error);
-                return [];
-            }
-            return (data || []).map(mapCoupon).filter(c => c.active).sort((a,b) => b.minThreshold - a.minThreshold);
+        async function getCategories(force = false) {
+            return fetchWithCache('categories', async () => {
+                const { data } = await db.from('categories').select('*');
+                return data || [];
+            }, mapCategory, 300000, force).then(c => c.sort((a, b) => a.id - b.id));
         }
 
-        async function getReviews() {
-            const { data, error } = await db.from('reviews').select('*');
-            if (error) {
-                console.error("Error fetching reviews:", error);
-                return [];
-            }
-            return (data || []).map(mapReview);
+        async function getProducts(force = false) {
+            return fetchWithCache('products', async () => {
+                const { data } = await db.from('products').select('*');
+                return data || [];
+            }, mapProduct, 300000, force).then(p => p.sort((a, b) => b.id - a.id));
         }
 
+        async function getCoupons(force = false) {
+            return fetchWithCache('coupons', async () => {
+                const { data } = await db.from('coupons').select('*');
+                return data || [];
+            }, mapCoupon, 600000, force).then(c => c.filter(x => x.active).sort((a, b) => b.minThreshold - a.minThreshold));
+        }
+
+        async function getReviews(force = false) {
+            return fetchWithCache('reviews', async () => {
+                const { data } = await db.from('reviews').select('*');
+                return data || [];
+            }, mapReview, 600000, force);
+        }
+
+        // --- MENU GENERATION ---
         function generateMenuLinks() {
             const baseLinks = [
                 { name: "Home", action: 'home', icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>' },
@@ -1264,14 +1292,11 @@
                 { name: "Categories", isTitle: true }
             ];
 
-            // Groups subcategories under their respective main categories
             const mainCategories = appData.categories.filter(c => !c.parentId && c.id !== 'all');
             const categoryLinks = mainCategories.map(mainCat => {
                 const subCats = appData.categories.filter(c => c.parentId === mainCat.id);
                 return {
-                    name: mainCat.name, 
-                    id: mainCat.id, 
-                    icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>',
+                    name: mainCat.name, id: mainCat.id, icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>',
                     subLinks: subCats.length > 0 ? subCats.map(sub => ({ name: sub.name, id: sub.id })) : null
                 };
             });
@@ -1281,10 +1306,7 @@
                 { name: "Policies", action: 'policies', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>' }
             ];
 
-            let accountLinks = [
-                { name: "Account", isTitle: true }
-            ];
-
+            let accountLinks = [{ name: "Account", isTitle: true }];
             if (state.user) {
                 accountLinks.push({ name: `Logged in as: ${state.user.email.split('@')[0]}`, id: 'no-action', icon: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>' });
                 accountLinks.push({ name: "Logout", action: 'logout', icon: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>' });
@@ -1295,17 +1317,10 @@
             appData.menuLinks = [...baseLinks, ...categoryLinks, ...supportLinks, ...accountLinks];
         }
 
-        // --- APP LOGIC --- //
+        // --- DOM ELEMENTS & APP LOGIC ---
         let selectedProductVariantIndex = 0;
         let selectedProductSize = null;
         let selectedAlphabet = null;
-
-        function triggerHaptic(type) {
-            if (!window.navigator || !navigator.vibrate) return;
-            if (type === 'pop') navigator.vibrate(40);
-            else if (type === 'success') navigator.vibrate([30, 50, 30]);
-            else if (type === 'light') navigator.vibrate(20);
-        }
 
         const mainContent = document.getElementById('main-content');
         const searchContainer = document.getElementById('searchContainer');
@@ -1320,14 +1335,14 @@
 
         let isPopState = false;
 
+        // Optimized Search listener
+        const liveSearch = debounce((val) => executeSearch(val), 250);
+        searchInput.addEventListener('input', (e) => liveSearch(e.target.value));
+
         function updateFabVisibility(view) {
             const waFab = document.querySelector('.fab-whatsapp');
             if (waFab) {
-                if (['product', 'cart', 'checkout'].includes(view)) {
-                    waFab.style.display = 'none';
-                } else {
-                    waFab.style.display = 'flex';
-                }
+                waFab.style.display = ['product', 'cart', 'checkout'].includes(view) ? 'none' : 'flex';
             }
         }
 
@@ -1348,11 +1363,7 @@
 
         window.addEventListener('popstate', (e) => {
             isPopState = true;
-            if(sideMenu.classList.contains('active')) {
-                sideMenu.classList.remove('active');
-                menuOverlay.classList.remove('active');
-                document.body.classList.remove('no-scroll');
-            }
+            if(sideMenu.classList.contains('active')) toggleMenu();
             if(confirmModal.classList.contains('active')) closeModal();
             if(sizeChartModal.classList.contains('active')) closeSizeChartModal();
             if(ringSizeModal && ringSizeModal.classList.contains('active')) closeRingSizeModal();
@@ -1377,84 +1388,69 @@
                 renderHome();
             }
         });
-        
-        // Listen to Database Changes Correctly
+
+        // OPTIMIZED REAL-TIME FETCHING
         db.channel('public-changes')
-          .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-              getSettings().then(s => { appData.settings = s; applyGlobalSettings(); });
-              getCategories().then(c => { appData.categories = c; generateMenuLinks(); renderMenu(); });
-              getProducts().then(p => { 
+          .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+              const table = payload.table;
+              if (table === 'settings') getSettings(true).then(s => { appData.settings = s; applyGlobalSettings(); });
+              else if (table === 'categories') getCategories(true).then(c => { appData.categories = c; generateMenuLinks(); renderMenu(); });
+              else if (table === 'products') getProducts(true).then(p => { 
                   appData.products = p; 
                   const currentView = history.state ? history.state.view : 'home';
                   if (currentView === 'home' || currentView === 'category') renderHome(); 
               });
-              getCoupons().then(c => { appData.coupons = c; });
-              getReviews().then(r => { appData.reviews = r; });
-          })
-          .subscribe();
+              else if (table === 'coupons') getCoupons(true).then(c => { appData.coupons = c; });
+              else if (table === 'reviews') getReviews(true).then(r => { appData.reviews = r; });
+          }).subscribe();
 
-        const formatPrice = (amount) => `₹${amount.toLocaleString()}`;
-
-        function showToast(msg) {
-            const toast = document.getElementById('toastMsg');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => { toast.classList.remove('show'); }, 2500);
-        }
-        
         function applyGlobalSettings() {
-    // --- NEW: Apply dynamic header vertical spacing ---
-    const navBar = document.querySelector('.nav-bar');
-    if (navBar && appData.settings.headerPaddingY !== undefined) {
-        navBar.style.paddingTop = appData.settings.headerPaddingY + 'px';
-        navBar.style.paddingBottom = appData.settings.headerPaddingY + 'px';
-    }
+            const navBar = document.querySelector('.nav-bar');
+            if (navBar && appData.settings.headerPaddingY !== undefined) {
+                navBar.style.paddingTop = appData.settings.headerPaddingY + 'px';
+                navBar.style.paddingBottom = appData.settings.headerPaddingY + 'px';
+            }
 
-    if (appData.settings.logoUrl) {
-        siteLogoImage.src = appData.settings.logoUrl;
-        siteLogoImage.style.display = 'block';
-        
-        // Apply dynamic size and positioning from Admin Panel
-        siteLogoImage.style.width = appData.settings.logoWidth + 'px';
-        siteLogoImage.style.transform = `translate(${appData.settings.logoOffsetX}px, ${appData.settings.logoOffsetY}px)`;
-        
-        document.getElementById('brandNameDisplay').style.display = 'none';
-    } else {
-        siteLogoImage.style.display = 'none';
-        document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
-        document.getElementById('brandNameDisplay').style.display = 'block';
-    }
+            if (appData.settings.logoUrl) {
+                siteLogoImage.src = appData.settings.logoUrl;
+                siteLogoImage.style.display = 'block';
+                siteLogoImage.style.width = appData.settings.logoWidth + 'px';
+                siteLogoImage.style.transform = `translate(${appData.settings.logoOffsetX}px, ${appData.settings.logoOffsetY}px)`;
+                document.getElementById('brandNameDisplay').style.display = 'none';
+            } else {
+                siteLogoImage.style.display = 'none';
+                document.getElementById('brandNameDisplay').innerText = appData.settings.brandName;
+                document.getElementById('brandNameDisplay').style.display = 'block';
+            }
 
-    document.getElementById('footerBrandName').innerText = appData.settings.brandName;
-    document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
-    document.title = `${appData.settings.brandName} - E-Commerce`;
+            document.getElementById('footerBrandName').innerText = appData.settings.brandName;
+            document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+            document.title = `${appData.settings.brandName} - E-Commerce`;
 
-    const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
-    document.getElementById('whatsappLink').href = waLink;
-    document.getElementById('fabWhatsappLink').href = waLink;
-    document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
+            const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
+            document.getElementById('whatsappLink').href = waLink;
+            document.getElementById('fabWhatsappLink').href = waLink;
+            document.getElementById('emailLink').href = `mailto:${appData.settings.emailId}`;
 
-    const announcementBar = document.getElementById('announcement-bar');
-    if (appData.settings.announcementText) {
-        announcementBar.innerHTML = appData.settings.announcementText;
-        announcementBar.style.display = 'flex';
-    } else {
-        announcementBar.style.display = 'none';
-    }
-}
-// --- AUTHENTICATION LOGIC ---
+            const announcementBar = document.getElementById('announcement-bar');
+            if (appData.settings.announcementText) {
+                announcementBar.innerHTML = appData.settings.announcementText;
+                announcementBar.style.display = 'flex';
+            } else {
+                announcementBar.style.display = 'none';
+            }
+        }
+
+        // --- AUTH LOGIC ---
         function renderLogin() {
             navigate({view: 'login'});
             searchContainer.style.display = 'none';
-
             let html = `
                 <div class="back-nav" onclick="renderHome()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Home
                 </div>
             `;
-
             if (state.user) {
-                // User is already logged in - show profile
                 html += `
                     <div class="auth-container">
                         <h2 class="auth-title">My Account</h2>
@@ -1467,19 +1463,15 @@
                     </div>
                 `;
             } else {
-                // Not logged in - show login form
                 html += `
                     <div class="auth-container">
                         <h2 class="auth-title">Welcome Back</h2>
                         <p class="auth-subtitle">Sign in to sync your orders and checkout faster.</p>
-                        
                         <button class="google-btn" onclick="signInWithGoogle(this)">
                             <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
                             Sign in with Google
                         </button>
-                        
                         <div class="divider">OR</div>
-
                         <div class="form-group" style="text-align: left;">
                             <label>Email Address</label>
                             <input type="email" id="authEmail" placeholder="Enter your email" required>
@@ -1488,64 +1480,40 @@
                             <label>Password</label>
                             <input type="password" id="authPassword" placeholder="Enter your password" required>
                         </div>
-                        
                         <button class="btn-primary" onclick="signInWithEmail(this)"><span class="btn-text">Sign In with Email</span></button>
                         <p style="font-size: 12px; color: var(--text-gray); margin-top: 20px;">If you don't have an account, one will be created automatically.</p>
                     </div>
                 `;
             }
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+            });
         }
 
         async function signInWithGoogle(btn) {
-    triggerHaptic('light');
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = `<span class="btn-spinner"></span>`;
-    
-    const { data, error } = await db.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            // Explicitly set your live domain here
-            redirectTo: window.location.origin 
-        }
-    });
-    
-            if (error) {
-                showToast(error.message);
-                btn.innerHTML = originalHtml;
-            }
-            // Supabase handles the redirect automatically for OAuth
+            triggerHaptic('light');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<span class="btn-spinner"></span>`;
+            const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+            if (error) { showToast(error.message); btn.innerHTML = originalHtml; }
         }
 
         async function signInWithEmail(btn) {
             const email = document.getElementById('authEmail').value.trim();
             const password = document.getElementById('authPassword').value;
-            
-            if (!email || !password) {
-                showToast("Please enter email and password");
-                return;
-            }
+            if (!email || !password) return showToast("Please enter email and password");
 
             triggerHaptic('light');
             withLoading(btn, async () => {
-                // Try to log in first
                 let { data, error } = await db.auth.signInWithPassword({ email, password });
-                
-                // If invalid credentials, attempt to sign up automatically as requested by UI
                 if (error && error.message.includes("Invalid login")) {
                     const signUpRes = await db.auth.signUp({ email, password });
-                    data = signUpRes.data;
                     error = signUpRes.error;
                     if (!error) showToast("Account created successfully!");
                 }
-
-                if (error) {
-                    showToast(error.message);
-                } else {
-                    showToast("Successfully logged in!");
-                    renderHome();
-                }
+                if (error) showToast(error.message);
+                else { showToast("Successfully logged in!"); renderHome(); }
             });
         }
 
@@ -1556,27 +1524,28 @@
             renderHome();
         }
 
-        // Initialize Auth Session tracking
         db.auth.onAuthStateChange((event, session) => {
             state.user = session?.user || null;
-            generateMenuLinks(); // Regenerate menu to show/hide Login/Logout
-            if(sideMenu.classList.contains('active')) renderMenu(); // Update side menu visually if it's open
-            
-            // If the user is looking at the login page when auth changes, refresh it
-            if (history.state && history.state.view === 'login') {
-                renderLogin();
-            }
+            generateMenuLinks(); 
+            if(sideMenu.classList.contains('active')) renderMenu(); 
+            if (history.state && history.state.view === 'login') renderLogin();
         });
-        // --- END AUTH LOGIC ---
+
+        // --- APP INITIALIZATION ---
         async function initApp() {
             try {
-                appData.settings = await getSettings();
-                appData.categories = await getCategories();
-                appData.products = await getProducts();
-                appData.coupons = await getCoupons();
-                appData.reviews = await getReviews();
-                generateMenuLinks();
+                // Fetch in parallel for speed
+                const [settings, categories, products, coupons, reviews] = await Promise.all([
+                    getSettings(), getCategories(), getProducts(), getCoupons(), getReviews()
+                ]);
 
+                appData.settings = settings;
+                appData.categories = categories;
+                appData.products = products;
+                appData.coupons = coupons;
+                appData.reviews = reviews;
+
+                generateMenuLinks();
                 applyGlobalSettings();
                 updateBadges();
                 renderMenu();
@@ -1585,13 +1554,13 @@
                 isPopState = true;
                 updateFabVisibility('home');
                 renderHome();
-
             } catch (error) {
                 console.error("Failed to load store data:", error);
                 showToast("Error loading app data.");
             }
         }
 
+        // --- UI FUNCTIONS ---
         function toggleSearch() {
             if (searchContainer.style.display === 'block') {
                 searchContainer.style.display = 'none';
@@ -1636,7 +1605,6 @@
                     if (typeof link.id === 'number' || (typeof link.id === 'string' && link.id !== 'all' && link.id !== 'bestsellers' && link.id !== 'track')) displayIcon = categoryIcon;
 
                     if (link.subLinks && link.subLinks.length > 0) {
-                        // Generates Dropdown for Categories with Subcategories
                         html += `
                         <div class="menu-item-wrapper">
                             <a href="javascript:void(0)" class="menu-link has-submenu" onclick="toggleSubmenu(event, 'submenu-${link.id}')">
@@ -1652,7 +1620,6 @@
                             </div>
                         </div>`;
                     } else {
-                        // Generates standard single link
                         html += `<a href="javascript:void(0)" class="menu-link" onclick="handleMenuClick('${link.action || ''}', '${link.id || ''}')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${displayIcon || ''}</svg>
                             ${link.name}
@@ -1664,7 +1631,7 @@
         }
         
         function toggleSubmenu(event, submenuId) {
-            event.stopPropagation(); // Prevents the sidebar from closing when clicking a dropdown
+            event.stopPropagation();
             const submenu = document.getElementById(submenuId);
             const chevron = document.getElementById(submenuId.replace('submenu-', 'chevron-'));
             
@@ -1689,44 +1656,7 @@
         }
 
         function handleAuthClick() {
-            if (state.user) {
-                renderLogin(); // Show account details if already logged in
-            } else {
-                renderLogin();
-            }
-        }
-        function renderPolicies() {
-            navigate({view: 'policies'});
-            searchContainer.style.display = 'none';
-            let html = `
-                <div class="back-nav" onclick="renderHome()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Back
-                </div>
-                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom:30px;">
-                    <h3>Store Policies</h3>
-                </div>
-                <div class="policy-container">
-                    <div class="policy-section">
-                        <h4>Privacy Policy</h4>
-                        <p>We value your privacy. Your personal information, such as your name, email, and shipping address, is collected strictly for processing your orders and enhancing your shopping experience. We do not sell or share your data with third parties.</p>
-                    </div>
-                    <div class="policy-section">
-                        <h4>Terms of Service</h4>
-                        <p>By using the ${appData.settings.brandName} platform, you agree to comply with our guidelines. All product details, pricing, and availability are subject to change. We reserve the right to cancel orders if necessary, with a full refund provided.</p>
-                    </div>
-                    <div class="policy-section">
-                        <h4>Shipping & Returns</h4>
-                        <p>Orders are dispatched within 2-3 business days. Delivery times vary based on location. If you receive a damaged or incorrect product, please contact us within 48 hours for a prompt replacement or refund.</p>
-                    </div>
-                    <div class="policy-section">
-                        <h4>Contact Information</h4>
-                        <p>For any queries, please email us at ${appData.settings.emailId} or contact us via WhatsApp.</p>
-                    </div>
-                </div>
-            `;
-            mainContent.innerHTML = html;
-            window.scrollTo(0,0);
+            renderLogin();
         }
 
         function toggleWishlist(event, prodId) {
@@ -1743,6 +1673,8 @@
                 state.wishlist.push(prodId);
                 showToast("Added to Wishlist");
             }
+            
+            persistUserData(); // Save to local storage
             
             if (event && event.currentTarget) {
                 const btn = event.currentTarget;
@@ -1786,11 +1718,12 @@
             const isVideo = displayMediaStr && typeof displayMediaStr === 'string' && displayMediaStr.toLowerCase().endsWith('.mp4');
             let mediaContent = `<div class="img-placeholder">${imageSvg}</div>`;
             
+            // Added loading="lazy" for performance
             if (displayMediaStr) {
                 if (isVideo) {
-                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline></video>`;
+                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline loading="lazy"></video>`;
                 } else {
-                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}">`;
+                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}" loading="lazy">`;
                 }
             }
 
@@ -1810,72 +1743,73 @@
             `;
         }
 
+        // --- VIEWS ---
         function renderHome() {
-    navigate({view: 'home'});
-    searchContainer.style.display = 'none';
-    
-    const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
-    const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;">` : `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
+            navigate({view: 'home'});
+            searchContainer.style.display = 'none';
+            
+            const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
+            const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
 
-    // Decode the target to build the correct click action
-    let bannerClickAction = `renderCategory('all')`; // Default
-    if (bannerConfig.target === 'bestsellers') {
-        bannerClickAction = `renderCategory('bestsellers')`;
-    } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
-        const catId = bannerConfig.target.split('_')[1]; // Extract the ID
-        bannerClickAction = `renderCategory('${catId}')`;
-    }
+            let bannerClickAction = `renderCategory('all')`;
+            if (bannerConfig.target === 'bestsellers') {
+                bannerClickAction = `renderCategory('bestsellers')`;
+            } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
+                const catId = bannerConfig.target.split('_')[1];
+                bannerClickAction = `renderCategory('${catId}')`;
+            }
 
-    let html = `
-        <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
-        <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
-        <div class="grid-container">
-    `;
+            let html = `
+                <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
+                <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
+                <div class="grid-container">
+            `;
 
-    // Filter to show ONLY Main Categories on the homepage grid
-    const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
-    mainCategories.forEach(cat => {
-        const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
-        html += `
-            <div class="category-card" onclick="renderCategory('${cat.id}')">
-                <div class="category-img-box">${imgContent}</div>
-                <span>${cat.name}</span>
-            </div>`;
-    });
-    html += `</div>`;
+            const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
+            mainCategories.forEach(cat => {
+                const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                html += `
+                    <div class="category-card" onclick="renderCategory('${cat.id}')">
+                        <div class="category-img-box">${imgContent}</div>
+                        <span>${cat.name}</span>
+                    </div>`;
+            });
+            html += `</div>`;
 
-    const bestSellers = appData.products.filter(p => p.isBestSeller);
-    if (bestSellers.length > 0) {
-        html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
-        bestSellers.forEach(prod => {
-             html += `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(prod)}</div>`;
-        });
-        html += `</div>`;
-    }
+            const bestSellers = appData.products.filter(p => p.isBestSeller);
+            if (bestSellers.length > 0) {
+                html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+                bestSellers.forEach(prod => {
+                     html += `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(prod)}</div>`;
+                });
+                html += `</div>`;
+            }
 
-    if (appData.reviews && appData.reviews.length > 0) {
-        html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
-        appData.reviews.forEach(review => {
-            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-            html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
-        });
-        html += `</div>`;
-    }
+            if (appData.reviews && appData.reviews.length > 0) {
+                html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+                appData.reviews.forEach(review => {
+                    let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
+                    html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
+                });
+                html += `</div>`;
+            }
 
-    mainContent.innerHTML = html;
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+            });
+        }
 
-    window.scrollTo(0, 0);
-}
         function renderCategory(catId) {
             if (catId === 'refresh') return; 
-            if(catId === 'track') { renderTrackOrder(); return; }
+            if(catId === 'track') return renderTrackOrder();
             
             navigate({view: 'category', id: catId});
             searchContainer.style.display = 'none';
 
             let filteredProds;
             let catName;
-            let subCategories = []; // Array to hold subcategories
+            let subCategories = []; 
             
             if (catId === 'all') {
                 filteredProds = appData.products;
@@ -1886,73 +1820,23 @@
             } else {
                 const cat = appData.categories.find(c => String(c.id) === String(catId));
                 catName = cat?.name || 'Products';
-                
-                // Find any categories that have this category as their parent
                 subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
-                
                 const allValidCatIds = [String(catId), ...subCategories.map(c => String(c.id))];
                 filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
             }
             
-            // Pass the subCategories array to the renderer
             renderProductList(catName, filteredProds, subCategories);
         }
 
-        function renderTrackOrder() {
-            navigate({view: 'track'});
-            searchContainer.style.display = 'none';
-            
-            let html = `
-                <div class="back-nav" onclick="renderHome()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Back to Home
-                </div>
-                
-                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom: 10px;">
-                    <h3>Track Your Order</h3>
-                </div>
-                
-                <div class="tracking-wrapper">
-                    <p style="font-size: 15px; color: var(--text-gray); margin-bottom: 30px; text-align: center; line-height: 1.6;">To track your order, please enter your tracking ID. You will be securely redirected to our universal tracking partner.</p>
-                    
-                    <div class="tracking-form">
-                        <input type="text" id="trackingInput" class="form-group input" style="padding: 16px 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 15px; background: #fff; outline: none; width:100%; transition: border 0.3s;" placeholder="Enter Tracking ID" onfocus="this.style.borderColor='var(--text-dark)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <button class="btn-primary" onclick="executeTracking(this)"><span class="btn-text">Track Order</span></button>
-                    </div>
-                </div>
-            `;
-            
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
-        }
-
-        function executeTracking(btn) {
-            const trackId = document.getElementById('trackingInput').value.trim();
-            if(!trackId) {
-                triggerHaptic('pop');
-                showToast("Please enter a tracking ID");
-                return;
-            }
-            triggerHaptic('light');
-            withLoading(btn, () => {
-                const trackingUrl = `https://parcelsapp.com/en/tracking/${encodeURIComponent(trackId)}`;
-                window.open(trackingUrl, '_blank');
-                document.getElementById('trackingInput').value = '';
-            });
-        }
-
         function renderProductList(title, products, subCats = []) {
-            let html = `
-                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>
-            `;
+            let html = `<div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>`;
 
-            // If subcategories exist, show them in a grid first
             if (subCats && subCats.length > 0) {
                 html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title} Categories</h3></div>
                          <div class="grid-container" style="padding-bottom: 20px;">`;
                 
                 subCats.forEach(cat => {
-                    const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                    const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
                     html += `
                         <div class="category-card" onclick="renderCategory('${cat.id}')">
                             <div class="category-img-box">${imgContent}</div>
@@ -1960,11 +1844,8 @@
                         </div>`;
                 });
                 
-                html += `</div>`;
-                // Add a divider and title for the products section below it
-                html += `<div class="section-title-wrapper" style="padding-top: 30px; border-top: 1px dashed var(--border-color);"><h3>All ${title} Products</h3></div>`;
+                html += `</div><div class="section-title-wrapper" style="padding-top: 30px; border-top: 1px dashed var(--border-color);"><h3>All ${title} Products</h3></div>`;
             } else {
-                // Standard title if no subcategories exist
                 html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
             }
 
@@ -1973,157 +1854,75 @@
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
             
-            mainContent.innerHTML = html;
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+            });
+        }
+
+        // Additional simple renders
+        function renderPolicies() {
+            navigate({view: 'policies'});
+            searchContainer.style.display = 'none';
+            mainContent.innerHTML = `
+                <div class="back-nav" onclick="renderHome()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back
+                </div>
+                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom:30px;">
+                    <h3>Store Policies</h3>
+                </div>
+                <div class="policy-container">
+                    <div class="policy-section"><h4>Privacy Policy</h4><p>We value your privacy. Your personal information is collected strictly for processing your orders.</p></div>
+                    <div class="policy-section"><h4>Terms of Service</h4><p>By using the ${appData.settings.brandName} platform, you agree to comply with our guidelines.</p></div>
+                    <div class="policy-section"><h4>Shipping & Returns</h4><p>Orders are dispatched within 2-3 business days. Delivery times vary based on location.</p></div>
+                </div>
+            `;
+            window.scrollTo(0,0);
+        }
+
+        function renderTrackOrder() {
+            navigate({view: 'track'});
+            searchContainer.style.display = 'none';
+            mainContent.innerHTML = `
+                <div class="back-nav" onclick="renderHome()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Home
+                </div>
+                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom: 10px;"><h3>Track Your Order</h3></div>
+                <div class="tracking-wrapper">
+                    <p style="font-size: 15px; color: var(--text-gray); margin-bottom: 30px; text-align: center; line-height: 1.6;">To track your order, please enter your tracking ID.</p>
+                    <div class="tracking-form">
+                        <input type="text" id="trackingInput" class="form-group input" style="padding: 16px 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 15px; width:100%; transition: border 0.3s;" placeholder="Enter Tracking ID">
+                        <button class="btn-primary" onclick="executeTracking(this)"><span class="btn-text">Track Order</span></button>
+                    </div>
+                </div>
+            `;
             window.scrollTo(0, 0);
+        }
+
+        function executeTracking(btn) {
+            const trackId = document.getElementById('trackingInput').value.trim();
+            if(!trackId) return showToast("Please enter a tracking ID");
+            triggerHaptic('light');
+            withLoading(btn, () => {
+                window.open(`https://parcelsapp.com/en/tracking/${encodeURIComponent(trackId)}`, '_blank');
+                document.getElementById('trackingInput').value = '';
+            });
         }
 
         function renderWishlist() {
             navigate({view: 'wishlist'});
             searchContainer.style.display = 'none';
             const products = appData.products.filter(p => state.wishlist.includes(String(p.id)) || state.wishlist.includes(p.id));
-            let html = `
-                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
-                <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Wishlist</h3></div>
-                <div class="grid-container">
-            `;
+            let html = `<div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
+                        <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Wishlist</h3></div><div class="grid-container">`;
             if(products.length === 0) {
                 html += `<div class="empty-state" style="grid-column: 1/-1;"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg><p>Your wishlist is empty.</p></div>`;
             } else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
+            requestAnimationFrame(() => { mainContent.innerHTML = html; window.scrollTo(0, 0); });
         }
 
-        function renderOrders() {
-            navigate({view: 'orders'});
-            searchContainer.style.display = 'none';
-
-            let html = `
-                <div class="back-nav" onclick="renderHome()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back
-                </div>
-                <div class="section-title-wrapper" style="padding-top: 0;">
-                    <h3>Your Orders</h3>
-                </div>
-            `;
-
-            let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-
-            if(orders.length === 0) {
-                html += `<div class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    <p>No orders found.</p>
-                </div>`;
-            } else {
-                html += `<div class="orders-wrapper">`;
-                orders.forEach(order => {
-                    let itemsHtml = '';
-                    order.items.forEach(item => {
-                        const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
-                        const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
-                        let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
-                        if (firstMedia) {
-                            if (isVideo) {
-                                imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                            } else {
-                                imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;">`;
-                            }
-                        }
-
-                        let displaySpecs = [];
-                        if (item.variant && item.variant !== "Default") displaySpecs.push(item.variant);
-                        if (item.size) displaySpecs.push(item.size);
-                        if (item.alphabet) displaySpecs.push(item.alphabet);
-                        const variantDisplay = displaySpecs.length > 0 ? displaySpecs.join(' | ') : '';
-
-                        itemsHtml += `
-                            <div class="order-item-row">
-                                <div class="order-item-img">${imgContent}</div>
-                                <div class="order-item-details">
-                                    <div class="order-item-name">${item.name}</div>
-                                    <div class="order-item-meta">${variantDisplay}</div>
-                                </div>
-                                <div class="order-item-price-qty">
-                                    <div class="order-item-price">${formatPrice(item.price)}</div>
-                                    <div class="order-item-qty">Qty: ${item.qty}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    html += `
-                        <div class="order-card">
-                            <div class="order-header">
-                                <div class="order-id-date">
-                                    <span class="order-id">${order.id}</span>
-                                    <span class="order-date">${order.date || new Date().toLocaleDateString()}</span>
-                                </div>
-                                <div class="order-status">${order.status}</div>
-                            </div>
-                            <div class="order-items">
-                                ${itemsHtml}
-                            </div>
-                            ${order.customer_details && order.customer_details.name ? `
-                            <div class="order-address">
-                                <strong>Delivery to: ${order.customer_details.name}</strong>
-                                ${order.customer_details.address}
-                            </div>
-                            ` : ''}
-                            <div class="order-footer" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                    <span class="order-total-label">Order Total</span>
-                                    <span class="order-total-amount">${formatPrice(order.total_amount)}</span>
-                                </div>
-                                ${order.customer_details && order.customer_details.paymentMethod === 'cod' ? `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
-                                        <span class="order-total-label" style="color: var(--error-color); font-weight:600;">Due on Delivery</span>
-                                        <span class="order-total-amount" style="color: var(--error-color);">${formatPrice(order.customer_details.amountDue)}</span>
-                                    </div>
-                                ` : `<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
-                                        <span class="order-total-label" style="color: var(--dark-green); font-weight:600;">Paid Online</span>
-                                        <span class="order-total-amount" style="color: var(--dark-green);">${formatPrice(order.total_amount)}</span>
-                                    </div>`}
-                            </div>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-            }
-
-            mainContent.innerHTML = html;
-            window.scrollTo(0,0);
-        }
-
-        function renderThankYou(orderId) {
-            navigate({view: 'thankyou', id: orderId});
-            searchContainer.style.display = 'none';
-
-            let html = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 40px 20px; text-align: center;">
-                    <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--light-green); display: flex; align-items: center; justify-content: center; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(26, 99, 49, 0.15);">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--dark-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 40px; height: 40px;">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </div>
-                    <h2 style="font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text-dark); margin-bottom: 15px; line-height: 1.3;">Thank you for your purchase!</h2>
-                    <p style="font-size: 16px; color: var(--text-gray); margin-bottom: 30px; max-width: 400px; line-height: 1.6;">Your order has been successfully placed and is being processed.</p>
-                    ${orderId ? `<p style="font-size: 15px; color: var(--text-dark); margin-bottom: 40px; font-weight: 500; background: var(--placeholder-bg); padding: 12px 24px; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">Order ID: ${orderId}</p>` : ''}
-                    
-                    <div style="width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 15px;">
-                        <button class="btn-primary" onclick="renderOrders()">
-                            <span class="btn-text">View Your Orders</span>
-                        </button>
-                        <button class="btn-secondary" onclick="renderHome()">
-                            <span class="btn-text">Continue Shopping</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            mainContent.innerHTML = html;
-            window.scrollTo(0,0);
-        }
-
+        // --- PRODUCT RENDERING & LOGIC ---
         let currentSlide = 0;
         let totalSlides = 0;
         let touchStartX = 0;
@@ -2145,33 +1944,17 @@
                 else ind.classList.remove('active');
             });
             
-            const slides = track.querySelectorAll('.carousel-slide');
-            slides.forEach((slide, i) => {
-                const vid = slide.querySelector('video');
-                if(vid) {
-                    if(i === currentSlide) vid.play().catch(e=>console.log(e));
-                    else vid.pause();
-                }
+            track.querySelectorAll('.carousel-slide video').forEach((vid, i) => {
+                if(i === currentSlide) vid.play().catch(e=>console.log(e));
+                else vid.pause();
             });
         }
 
-        function handleTouchStart(e) {
-            touchStartX = e.changedTouches[0].screenX;
-        }
-
-        function handleTouchEnd(e) {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }
-
+        function handleTouchStart(e) { touchStartX = e.changedTouches[0].screenX; }
+        function handleTouchEnd(e) { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }
         function handleSwipe() {
-            const swipeThreshold = 50;
-            if (touchEndX < touchStartX - swipeThreshold) {
-                updateCarousel(currentSlide + 1); 
-            }
-            if (touchEndX > touchStartX + swipeThreshold) {
-                updateCarousel(currentSlide - 1); 
-            }
+            if (touchEndX < touchStartX - 50) updateCarousel(currentSlide + 1); 
+            if (touchEndX > touchStartX + 50) updateCarousel(currentSlide - 1); 
         }
 
         function changeProductVariant(prodId, variantIndex) {
@@ -2214,64 +1997,35 @@
             }
 
             document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
-                if (idx === variantIndex) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
+                if (idx === variantIndex) btn.classList.add('selected');
+                else btn.classList.remove('selected');
             });
             
             const colorNameEl = document.getElementById('selectedColorNameText');
-            if(colorNameEl && variant) {
-                colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
-            }
+            if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
         }
 
         function changeProductSize(size, btnElement) {
             triggerHaptic('pop');
             selectedProductSize = size;
-            
-            document.querySelectorAll('.size-option-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
+            document.querySelectorAll('.size-option-btn').forEach(btn => btn.classList.remove('selected'));
             btnElement.classList.add('selected');
         }
 
         function changeAlphabet(letter, btnElement) {
             triggerHaptic('pop');
             selectedAlphabet = letter;
-            
-            document.querySelectorAll('.alphabet-option-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
+            document.querySelectorAll('.alphabet-option-btn').forEach(btn => btn.classList.remove('selected'));
             btnElement.classList.add('selected');
 
             const wrapper = document.getElementById('alphabetSelectionWrapper');
-            if(wrapper) {
-                wrapper.style.border = 'none';
-                wrapper.style.padding = '0';
-            }
+            if(wrapper) { wrapper.style.border = 'none'; wrapper.style.padding = '0'; }
         }
 
-        function openSizeChartModal() {
-            sizeChartModal.classList.add('active');
-            document.body.classList.add('no-scroll');
-        }
-
-        function closeSizeChartModal() {
-            sizeChartModal.classList.remove('active');
-            document.body.classList.remove('no-scroll');
-        }
-
-        function openRingSizeModal() {
-            ringSizeModal.classList.add('active');
-            document.body.classList.add('no-scroll');
-        }
-
-        function closeRingSizeModal() {
-            ringSizeModal.classList.remove('active');
-            document.body.classList.remove('no-scroll');
-        }
+        function openSizeChartModal() { sizeChartModal.classList.add('active'); document.body.classList.add('no-scroll'); }
+        function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
+        function openRingSizeModal() { ringSizeModal.classList.add('active'); document.body.classList.add('no-scroll'); }
+        function closeRingSizeModal() { ringSizeModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
 
         window.updateCarousel = updateCarousel;
         window.handleTouchStart = handleTouchStart;
@@ -2295,13 +2049,9 @@
             selectedAlphabet = null;
 
             let hasVariants = prod.variants && prod.variants.length > 0;
-            
             let initialMediaArr = [""];
-            if (hasVariants) {
-                initialMediaArr = prod.variants[0].media && prod.variants[0].media.length > 0 ? prod.variants[0].media : [""];
-            } else if (prod.media && prod.media.length > 0) {
-                initialMediaArr = prod.media;
-            }
+            if (hasVariants) initialMediaArr = prod.variants[0].media && prod.variants[0].media.length > 0 ? prod.variants[0].media : [""];
+            else if (prod.media && prod.media.length > 0) initialMediaArr = prod.media;
 
             totalSlides = initialMediaArr.length;
             currentSlide = 0;
@@ -2321,12 +2071,8 @@
             }
 
             const controlsHtml = `
-                <button class="carousel-btn prev" onclick="updateCarousel(currentSlide - 1)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                </button>
-                <button class="carousel-btn next" onclick="updateCarousel(currentSlide + 1)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
+                <button class="carousel-btn prev" onclick="updateCarousel(currentSlide - 1)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                <button class="carousel-btn next" onclick="updateCarousel(currentSlide + 1)"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                 <div class="carousel-indicators" style="display: ${totalSlides > 1 ? 'flex' : 'none'};">${indicatorsHtml}</div>
             `;
 
@@ -2341,82 +2087,38 @@
                         if(isVid) {
                             thumbContent = `<video src="${v.media[0]}" muted playsinline style="width:100%; height:100%; object-fit:cover; border-radius: var(--radius-md); display: block;"></video>`;
                             hasVideoClass = 'has-video';
-                        } else {
-                            thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}">`;
-                        }
+                        } else thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}" loading="lazy">`;
                     }
-                    
                     const selectedClass = idx === 0 ? 'selected' : '';
-                    optionsHtml += `
-                        <button class="color-option-btn ${selectedClass} ${hasVideoClass}" onclick="changeProductVariant('${prod.id}', ${idx})" title="${v.name || ''}">
-                            ${thumbContent}
-                        </button>
-                    `;
+                    optionsHtml += `<button class="color-option-btn ${selectedClass} ${hasVideoClass}" onclick="changeProductVariant('${prod.id}', ${idx})" title="${v.name || ''}">${thumbContent}</button>`;
                 });
-
-                variantsHtml = `
-                    <div class="color-selection-wrapper">
-                        <div class="color-selection-title">
-                            Color: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || ''}</span>
-                        </div>
-                        <div class="color-options-scroll">
-                            ${optionsHtml}
-                        </div>
-                    </div>
-                `;
+                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">Color: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || ''}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
             let sizeHtml = '';
             if (prod.isRing || (prod.sizes && prod.sizes.length > 0)) {
-                let guideLink = prod.isRing
-                    ? `<span class="size-chart-link" onclick="openRingSizeModal()">How to Measure Your Ring Size</span>`
-                    : `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
+                let guideLink = prod.isRing ? `<span class="size-chart-link" onclick="openRingSizeModal()">How to Measure Your Ring Size</span>` : `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
                 let titleLabel = prod.isRing ? 'Enter Ring Size' : 'Select Size';
 
                 let sizeOptions = '';
                 if (prod.isRing) {
                     selectedProductSize = ""; 
-                    sizeOptions = `
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <input type="text" id="customRingSizeInput" placeholder="e.g., 7 or 7.5" style="width: 100%; padding: 14px 18px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 15px; background: #fff; outline: none; transition: border-color 0.3s;" oninput="selectedProductSize = this.value; this.classList.remove('error'); document.getElementById('errRingSize').style.display='none';" onfocus="this.style.borderColor='var(--text-dark)'" onblur="this.style.borderColor='var(--border-color)'">
-                            <div class="error-message" id="errRingSize" style="display: none; margin-top: 6px;">Please enter a valid ring size.</div>
-                        </div>
-                    `;
+                    sizeOptions = `<div class="form-group" style="margin-bottom: 0;">
+                        <input type="text" id="customRingSizeInput" placeholder="e.g., 7 or 7.5" style="width: 100%; padding: 14px 18px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 15px; background: #fff; outline: none; transition: border-color 0.3s;" oninput="selectedProductSize = this.value; this.classList.remove('error'); document.getElementById('errRingSize').style.display='none';">
+                        <div class="error-message" id="errRingSize" style="display: none; margin-top: 6px;">Please enter a valid ring size.</div>
+                    </div>`;
                 } else if (prod.sizes && prod.sizes.length > 0) {
                     selectedProductSize = prod.sizes[0];
-                    sizeOptions = `<div class="size-options">` + prod.sizes.map(size => 
-                        `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`
-                    ).join('') + `</div>`;
+                    sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
                 }
-
-                sizeHtml = `
-                    <div class="size-selection-wrapper">
-                        <div class="size-selection-header">
-                            <span class="size-selection-title">${titleLabel}</span>
-                            ${guideLink}
-                        </div>
-                        ${sizeOptions}
-                    </div>
-                `;
+                sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
             }
 
             let alphabetHtml = '';
             if (prod.isAlphabet) {
                 const alphabets = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-                let optionsHtml = alphabets.map(letter =>
-                    `<button class="alphabet-option-btn ${letter === selectedAlphabet ? 'selected' : ''}" onclick="changeAlphabet('${letter}', this)">${letter}</button>`
-                ).join('');
-
-                alphabetHtml = `
-                    <div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper">
-                        <div class="alphabet-selection-header">
-                            <span class="alphabet-selection-title">Select Alphabet</span>
-                        </div>
-                        <div class="alphabet-options">
-                            ${optionsHtml}
-                        </div>
-                    </div>
-                `;
+                let optionsHtml = alphabets.map(letter => `<button class="alphabet-option-btn ${letter === selectedAlphabet ? 'selected' : ''}" onclick="changeAlphabet('${letter}', this)">${letter}</button>`).join('');
+                alphabetHtml = `<div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper"><div class="alphabet-selection-header"><span class="alphabet-selection-title">Select Alphabet</span></div><div class="alphabet-options">${optionsHtml}</div></div>`;
             }
 
             let html = `
@@ -2431,46 +2133,24 @@
                         <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
                             ${getHeartSvg(prod.id)}
                         </button>
-                        
-                        <div class="carousel-track" id="carouselTrack">
-                            ${slidesHtml}
-                        </div>
+                        <div class="carousel-track" id="carouselTrack">${slidesHtml}</div>
                         ${controlsHtml}
                     </div>
                     <div class="product-body">
                         ${prod.isBestSeller ? '<span class="product-badge">Best Seller</span>' : ''}
-                        <div class="product-title-row">
-                            <h2 class="product-detail-title">${prod.name}</h2>
-                        </div>
-                        
+                        <div class="product-title-row"><h2 class="product-detail-title">${prod.name}</h2></div>
                         <div class="product-detail-price-box">
                             <span class="product-detail-price">${formatPrice(prod.price)}</span>
                             <span class="tax-info">MRP incl. of all taxes</span>
                         </div>
-
                         ${variantsHtml}
                         ${sizeHtml}
                         ${alphabetHtml}
 
                         <div class="trust-badges">
-                            <div class="trust-badge-item">
-                                <div class="trust-badge-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                                </div>
-                                <div class="trust-badge-text">Delivery all over India</div>
-                            </div>
-                            <div class="trust-badge-item">
-                                <div class="trust-badge-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                                </div>
-                                <div class="trust-badge-text">Affordable Price</div>
-                            </div>
-                            <div class="trust-badge-item">
-                                <div class="trust-badge-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
-                                </div>
-                                <div class="trust-badge-text">COD available above ₹${appData.settings.minCODAmount}</div>
-                            </div>
+                            <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div><div class="trust-badge-text">Delivery all over India</div></div>
+                            <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></div><div class="trust-badge-text">Affordable Price</div></div>
+                            <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg></div><div class="trust-badge-text">COD available above ₹${appData.settings.minCODAmount}</div></div>
                         </div>
                         
                         <div class="product-section">
@@ -2485,10 +2165,13 @@
                     </div>
                 </div>
             `;
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+            });
         }
 
+        // --- CART LOGIC ---
         function withLoading(btn, callback) {
             if (btn.disabled) return;
             const originalText = btn.querySelector('.btn-text').innerText;
@@ -2499,7 +2182,7 @@
                 btn.disabled = false;
                 btn.innerHTML = `<span class="btn-text">${originalText}</span>`;
                 callback();
-            }, 1000);
+            }, 500); // Optimized visual delay
         }
 
         function addToCart(btn, prodId) {
@@ -2511,12 +2194,8 @@
                     triggerHaptic('pop');
                     const inputEl = document.getElementById('customRingSizeInput');
                     const errEl = document.getElementById('errRingSize');
-                    if (inputEl && errEl) {
-                        inputEl.classList.add('error');
-                        errEl.style.display = 'block';
-                    } else {
-                        showToast("Please enter a valid ring size.");
-                    }
+                    if (inputEl && errEl) { inputEl.classList.add('error'); errEl.style.display = 'block'; } 
+                    else { showToast("Please enter a valid ring size."); }
                     return;
                 }
             }
@@ -2525,21 +2204,14 @@
                 triggerHaptic('pop');
                 showToast("Please select an alphabet before proceeding.");
                 const wrapper = document.getElementById('alphabetSelectionWrapper');
-                if(wrapper) {
-                    wrapper.style.border = '1px solid var(--error-color)';
-                    wrapper.style.padding = '10px';
-                    wrapper.style.borderRadius = 'var(--radius-md)';
-                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+                if(wrapper) { wrapper.style.border = '1px solid var(--error-color)'; wrapper.style.padding = '10px'; wrapper.style.borderRadius = 'var(--radius-md)'; wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
                 return;
             }
 
             triggerHaptic('success');
             withLoading(btn, () => {
                 let selectedVariantStr = "Default";
-                if(prod.variants && prod.variants.length > 0) {
-                    selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
-                }
+                if(prod.variants && prod.variants.length > 0) selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
 
                 const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
                 
@@ -2554,68 +2226,20 @@
                 }
                 
                 updateBadges();
+                persistUserData(); // Sync local storage
                 
                 const badge = document.getElementById('cartCount');
                 if(badge) {
                     badge.style.transform = 'translate(20%, -20%) scale(1.4)';
                     setTimeout(() => badge.style.transform = 'translate(20%, -20%) scale(1)', 200);
                 }
-                
                 showToast("Added to Cart!");
             });
         }
 
         function buyNow(btn, prodId) {
-            const prod = appData.products.find(p => String(p.id) === String(prodId));
-            
-            if (prod.isRing && (!prod.sizes || prod.sizes.length === 0)) {
-                const sizeVal = selectedProductSize ? selectedProductSize.trim() : "";
-                if (!/^\d+(\.\d+)?$/.test(sizeVal)) {
-                    triggerHaptic('pop');
-                    const inputEl = document.getElementById('customRingSizeInput');
-                    const errEl = document.getElementById('errRingSize');
-                    if (inputEl && errEl) {
-                        inputEl.classList.add('error');
-                        errEl.style.display = 'block';
-                    } else {
-                        showToast("Please enter a valid ring size.");
-                    }
-                    return;
-                }
-            }
-
-            if (prod.isAlphabet && !selectedAlphabet) {
-                triggerHaptic('pop');
-                showToast("Please select an alphabet before proceeding.");
-                const wrapper = document.getElementById('alphabetSelectionWrapper');
-                if(wrapper) {
-                    wrapper.style.border = '1px solid var(--error-color)';
-                    wrapper.style.padding = '10px';
-                    wrapper.style.borderRadius = 'var(--radius-md)';
-                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-                return;
-            }
-
-            triggerHaptic('success');
-            withLoading(btn, () => {
-                let selectedVariantStr = "Default";
-                if(prod.variants && prod.variants.length > 0) {
-                    selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
-                }
-
-                const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
-                if(!existing) {
-                    let cartMedia = prod.media;
-                    if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media && prod.variants[selectedProductVariantIndex].media.length > 0) {
-                        cartMedia = prod.variants[selectedProductVariantIndex].media;
-                    }
-                    state.cart.push({ ...prod, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
-                }
-                
-                updateBadges();
-                renderCart();
-            });
+            addToCart(btn, prodId);
+            setTimeout(() => renderCart(), 600); // Wait for optimized loading visual
         }
 
         function modifyQty(prodId, variantStr, sizeStr, alphabetStr, delta) {
@@ -2626,10 +2250,7 @@
             
             const item = state.cart[itemIndex];
 
-            if (delta === -999) {
-                openRemoveModal(itemIndex);
-                return;
-            }
+            if (delta === -999) return openRemoveModal(itemIndex);
 
             item.qty += delta;
             if(item.qty <= 0) {
@@ -2638,6 +2259,7 @@
                 return;
             }
             updateBadges();
+            persistUserData();
             renderCart();
         }
 
@@ -2657,6 +2279,7 @@
             if (state.itemToRemove !== null && state.itemToRemove >= 0 && state.itemToRemove < state.cart.length) {
                 state.cart.splice(state.itemToRemove, 1);
                 updateBadges();
+                persistUserData(); // Sync local storage
                 renderCart();
                 showToast("Item removed");
             }
@@ -2675,7 +2298,6 @@
                 html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Your cart is empty.</p></div>`;
             } else {
                 let subtotal = 0;
-                
                 html += `<div class="cart-layout"><div class="cart-items-wrapper"><div class="cart-container">`;
                 state.cart.forEach((item, index) => {
                     subtotal += (item.price * item.qty);
@@ -2684,18 +2306,14 @@
                     let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
                     
                     if (firstMedia) {
-                        if (isVideo) {
-                            imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                        } else {
-                            imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;">`;
-                        }
+                        if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
+                        else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
                     }
 
                     let displaySpecs = [];
                     if (item.variant && item.variant !== "Default") displaySpecs.push(`Color: ${item.variant}`);
                     if (item.size) displaySpecs.push(`Size: ${item.size}`);
                     if (item.alphabet) displaySpecs.push(`Letter: ${item.alphabet}`);
-                    
                     const variantDisplay = displaySpecs.length > 0 ? `<div class="cart-item-variant">${displaySpecs.join(' | ')}</div>` : '';
 
                     html += `
@@ -2709,13 +2327,9 @@
                                 ${variantDisplay}
                                 <div class="cart-item-price">${formatPrice(item.price)}</div>
                                 <div class="qty-controls">
-                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                    </button>
+                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
                                     <span class="qty-value">${item.qty}</span>
-                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                    </button>
+                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
                                 </div>
                             </div>
                         </div>
@@ -2726,17 +2340,10 @@
                 let discount = 0;
                 let appliedThreshold = 0;
                 for (let rule of appData.coupons) {
-                    if (subtotal >= rule.minThreshold) {
-                        discount = rule.discountAmount;
-                        appliedThreshold = rule.minThreshold;
-                        break;
-                    }
+                    if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
                 }
 
-                let couponsHtml = `<div class="coupon-section">
-                    <h4>Available Offers</h4>
-                    <div class="coupon-scroll">`;
-                
+                let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
                 const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
                 displayDiscounts.forEach(rule => {
                     const isApplied = (rule.minThreshold === appliedThreshold);
@@ -2757,11 +2364,9 @@
                     ${couponsHtml}
                     <div class="cart-summary">
                         ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
-                        
                         <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
                         <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
                         ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
-                        
                         <div class="summary-total">
                             <span>Total</span> 
                             <div style="text-align: right;">
@@ -2773,19 +2378,20 @@
                     <div class="cart-checkout-wrapper">
                         ${isMinOrderMet ? 
                             `<button class="btn-primary" onclick="triggerHaptic('success'); renderCheckout()">Proceed to Checkout</button>` : 
-                            `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">
-                                Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.
-                             </div>
+                            `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
                              <button class="btn-primary" disabled>Proceed to Checkout</button>`
                         }
                     </div>
                 `;
                 html += `</div></div>`;
             }
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+            });
         }
 
+        // --- CHECKOUT LOGIC ---
         function handlePaymentSelection(radio, totalAmount) {
             triggerHaptic('light');
             const codRadio = document.querySelector('input[value="cod"]');
@@ -2808,9 +2414,7 @@
                 }
             } else {
                 btnText.innerText = `Confirm & Pay ${formatPrice(totalAmount)}`;
-                if (codInfo) {
-                    codInfo.style.display = 'none';
-                }
+                if (codInfo) codInfo.style.display = 'none';
             }
         }
 
@@ -2819,15 +2423,11 @@
             const shipping = subtotal > 499 ? 0 : 50;
             let discount = 0;
             for (let rule of appData.coupons) {
-                if (subtotal >= rule.minThreshold) {
-                    discount = rule.discountAmount;
-                    break;
-                }
+                if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; }
             }
             const totalAmount = subtotal + shipping - discount;
 
             navigate({view: 'checkout', amount: totalAmount});
-            
             const isCODAvailable = totalAmount >= appData.settings.minCODAmount;
             
             let html = `
@@ -2849,52 +2449,31 @@
                     <div class="checkout-form-wrapper" style="padding: 0 20px;">
                         <div class="form-group">
                             <label>Full Name</label>
-                            <input type="text" id="chkName" value="" placeholder="Enter your full name" required>
+                            <input type="text" id="chkName" placeholder="Enter your full name" required>
                             <div class="error-message" id="errName">Please enter your full name</div>
                         </div>
-                        
                         <div class="form-group">
                             <label>Email Address</label>
-                            <input type="email" id="chkEmail" value="" placeholder="Enter your email" required>
+                            <input type="email" id="chkEmail" placeholder="Enter your email" required>
                             <div class="error-message" id="errEmail">Please enter a valid email</div>
                         </div>
-                        
                         <div class="row-group">
-                            <div class="form-group">
-                                <label>State</label>
-                                <input type="text" id="chkState" placeholder="Enter your state" required>
-                                <div class="error-message" id="errState">Please enter your state</div>
-                            </div>
-                            <div class="form-group">
-                                <label>City</label>
-                                <input type="text" id="chkCity" placeholder="Enter your city" required>
-                                <div class="error-message" id="errCity">Please enter your city</div>
-                            </div>
+                            <div class="form-group"><label>State</label><input type="text" id="chkState" placeholder="Enter your state" required><div class="error-message" id="errState">Please enter your state</div></div>
+                            <div class="form-group"><label>City</label><input type="text" id="chkCity" placeholder="Enter your city" required><div class="error-message" id="errCity">Please enter your city</div></div>
                         </div>
-
                         <div class="form-group">
                             <label>Pincode</label>
                             <input type="text" id="chkPincode" placeholder="6-digit pincode" maxlength="6" pattern="[0-9]{6}" required>
                             <div class="error-message" id="errPincode">Please enter a valid 6-digit pincode</div>
                         </div>
-
                         <div class="form-group">
                             <label>Full Address</label>
                             <textarea id="chkAddress" rows="3" placeholder="House No, Building, Street, Area" required></textarea>
                             <div class="error-message" id="errAddress">Please enter your full address</div>
                         </div>
-                        
                         <div class="row-group">
-                            <div class="form-group">
-                                <label>Phone Number</label>
-                                <input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" required>
-                                <div class="error-message" id="errPhone">Please enter a valid 10-digit number</div>
-                            </div>
-                            <div class="form-group">
-                                <label>Alt. Phone (Optional)</label>
-                                <input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}">
-                                <div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div>
-                            </div>
+                            <div class="form-group"><label>Phone Number</label><input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" required><div class="error-message" id="errPhone">Please enter a valid 10-digit number</div></div>
+                            <div class="form-group"><label>Alt. Phone (Optional)</label><input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}"><div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div></div>
                         </div>
 
                         <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
@@ -2932,18 +2511,11 @@
 
         function validateCheckoutForm() {
             let isValid = true;
-            
             const validateField = (id, condition) => {
                 const el = document.getElementById(id);
                 const errEl = document.getElementById('err' + id.substring(3));
-                if (!condition(el.value.trim())) {
-                    el.classList.add('error');
-                    errEl.style.display = 'block';
-                    isValid = false;
-                } else {
-                    el.classList.remove('error');
-                    errEl.style.display = 'none';
-                }
+                if (!condition(el.value.trim())) { el.classList.add('error'); errEl.style.display = 'block'; isValid = false; } 
+                else { el.classList.remove('error'); errEl.style.display = 'none'; }
             };
 
             validateField('chkName', val => val.length > 0);
@@ -2955,9 +2527,7 @@
             validateField('chkPhone', val => /^[0-9]{10}$/.test(val));
             
             const altPhone = document.getElementById('chkAltPhone').value.trim();
-            if (altPhone.length > 0) {
-                validateField('chkAltPhone', val => /^[0-9]{10}$/.test(val));
-            }
+            if (altPhone.length > 0) validateField('chkAltPhone', val => /^[0-9]{10}$/.test(val));
 
             return isValid;
         }
@@ -2999,22 +2569,10 @@
                         "name": appData.settings.brandName,
                         "description": "Purchase Description",
                         "image": appData.settings.logoUrl,
-                        "handler": function (response){
-                            processOrderPlacement(totalAmount, orderDetails);
-                        },
-                        "prefill": {
-                            "name": name,
-                            "email": email,
-                            "contact": phone
-                        },
-                        "theme": {
-                            "color": "#1a1a1a"
-                        },
-                        "modal": {
-                            "ondismiss": function(){
-                                showToast("Payment cancelled");
-                            }
-                        }
+                        "handler": function (response){ processOrderPlacement(totalAmount, orderDetails); },
+                        "prefill": { "name": name, "email": email, "contact": phone },
+                        "theme": { "color": "#1a1a1a" },
+                        "modal": { "ondismiss": function(){ showToast("Payment cancelled"); } }
                     };
                     
                     try {
@@ -3026,9 +2584,7 @@
                     }
                 });
             } else {
-                withLoading(btn, () => {
-                    processOrderPlacement(totalAmount, orderDetails);
-                });
+                withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails));
             }
         }
 
@@ -3044,25 +2600,134 @@
                 date: new Date().toLocaleDateString()
             };
 
-            // Attempt to insert order to Supabase
-            const { error } = await db.from('orders').insert([orderData]);
+            // Non-blocking write to Supabase (so UI stays snappy even if DB is slow)
+            db.from('orders').insert([orderData]).then(({ error }) => {
+                if (error) console.error("Order insertion failed (RLS issue likely):", error);
+            });
             
-            // Save locally to ensure user sees it, regardless of RLS settings blocking insert
             const existingOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
             existingOrders.unshift(orderData); 
             localStorage.setItem('shria_orders', JSON.stringify(existingOrders));
 
-            if (error) {
-                console.error("Order insertion to Supabase failed (RLS issue likely):", error);
-                // We still proceed since it's saved locally
-            }
-
             state.cart = [];
+            persistUserData(); // Clear local cart
             updateBadges();
             renderThankYou(orderData.id);
         }
 
-        // Kickoff
+        function renderOrders() {
+            navigate({view: 'orders'});
+            searchContainer.style.display = 'none';
+
+            let html = `
+                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>
+                <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Orders</h3></div>
+            `;
+
+            let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+
+            if(orders.length === 0) {
+                html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg><p>No orders found.</p></div>`;
+            } else {
+                html += `<div class="orders-wrapper">`;
+                orders.forEach(order => {
+                    let itemsHtml = '';
+                    order.items.forEach(item => {
+                        const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
+                        const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
+                        let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
+                        if (firstMedia) {
+                            if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
+                            else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+                        }
+
+                        let displaySpecs = [];
+                        if (item.variant && item.variant !== "Default") displaySpecs.push(item.variant);
+                        if (item.size) displaySpecs.push(item.size);
+                        if (item.alphabet) displaySpecs.push(item.alphabet);
+                        const variantDisplay = displaySpecs.length > 0 ? displaySpecs.join(' | ') : '';
+
+                        itemsHtml += `
+                            <div class="order-item-row">
+                                <div class="order-item-img">${imgContent}</div>
+                                <div class="order-item-details">
+                                    <div class="order-item-name">${item.name}</div>
+                                    <div class="order-item-meta">${variantDisplay}</div>
+                                </div>
+                                <div class="order-item-price-qty">
+                                    <div class="order-item-price">${formatPrice(item.price)}</div>
+                                    <div class="order-item-qty">Qty: ${item.qty}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <div class="order-id-date">
+                                    <span class="order-id">${order.id}</span>
+                                    <span class="order-date">${order.date || new Date().toLocaleDateString()}</span>
+                                </div>
+                                <div class="order-status">${order.status}</div>
+                            </div>
+                            <div class="order-items">${itemsHtml}</div>
+                            ${order.customer_details && order.customer_details.name ? `
+                            <div class="order-address">
+                                <strong>Delivery to: ${order.customer_details.name}</strong>
+                                ${order.customer_details.address}
+                            </div>
+                            ` : ''}
+                            <div class="order-footer" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                    <span class="order-total-label">Order Total</span>
+                                    <span class="order-total-amount">${formatPrice(order.total_amount)}</span>
+                                </div>
+                                ${order.customer_details && order.customer_details.paymentMethod === 'cod' ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
+                                        <span class="order-total-label" style="color: var(--error-color); font-weight:600;">Due on Delivery</span>
+                                        <span class="order-total-amount" style="color: var(--error-color);">${formatPrice(order.customer_details.amountDue)}</span>
+                                    </div>
+                                ` : `<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-top: 12px; border-top: 1px dotted var(--border-color);">
+                                        <span class="order-total-label" style="color: var(--dark-green); font-weight:600;">Paid Online</span>
+                                        <span class="order-total-amount" style="color: var(--dark-green);">${formatPrice(order.total_amount)}</span>
+                                    </div>`}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0,0);
+            });
+        }
+
+        function renderThankYou(orderId) {
+            navigate({view: 'thankyou', id: orderId});
+            searchContainer.style.display = 'none';
+
+            mainContent.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 40px 20px; text-align: center;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--light-green); display: flex; align-items: center; justify-content: center; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(26, 99, 49, 0.15);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--dark-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 40px; height: 40px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <h2 style="font-family: 'Playfair Display', serif; font-size: 32px; color: var(--text-dark); margin-bottom: 15px; line-height: 1.3;">Thank you for your purchase!</h2>
+                    <p style="font-size: 16px; color: var(--text-gray); margin-bottom: 30px; max-width: 400px; line-height: 1.6;">Your order has been successfully placed and is being processed.</p>
+                    ${orderId ? `<p style="font-size: 15px; color: var(--text-dark); margin-bottom: 40px; font-weight: 500; background: var(--placeholder-bg); padding: 12px 24px; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">Order ID: ${orderId}</p>` : ''}
+                    
+                    <div style="width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 15px;">
+                        <button class="btn-primary" onclick="renderOrders()"><span class="btn-text">View Your Orders</span></button>
+                        <button class="btn-secondary" onclick="renderHome()"><span class="btn-text">Continue Shopping</span></button>
+                    </div>
+                </div>
+            `;
+            window.scrollTo(0,0);
+        }
+
+        // --- KICKOFF APP ---
         initApp();
     </script>
 </body>
