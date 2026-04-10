@@ -540,13 +540,25 @@
                 
                 let html = '';
                 if(data && data.length > 0) {
-                    html = data.map(u => `
+                    html = data.map(u => {
+                        // Safely parse the wishlist JSON
+                        let wishlistItems = [];
+                        if (u.wishlist) {
+                            try {
+                                wishlistItems = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist);
+                            } catch(e) { wishlistItems = []; }
+                        }
+                        
+                        return `
                         <tr>
                             <td><strong>${escapeHTML(u.full_name || u.email)}</strong><br><span style="font-size:11px; color:#666;">${escapeHTML(u.email)}</span></td>
-                            <td><span class="badge">${u.wishlist ? u.wishlist.length : 0} items</span></td>
+                            <td>
+                                <span class="badge">${wishlistItems.length} items</span>
+                                ${wishlistItems.length > 0 ? `<br><span style="font-size:10px; color:#666; display:inline-block; margin-top:4px;">IDs: ${wishlistItems.join(', ')}</span>` : ''}
+                            </td>
                             <td>${new Date(u.created_at).toLocaleDateString()}</td>
                         </tr>
-                    `).join('');
+                    `}).join('');
                 }
                 document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No users registered yet</td></tr>';
             } catch (err) {
