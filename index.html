@@ -454,31 +454,21 @@
         .back-nav:hover svg { transform: translateX(-3px); stroke: var(--brand-color); }
 
         /* Buttons */
-        .btn-primary {
-            width: 100%; background: var(--text-dark); color: #fff; border: 1px solid var(--text-dark);
-            padding: 16px; border-radius: var(--radius-lg); font-size: 15px; font-weight: 600;
-            cursor: pointer; font-family: inherit;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            box-shadow: 0 4px 15px rgba(26, 26, 26, 0.2);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-        }
-        .btn-primary:hover { background: var(--brand-color); border-color: var(--brand-color); box-shadow: 0 6px 20px rgba(216, 67, 114, 0.3); transform: translateY(-2px); }
-        .btn-primary:active { transform: scale(0.98) translateY(0); box-shadow: 0 2px 6px rgba(26, 26, 26, 0.15); }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; background: var(--text-dark); border-color: var(--text-dark); }
+.btn-primary {
+    width: 100%; background: var(--text-dark); color: #fff; border: 1px solid var(--text-dark);
+    padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.3s ease; position: relative;
+}
 
-        .btn-secondary {
-            width: 100%; background: #fff; color: var(--text-dark); border: 1px solid var(--border-color);
-            padding: 16px; border-radius: var(--radius-lg); font-size: 15px; font-weight: 600;
-            cursor: pointer; font-family: inherit; 
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-        }
-        .btn-secondary:hover { border-color: var(--text-dark); background: var(--secondary-bg); transform: translateY(-2px); }
-        .btn-secondary:active { transform: scale(0.98) translateY(0); background: var(--placeholder-bg); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-
+.btn-secondary {
+    width: 100%; background: transparent; color: var(--text-dark); border: 1px solid var(--text-dark);
+    padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+    cursor: pointer; font-family: inherit; 
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.3s ease; position: relative;
+}
         /* Loading Spinner */
         .btn-spinner {
             display: inline-block;
@@ -554,13 +544,13 @@
         .hero-wishlist-btn { right: 20px; }
         .hero-wishlist-btn svg { width: 20px; height: 20px; transition: transform 0.3s; }
         
-        .product-body { background: #fff; border-radius: 30px 30px 0 0; margin-top: -30px; position: relative; z-index: 2; padding: 35px 25px; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); }
+        .product-body { background: #fff; border-radius: 0; margin-top: 0; position: relative; z-index: 2; padding: 20px; box-shadow: none; }
         .product-badge { display: inline-block; padding: 6px 12px; background: #fff0f4; color: var(--brand-color); border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 15px; }
-        .product-detail-title { font-family: 'Playfair Display', serif; font-size: 32px; margin-bottom: 12px; line-height: 1.2; color: var(--text-dark); }
         
+        .product-detail-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 8px; line-height: 1.3; color: var(--text-dark); font-weight: 600; letter-spacing: 0.5px; }
+.product-detail-price { font-size: 20px; font-weight: 600; color: var(--text-dark); }
         .product-detail-price-box { display: flex; flex-direction: column; margin-bottom: 20px; }
-        .product-detail-price { font-size: 28px; font-weight: 600; color: var(--text-dark); }
-        .tax-info { font-size: 13px; color: var(--text-gray); font-weight: 500; }
+        
 
         /* Color Options UI */
         .color-selection-wrapper { margin-top: 20px; margin-bottom: 20px; }
@@ -612,7 +602,7 @@
         .product-section h4 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-dark); }
         .product-detail-desc { font-size: 15px; color: var(--text-gray); line-height: 1.8; }
         
-        .product-bottom-bar { position: sticky; bottom: 0; padding: 20px 25px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.05); display: flex; gap: 15px; z-index: 100; box-shadow: 0 -5px 25px rgba(0,0,0,0.05); margin-bottom: -40px; }
+        .product-bottom-bar { display: flex; gap: 12px; width: calc(100% + 40px); position: sticky; bottom: 0; margin: 20px -20px -20px -20px; padding: 15px 20px; background: #ffffff; box-shadow: 0 -4px 20px rgba(0,0,0,0.06); z-index: 90; border-top: 1px solid var(--border-color); }
 
         /* Cart */
         .cart-container { padding: 0 20px; }
@@ -880,7 +870,7 @@
             .hero-back-btn, .hero-wishlist-btn { top: 30px; }
             .hero-back-btn { left: 30px; display: none; } /* Hide inside hero if we have external back btn */
             .hero-wishlist-btn { right: 30px; }
-            .product-bottom-bar { position: static; background: transparent; padding: 0; margin-top: 30px; box-shadow: none; border: none; margin-bottom: 0; }
+            .product-bottom-bar { position: static; background: transparent; padding: 0; margin: 30px 0 0 0; width: 100%; box-shadow: none; border: none; }
             
             .cart-layout { display: flex; flex-direction: row; gap: 40px; padding: 20px 40px 60px; align-items: flex-start; }
             .cart-items-wrapper { flex: 1; }
@@ -913,17 +903,26 @@
             .review-card { min-width: 280px; }
         }
 /* Auth Styles */
-        .auth-container { max-width: 400px; margin: 40px auto; padding: 30px 20px; background: #fff; border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; }
-        .auth-title { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 10px; color: var(--text-dark); }
-        .auth-subtitle { font-size: 14px; color: var(--text-gray); margin-bottom: 30px; }
-        .google-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; background: #fff; border: 1px solid var(--border-color); padding: 14px; border-radius: var(--radius-md); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; color: var(--text-dark); margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-        .google-btn:hover { border-color: var(--text-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.05); transform: translateY(-2px); }
-        .divider { display: flex; align-items: center; text-align: center; color: var(--text-gray); font-size: 13px; margin-bottom: 25px; }
+        .auth-container { max-width: 360px; margin: 20px auto; padding: 30px 25px; background: #fff; border-radius: var(--radius-md); box-shadow: 0 8px 25px rgba(0,0,0,0.04); text-align: center; border: 1px solid var(--border-color); }
+        .auth-title { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 8px; color: var(--text-dark); font-weight: 600; }
+        .auth-subtitle { font-size: 13px; color: var(--text-gray); margin-bottom: 24px; line-height: 1.5; }
+        .google-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: #fff; border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; color: var(--text-dark); margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .google-btn:hover { border-color: var(--text-dark); background: var(--secondary-bg); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .divider { display: flex; align-items: center; text-align: center; color: var(--text-gray); font-size: 12px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
         .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border-color); }
-        .divider:not(:empty)::before { margin-right: .25em; }
-        .divider:not(:empty)::after { margin-left: .25em; }
-        .user-profile-summary { background: var(--light-green); padding: 15px; border-radius: var(--radius-md); text-align: left; margin-bottom: 20px; border: 1px dashed var(--dark-green); }
+        .divider:not(:empty)::before { margin-right: .75em; }
+        .divider:not(:empty)::after { margin-left: .75em; }
+        .user-profile-summary { background: var(--light-green); padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; border: 1px dashed var(--dark-green); }
         .user-email-text { font-weight: 600; color: var(--dark-green); font-size: 14px; word-break: break-all; }
+        
+        .auth-form-group { margin-bottom: 16px; text-align: left; }
+        .auth-form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-dark); }
+        .auth-form-group input { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; font-size: 14px; background: var(--secondary-bg); outline: none; transition: all 0.3s; }
+        .auth-form-group input:focus { border-color: var(--text-dark); background: #fff; }
+        
+        .auth-switch { font-size: 13px; color: var(--text-gray); margin-top: 20px; }
+        .auth-switch a { color: var(--text-dark); font-weight: 600; text-decoration: underline; cursor: pointer; transition: color 0.2s; }
+        .auth-switch a:hover { color: var(--brand-color); }
     </style>
 </head>
 <body>
@@ -1455,15 +1454,12 @@
             }
         }
 
-        // --- AUTH LOGIC ---
-        function renderLogin() {
+
+// --- AUTH LOGIC ---
+        function renderLogin(isSignUp = false) {
             navigate({view: 'login'});
             searchContainer.style.display = 'none';
-            let html = `
-                <div class="back-nav" onclick="renderHome()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Home
-                </div>
-            `;
+            let html = ``;
             if (state.user) {
                 html += `
                     <div class="auth-container">
@@ -1477,25 +1473,33 @@
                     </div>
                 `;
             } else {
+                const title = isSignUp ? "Create Account" : "Welcome Back";
+                const subtitle = isSignUp ? "Sign up to track orders and checkout faster." : "Sign in to access your account.";
+                const btnText = isSignUp ? "Create Account" : "Sign In";
+                const switchText = isSignUp ? "Already have an account?" : "Don't have an account?";
+                const switchLinkText = isSignUp ? "Sign in" : "Sign up here";
+                const switchAction = isSignUp ? "renderLogin(false)" : "renderLogin(true)";
+
                 html += `
                     <div class="auth-container">
-                        <h2 class="auth-title">Welcome Back</h2>
-                        <p class="auth-subtitle">Sign in to sync your orders and checkout faster.</p>
+                        <h2 class="auth-title">${title}</h2>
+                        <p class="auth-subtitle">${subtitle}</p>
                         <button class="google-btn" onclick="signInWithGoogle(this)">
-                            <svg width="24" height="24" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
-                            Sign in with Google
+                            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
+                            Continue with Google
                         </button>
                         <div class="divider">OR</div>
-                        <div class="form-group" style="text-align: left;">
+                        <div class="auth-form-group">
                             <label>Email Address</label>
                             <input type="email" id="authEmail" placeholder="Enter your email" required>
                         </div>
-                        <div class="form-group" style="text-align: left;">
+                        <div class="auth-form-group">
                             <label>Password</label>
                             <input type="password" id="authPassword" placeholder="Enter your password" required>
                         </div>
-                        <button class="btn-primary" onclick="signInWithEmail(this)"><span class="btn-text">Sign In with Email</span></button>
-                        <p style="font-size: 12px; color: var(--text-gray); margin-top: 20px;">If you don't have an account, one will be created automatically.</p>
+                        <button class="btn-primary" onclick="submitAuth(this, ${isSignUp})"><span class="btn-text">${btnText}</span></button>
+                        
+                        <div class="auth-switch">${switchText} <a onclick="${switchAction}">${switchLinkText}</a></div>
                     </div>
                 `;
             }
@@ -1513,38 +1517,37 @@
             if (error) { showToast(error.message); btn.innerHTML = originalHtml; }
         }
 
-        async function signInWithEmail(btn) {
+        async function submitAuth(btn, isSignUp) {
             const email = document.getElementById('authEmail').value.trim();
             const password = document.getElementById('authPassword').value;
             if (!email || !password) return showToast("Please enter email and password");
 
             triggerHaptic('light');
             withLoading(btn, async () => {
-                let { data, error } = await db.auth.signInWithPassword({ email, password });
-                if (error && error.message.includes("Invalid login")) {
-                    const signUpRes = await db.auth.signUp({ email, password });
-                    error = signUpRes.error;
-                    if (!error) showToast("Account created successfully!");
+                let error = null;
+                
+                if (isSignUp) {
+                    const res = await db.auth.signUp({ email, password });
+                    error = res.error;
+                    if (!error) showToast("Account created successfully! You are logged in.");
+                } else {
+                    const res = await db.auth.signInWithPassword({ email, password });
+                    error = res.error;
+                    if (error && error.message.includes("Invalid login")) {
+                        showToast("Please check your password or sign up.");
+                        return; // Stop execution here so it doesn't navigate away
+                    } else if (!error) {
+                        showToast("Successfully logged in!");
+                    }
                 }
-                if (error) showToast(error.message);
-                else { showToast("Successfully logged in!"); renderHome(); }
+
+                if (error) {
+                    showToast(error.message);
+                } else {
+                    renderHome(); 
+                }
             });
         }
-
-        async function handleSignOut() {
-            triggerHaptic('pop');
-            await db.auth.signOut();
-            showToast("Signed out successfully");
-            renderHome();
-        }
-
-        db.auth.onAuthStateChange((event, session) => {
-            state.user = session?.user || null;
-            generateMenuLinks(); 
-            if(sideMenu.classList.contains('active')) renderMenu(); 
-            if (history.state && history.state.view === 'login') renderLogin();
-        });
-
         // --- APP INITIALIZATION ---
         async function initApp() {
             try {
@@ -1843,7 +1846,7 @@
         }
 
         function renderProductList(title, products, subCats = []) {
-            let html = `<div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back</div>`;
+            let html = ``;
 
             if (subCats && subCats.length > 0) {
                 html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title} Categories</h3></div>
@@ -1941,31 +1944,65 @@
         let totalSlides = 0;
         let touchStartX = 0;
         let touchEndX = 0;
+        let isTransitioning = false; // Prevents swiping while it's moving
 
-        function updateCarousel(index) {
+        function updateCarousel(index, instant = false) {
             const track = document.getElementById('carouselTrack');
             const indicators = document.querySelectorAll('.indicator');
-            if(!track) return;
+            if(!track || totalSlides <= 1) return;
             
-            if (index < 0) index = totalSlides - 1;
-            if (index >= totalSlides) index = 0;
+            if (isTransitioning && !instant) return;
+            
             currentSlide = index;
             
-            track.style.transform = `translateX(-${currentSlide * 100}%)`;
+            if (instant) {
+                track.style.transition = 'none'; // Turn off animation for the secret teleport
+            } else {
+                track.style.transition = ''; // Turn CSS animation back on
+                isTransitioning = true;
+            }
+            
+            // Offset by 1 because of the cloned image at the start
+            track.style.transform = `translateX(-${(currentSlide + 1) * 100}%)`;
+            
+            let activeIndex = currentSlide;
+            if (currentSlide === -1) activeIndex = totalSlides - 1;
+            if (currentSlide === totalSlides) activeIndex = 0;
             
             indicators.forEach((ind, i) => {
-                if(i === currentSlide) ind.classList.add('active');
+                if(i === activeIndex) ind.classList.add('active');
                 else ind.classList.remove('active');
             });
             
-            track.querySelectorAll('.carousel-slide video').forEach((vid, i) => {
-                if(i === currentSlide) vid.play().catch(e=>console.log(e));
-                else vid.pause();
-            });
+            track.querySelectorAll('video').forEach(vid => vid.pause());
+            const activeSlideEl = track.children[currentSlide + 1];
+            if (activeSlideEl) {
+                const vid = activeSlideEl.querySelector('video');
+                if (vid) vid.play().catch(e=>console.log(e));
+            }
         }
 
-        function handleTouchStart(e) { touchStartX = e.changedTouches[0].screenX; }
-        function handleTouchEnd(e) { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }
+        // The secret teleport listener!
+        document.addEventListener('transitionend', (e) => {
+            if (e.target.id === 'carouselTrack') {
+                isTransitioning = false;
+                if (currentSlide === totalSlides) {
+                    updateCarousel(0, true); // Jump to real first
+                } else if (currentSlide === -1) {
+                    updateCarousel(totalSlides - 1, true); // Jump to real last
+                }
+            }
+        });
+
+        function handleTouchStart(e) { 
+            if (isTransitioning) return; 
+            touchStartX = e.changedTouches[0].screenX; 
+        }
+        function handleTouchEnd(e) { 
+            if (isTransitioning) return;
+            touchEndX = e.changedTouches[0].screenX; 
+            handleSwipe(); 
+        }
         function handleSwipe() {
             if (touchEndX < touchStartX - 50) updateCarousel(currentSlide + 1); 
             if (touchEndX > touchStartX + 50) updateCarousel(currentSlide - 1); 
@@ -1987,21 +2024,33 @@
             let slidesHtml = '';
             let indicatorsHtml = '';
             
+            const buildSlide = (src) => {
+                const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
+                return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="Product Media">`;
+            };
+
             if(mediaArr.length === 1 && mediaArr[0] === "") {
                 slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
+            } else if (totalSlides === 1) {
+                slidesHtml = `<div class="carousel-slide">${buildSlide(mediaArr[0])}</div>`;
             } else {
+                // Add clone at the start
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
                 mediaArr.forEach((src, i) => {
-                    const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
-                    let content = isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="${prod.name}">`;
-                    slidesHtml += `<div class="carousel-slide">${content}</div>`;
+                    slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
                     indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
                 });
+                // Add clone at the end
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
             }
             
             const track = document.getElementById('carouselTrack');
             if (track) {
+                track.style.transition = 'none';
                 track.innerHTML = slidesHtml;
-                track.style.transform = `translateX(0%)`;
+                track.style.transform = totalSlides > 1 ? `translateX(-100%)` : `translateX(0%)`;
+                void track.offsetWidth; // Force a quick CSS refresh
+                track.style.transition = '';
             }
             
             const indicatorsContainer = document.querySelector('.carousel-indicators');
@@ -2073,15 +2122,22 @@
             let slidesHtml = '';
             let indicatorsHtml = '';
             
+            const buildSlide = (src) => {
+                const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
+                return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="${prod.name}">`;
+            };
+
             if(initialMediaArr.length === 1 && initialMediaArr[0] === "") {
                 slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
+            } else if (totalSlides === 1) {
+                slidesHtml = `<div class="carousel-slide">${buildSlide(initialMediaArr[0])}</div>`;
             } else {
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(initialMediaArr[initialMediaArr.length - 1])}</div>`;
                 initialMediaArr.forEach((src, i) => {
-                    const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
-                    let content = isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="${prod.name}">`;
-                    slidesHtml += `<div class="carousel-slide">${content}</div>`;
+                    slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
                     indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
                 });
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(initialMediaArr[0])}</div>`;
             }
 
             const controlsHtml = `
@@ -2139,7 +2195,7 @@
                         <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
                             ${getHeartSvg(prod.id)}
                         </button>
-                        <div class="carousel-track" id="carouselTrack">${slidesHtml}</div>
+                        <div class="carousel-track" id="carouselTrack" style="transform: ${totalSlides > 1 ? 'translateX(-100%)' : 'translateX(0)'};">${slidesHtml}</div>
                         ${controlsHtml}
                     </div>
                     <div class="product-body">
