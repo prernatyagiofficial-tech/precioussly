@@ -1285,24 +1285,29 @@
 
         // --- DATA MAPPING ---
         function mapSettings(row) {
-            if (!row) row = {};
-            return {
-                brandName: row.brand_name || 'My Store',
-                logoUrl: row.logo_url || '',
-                logoWidth: Number(row.logo_width) || 60,
-                logoOffsetX: Number(row.logo_offset_x) || 0,
-                logoOffsetY: Number(row.logo_offset_y) || 0,
-                headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
-                whatsappNumber: row.whatsapp_number || '',
-                emailId: row.email_id || '',
-                announcementText: row.announcement_text || '',
-                announcementScrolling: parseBool(row.announcement_scrolling),
-                minOrderAmount: Number(row.min_order_amount) || 149,
-                codUpfrontFee: Number(row.cod_upfront_fee) || 49,
-                minCODAmount: Number(row.min_cod_amount) || 500,
-                bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
-            };
-        }
+    if (!row) row = {};
+    return {
+        brandName: row.brand_name || 'My Store',
+        logoUrl: row.logo_url || '',
+        logoWidth: Number(row.logo_width) || 60,
+        logoOffsetX: Number(row.logo_offset_x) || 0,
+        logoOffsetY: Number(row.logo_offset_y) || 0,
+        headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
+        whatsappNumber: row.whatsapp_number || '',
+        emailId: row.email_id || '',
+        announcementText: row.announcement_text || '',
+        announcementScrolling: parseBool(row.announcement_scrolling),
+        minOrderAmount: Number(row.min_order_amount) || 149,
+        codUpfrontFee: Number(row.cod_upfront_fee) || 49,
+        minCODAmount: Number(row.min_cod_amount) || 500,
+        
+        // Dynamic Shipping Settings
+        shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
+        freeShippingThreshold: row.free_shipping_threshold !== undefined ? Number(row.free_shipping_threshold) : 499,
+        
+        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
+    };
+}
 
         function mapCategory(row) {
             return { id: row.id, name: row.name || 'Category', img: row.img || row.image_url || '', parentId: row.parent_id || null };
@@ -2650,7 +2655,7 @@
                 });
                 couponsHtml += `</div></div>`;
 
-                const shipping = subtotal > 499 ? 0 : 50;
+                const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
                 const total = subtotal + shipping - discount;
                 const isMinOrderMet = total >= appData.settings.minOrderAmount;
 
@@ -2722,7 +2727,7 @@ function createSlug(text) {
 
         function renderCheckout() {
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            const shipping = subtotal > 499 ? 0 : 50;
+            const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
             let discount = 0;
             for (let rule of appData.coupons) {
                 if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; }
