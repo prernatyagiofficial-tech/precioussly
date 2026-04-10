@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shria - E-Commerce</title>
+    <title>E-Commerce Store</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -933,7 +933,7 @@
                     <div class="dynamic-logo-container" id="siteLogoContainer">
                         <img src="" id="siteLogoImage" alt="Logo">
                     </div>
-                    <span id="brandNameDisplay">Shria</span>
+                    <span id="brandNameDisplay"></span>
                 </a>
 
                 <div class="header-icons">
@@ -977,7 +977,7 @@
         <footer>
             <div class="footer-content">
                 <div class="footer-brand-section">
-                    <div class="footer-brand" id="footerBrandName">Shria</div>
+                    <div class="footer-brand" id="footerBrandName"></div>
                     <p class="footer-desc">Curated collections tailored for elegance. Experience seamless shopping from anywhere.</p>
                 </div>
 
@@ -1014,7 +1014,7 @@
                     <span>•</span>
                     <a href="javascript:void(0)" onclick="renderPolicies()">Terms of Service</a>
                 </div>
-                <div>&copy; <span id="year"></span> <span id="copyrightBrand">Shria</span> Store. All rights reserved.</div>
+                <div>&copy; <span id="year"></span> <span id="copyrightBrand"></span> Store. All rights reserved.</div>
             </div>
         </footer>
 
@@ -1143,7 +1143,7 @@
         function mapSettings(row) {
     if (!row) row = {};
     return {
-        brandName: row.brand_name || 'Shria',
+        brandName: row.brand_name || 'My Store', // Or leave as '' if you prefer
         logoUrl: row.logo_url || '',
         logoWidth: Number(row.logo_width) || 60,
         logoOffsetX: Number(row.logo_offset_x) || 0,
