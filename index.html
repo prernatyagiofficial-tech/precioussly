@@ -934,6 +934,25 @@
         .google-btn:hover { border-color: var(--text-dark); background: var(--secondary-bg); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .user-profile-summary { background: var(--light-green); padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; border: 1px dashed var(--dark-green); }
         .user-email-text { font-weight: 600; color: var(--dark-green); font-size: 14px; word-break: break-all; }
+        /* Share Button Styles */
+        .share-btn {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .share-btn:hover { background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transform: translateY(-2px); }
+        .share-btn:active { transform: scale(0.95); }
+        .share-btn svg { width: 18px; height: 18px; stroke-width: 2; }
     </style>
 </head>
 <body>
@@ -1458,12 +1477,25 @@
         function navigate(stateObj) {
             if (!isPopState) {
                 const current = history.state;
-                if (current && current.view === stateObj.view && current.id === stateObj.id && current.query === stateObj.query) {
-                    history.replaceState(stateObj, "");
-                } else if (current && current.view === 'search' && stateObj.view === 'search') {
-                    history.replaceState(stateObj, "");
+                let queryParams = `?view=${stateObj.view}`;
+                
+                // NEW: Use beautiful slug URLs for products
+                if (stateObj.view === 'product' && appData.products) {
+                    const prod = appData.products.find(p => String(p.id) === String(stateObj.id));
+                    if (prod) {
+                        queryParams = `?product=${createSlug(prod.name)}`;
+                    }
                 } else {
-                    history.pushState(stateObj, "");
+                    if (stateObj.id) queryParams += `&id=${stateObj.id}`;
+                    if (stateObj.query) queryParams += `&query=${encodeURIComponent(stateObj.query)}`;
+                }
+
+                if (current && current.view === stateObj.view && current.id === stateObj.id && current.query === stateObj.query) {
+                    history.replaceState(stateObj, "", queryParams);
+                } else if (current && current.view === 'search' && stateObj.view === 'search') {
+                    history.replaceState(stateObj, "", queryParams);
+                } else {
+                    history.pushState(stateObj, "", queryParams);
                 }
             }
             updateFabVisibility(stateObj.view);
@@ -1643,10 +1675,45 @@
                 updateBadges();
                 renderMenu();
 
-                history.replaceState({view: 'home'}, "");
-                isPopState = true;
-                updateFabVisibility('home');
-                renderHome();
+               // Read URL parameters to handle direct shared links
+                const urlParams = new URLSearchParams(window.location.search);
+                const viewParam = urlParams.get('view');
+                const idParam = urlParams.get('id');
+                const productSlug = urlParams.get('product'); // Read the new clean URL parameter
+
+                // 1. Check for clean product URL (e.g. ?product=blue-tshirt)
+                if (productSlug) {
+                    const prod = products.find(p => createSlug(p.name) === productSlug);
+                    if (prod) {
+                        history.replaceState({view: 'product', id: prod.id}, "", window.location.search);
+                        isPopState = true;
+                        updateFabVisibility('product');
+                        renderProduct(prod.id);
+                    } else {
+                        // Fallback if product not found
+                        history.replaceState({view: 'home'}, "", "?view=home");
+                        isPopState = true;
+                        updateFabVisibility('home');
+                        renderHome();
+                    }
+                } 
+                // 2. Fallback for old URL styles just in case
+                else if (viewParam === 'product' && idParam) {
+                    history.replaceState({view: 'product', id: idParam}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('product');
+                    renderProduct(idParam);
+                } else if (viewParam === 'category' && idParam) {
+                    history.replaceState({view: 'category', id: idParam}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('category');
+                    renderCategory(idParam);
+                } else {
+                    history.replaceState({view: 'home'}, "", "?view=home");
+                    isPopState = true;
+                    updateFabVisibility('home');
+                    renderHome();
+                }
             } catch (error) {
                 console.error("Failed to load store data:", error);
                 showToast("Error loading app data.");
@@ -2176,6 +2243,35 @@
         window.closeSizeChartModal = closeSizeChartModal;
         window.openRingSizeModal = openRingSizeModal;
         window.closeRingSizeModal = closeRingSizeModal;
+        
+        function shareProduct(prodId) {
+            triggerHaptic('pop');
+            const prod = appData.products.find(p => String(p.id) === String(prodId));
+            if (!prod) return;
+
+            // NEW: Generate the clean slug link to the product
+            const slug = createSlug(prod.name);
+            const shareUrl = window.location.origin + window.location.pathname + '?product=' + slug;
+            
+            const shareData = {
+                title: prod.name,
+                text: 'Check out this awesome product!',
+                url: shareUrl
+            };
+
+            // Use Native Share on Mobile, fallback to Copy Clipboard on Desktop
+            if (navigator.share) {
+                navigator.share(shareData).catch(err => console.log('Error sharing:', err));
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('Product link copied to clipboard!');
+                }).catch(err => {
+                    showToast('Failed to copy link.');
+                });
+            }
+        }
+        
+        window.shareProduct = shareProduct; // Expose it to the HTML
 
         function renderProduct(prodId) {
             navigate({view: 'product', id: prodId});
@@ -2296,7 +2392,18 @@
                     </div>
                     <div class="product-body">
                         ${prod.isBestSeller ? '<span class="product-badge">Best Seller</span>' : ''}
-                        <div class="product-title-row"><h2 class="product-detail-title">${prod.name}</h2></div>
+                        <div class="product-title-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <h2 class="product-detail-title" style="margin-bottom: 0;">${prod.name}</h2>
+    <button class="share-btn" onclick="shareProduct('${prod.id}')" title="Share Product">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+    </button>
+</div>
                         <div class="product-detail-price-box">
                             <span class="product-detail-price">${formatPrice(prod.price)}</span>
                             <span class="tax-info">MRP incl. of all taxes</span>
@@ -2551,6 +2658,14 @@
             });
         }
 
+
+function createSlug(text) {
+            return text.toString().toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')           // Replace spaces with -
+                .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+                .replace(/\-\-+/g, '-');        // Replace multiple - with single -
+        }
         // --- CHECKOUT LOGIC ---
         function handlePaymentSelection(radio, totalAmount) {
             triggerHaptic('light');
