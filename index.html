@@ -1135,6 +1135,17 @@
             </div>
         </div>
     </div>
+    <div id="orderItemsModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 600px;">
+        <h3>Order Items <button class="outline" style="padding: 2px 8px;" onclick="closeModal('orderItemsModal')">X</button></h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Product</th><th>Variants</th><th>Price</th><th>Qty</th></tr></thead>
+                <tbody id="orderItemsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 <script>
         // --- INITIALIZE SUPABASE ---
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co'; 
@@ -2742,61 +2753,78 @@
             return isValid;
         }
 
-        function initiatePayment(btn, totalAmount) {
-            if (!validateCheckoutForm()) {
-                triggerHaptic('pop');
-                showToast("Please check the errors in the form");
-                return;
-            }
+function initiatePayment(btn, totalAmount) {
+    if (!validateCheckoutForm()) {
+        triggerHaptic('pop');
+        showToast("Please check the errors in the form");
+        return;
+    }
 
-            const name = document.getElementById('chkName').value;
-            const email = document.getElementById('chkEmail').value;
-            const phone = document.getElementById('chkPhone').value;
-            const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    const name = document.getElementById('chkName').value;
+    const email = document.getElementById('chkEmail').value;
+    const phone = document.getElementById('chkPhone').value;
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
-            let amountToCharge = totalAmount;
-            let amountDueOnDelivery = 0;
+    let amountToCharge = totalAmount;
+    let amountDueOnDelivery = 0;
 
-            if (paymentMethod === 'cod') {
-                amountToCharge = appData.settings.codUpfrontFee;
-                amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
-            }
+    // Logic for Cash on Delivery (COD) advance fee
+    if (paymentMethod === 'cod') {
+        amountToCharge = appData.settings.codUpfrontFee;
+        amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
+    }
 
-            const orderDetails = {
-                name: name,
-                address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
-                paymentMethod: paymentMethod,
-                amountPaid: amountToCharge,
-                amountDue: amountDueOnDelivery
+    // UPDATED: Added email and phone to orderDetails payload
+    const orderDetails = {
+        name: name,
+        email: email, // This goes to Supabase
+        phone: phone, // This goes to Supabase
+        address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
+        paymentMethod: paymentMethod,
+        amountPaid: amountToCharge,
+        amountDue: amountDueOnDelivery
+    };
+
+    if (amountToCharge > 0) {
+        withLoading(btn, () => {
+            const options = {
+                "key": "rzp_test_YOUR_KEY_HERE", // IMPORTANT: Put your real Razorpay ID here
+                "amount": amountToCharge * 100, 
+                "currency": "INR",
+                "name": appData.settings.brandName,
+                "description": "Payment for Order",
+                "image": appData.settings.logoUrl,
+                "handler": function (response) { 
+                    // This triggers processOrderPlacement ONLY after successful payment
+                    processOrderPlacement(totalAmount, orderDetails); 
+                },
+                "prefill": { 
+                    "name": name, 
+                    "email": email, 
+                    "contact": phone 
+                },
+                "theme": { "color": "#1a1a1a" },
+                "modal": { 
+                    "ondismiss": function() { 
+                        showToast("Payment cancelled"); 
+                    } 
+                }
             };
-
-            if (amountToCharge > 0) {
-                withLoading(btn, () => {
-                    const options = {
-                        "key": "rzp_test_YOUR_KEY_HERE", 
-                        "amount": amountToCharge * 100, 
-                        "currency": "INR",
-                        "name": appData.settings.brandName,
-                        "description": "Purchase Description",
-                        "image": appData.settings.logoUrl,
-                        "handler": function (response){ processOrderPlacement(totalAmount, orderDetails); },
-                        "prefill": { "name": name, "email": email, "contact": phone },
-                        "theme": { "color": "#1a1a1a" },
-                        "modal": { "ondismiss": function(){ showToast("Payment cancelled"); } }
-                    };
-                    
-                    try {
-                        const rzp = new Razorpay(options);
-                        rzp.open();
-                    } catch (e) {
-                        console.error("Razorpay error", e);
-                        processOrderPlacement(totalAmount, orderDetails);
-                    }
-                });
-            } else {
-                withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails));
+            
+            try {
+                const rzp = new Razorpay(options);
+                rzp.open();
+            } catch (e) {
+                console.error("Razorpay library not loaded or error", e);
+                // If Razorpay fails to load, you might want to show an error instead of placing order
+                showToast("Payment Gateway Error. Please try again.");
             }
-        }
+        });
+    } else {
+        // If amount is 0 (Free order or full discount), place order directly
+        withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails));
+    }
+}
 
         async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
@@ -2806,22 +2834,26 @@
         total_amount: totalAmount,
         items: state.cart,
         customer_details: orderDetails,
-        status: 'In Progress', // Updated from 'Pending'
-        date: new Date().toLocaleDateString()
+        status: 'In Progress'
     };
 
-    // Non-blocking write to Supabase
-    db.from('orders').insert([orderData]).then(({ error }) => {
-        if (error) console.error("Order insertion failed (RLS issue likely):", error);
-    });
-    
-    const existingOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    existingOrders.unshift(orderData); 
-    localStorage.setItem('shria_orders', JSON.stringify(existingOrders));
+    const { error } = await db.from('orders').insert([orderData]);
+
+    if (error) {
+        console.error("Order insertion failed:", error);
+        showToast("Error saving order. Please contact support.");
+        return; 
+    }
+
+    // ✅ NEW: Save the order to local storage so the user can see it in "Your Orders"
+    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    localOrders.unshift(orderData); // Add newest order to the top
+    localStorage.setItem('shria_orders', JSON.stringify(localOrders));
 
     state.cart = [];
-    persistUserData(); // Clear local cart
+    persistUserData(); 
     updateBadges();
+    
     renderThankYou(orderData.id);
 }
 
