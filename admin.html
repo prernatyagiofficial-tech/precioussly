@@ -267,11 +267,31 @@
                         </div>
 
                         <div class="settings-card">
-                            <h3>Order & COD Rules</h3>
-                            <div class="form-group"><label>Minimum Order Amount (₹)</label><input type="number" id="setMinOrder"></div>
-                            <div class="form-group"><label>Minimum Amount for COD (₹)</label><input type="number" id="setMinCod"></div>
-                            <div class="form-group"><label>COD Upfront/Advance Fee (₹)</label><input type="number" id="setCodFee"></div>
-                        </div>
+    <h3>Order & COD Rules</h3>
+    
+    <div class="form-group">
+        <label>Standard Shipping Fee (₹)</label>
+        <input type="number" id="setShippingFee" placeholder="e.g. 50">
+    </div>
+    <div class="form-group">
+        <label>Free Shipping Threshold (₹)</label>
+        <input type="number" id="setFreeShippingThreshold" placeholder="e.g. 499">
+    </div>
+    
+    <div class="form-group">
+        <label>Minimum Order Amount (₹)</label>
+        <input type="number" id="setMinOrder" placeholder="e.g. 149">
+    </div>
+    <div class="form-group">
+        <label>Minimum Amount for COD (₹)</label>
+        <input type="number" id="setMinCod" placeholder="e.g. 500">
+    </div>
+    <div class="form-group">
+        <label>COD Upfront/Advance Fee (₹)</label>
+        <input type="number" id="setCodFee" placeholder="e.g. 49">
+    </div>
+</div>
+                        
 
                         <div class="settings-card">
                             <h3>Home Page Banner</h3>
@@ -585,63 +605,84 @@ db.channel('live-orders')
 
         // Settings Management
         async function loadSettings() {
-            try {
-                const { data, error } = await db.from('settings').select('*').eq('id', 1).single();
-                if (error) throw error;
+    try {
+        const { data, error } = await db.from('settings').select('*').eq('id', 1).single();
+        if (error) throw error;
 
-                if(data) {
-                    document.getElementById('setBrandName').value = data.brand_name || '';
-                    document.getElementById('setLogoUrl').value = data.logo_url || '';
-                    document.getElementById('setLogoWidth').value = data.logo_width || 60;
-                    document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
-                    document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
-                    document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
-                    document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
-                    document.getElementById('setEmail').value = data.email_id || '';
-                    document.getElementById('setAnnouncement').value = data.announcement_text || '';
-                    document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
-                    document.getElementById('setMinOrder').value = data.min_order_amount || 0;
-                    document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
-                    document.getElementById('setMinCod').value = data.min_cod_amount || 0;
-                    
-                    const banner = data.banner_config || {};
-                    document.getElementById('setBannerUrl').value = banner.imageUrl || '';
-                    document.getElementById('setBannerAction').value = banner.target || 'all';
-               }
-            } catch (err) {
-                console.error("Settings load error:", err);
-            }
-        }
+        if (data) {
+            // General Settings
+            document.getElementById('setBrandName').value = data.brand_name || '';
+            document.getElementById('setLogoUrl').value = data.logo_url || '';
+            document.getElementById('setLogoWidth').value = data.logo_width || 60;
+            document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
+            document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
+            document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
+            
+            // Contact Settings
+            document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
+            document.getElementById('setEmail').value = data.email_id || '';
+            
+            // Announcement Settings
+            document.getElementById('setAnnouncement').value = data.announcement_text || '';
+            document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
+            
+            // Order, COD & Shipping Rules
+            document.getElementById('setMinOrder').value = data.min_order_amount || 0;
+            document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
+            document.getElementById('setMinCod').value = data.min_cod_amount || 0;
+            document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
+            document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
+            
+            // Banner Config
+            const banner = data.banner_config || {};
+            document.getElementById('setBannerUrl').value = banner.imageUrl || '';
+            document.getElementById('setBannerAction').value = banner.target || 'all';
+       }
+    } catch (err) {
+        console.error("Settings load error:", err);
+    }
+}
 
         async function saveSettings() {
-            try {
-                const payload = {
-                    brand_name: document.getElementById('setBrandName').value.trim(),
-                    logo_url: document.getElementById('setLogoUrl').value.trim(),
-                    logo_width: Number(document.getElementById('setLogoWidth').value) || 0,
-                    logo_offset_x: Number(document.getElementById('setLogoOffsetX').value) || 0,
-                    logo_offset_y: Number(document.getElementById('setLogoOffsetY').value) || 0,
-                    header_padding_y: Number(document.getElementById('setHeaderPaddingY').value) || 0,
-                    whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
-                    email_id: document.getElementById('setEmail').value.trim(),
-                    announcement_text: document.getElementById('setAnnouncement').value.trim(),
-                    announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
-                    min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
-                    cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
-                    min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
-                    banner_config: {
-                        imageUrl: document.getElementById('setBannerUrl').value.trim(),
-                        target: document.getElementById('setBannerAction').value
-                    }
-                };
-                
-                const { error } = await db.from('settings').update(payload).eq('id', 1);
-                if(error) throw error;
-                alert("Settings saved successfully!");
-            } catch (err) {
-                alert("Error saving settings: " + err.message);
+    try {
+        const payload = {
+            // General Settings
+            brand_name: document.getElementById('setBrandName').value.trim(),
+            logo_url: document.getElementById('setLogoUrl').value.trim(),
+            logo_width: Number(document.getElementById('setLogoWidth').value) || 0,
+            logo_offset_x: Number(document.getElementById('setLogoOffsetX').value) || 0,
+            logo_offset_y: Number(document.getElementById('setLogoOffsetY').value) || 0,
+            header_padding_y: Number(document.getElementById('setHeaderPaddingY').value) || 0,
+            
+            // Contact & Support
+            whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
+            email_id: document.getElementById('setEmail').value.trim(),
+            
+            // Announcement
+            announcement_text: document.getElementById('setAnnouncement').value.trim(),
+            announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
+            
+            // Order, COD & Shipping Rules
+            min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
+            cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
+            min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
+            shipping_fee: Number(document.getElementById('setShippingFee').value) || 0,
+            free_shipping_threshold: Number(document.getElementById('setFreeShippingThreshold').value) || 0,
+            
+            // Banner Config
+            banner_config: {
+                imageUrl: document.getElementById('setBannerUrl').value.trim(),
+                target: document.getElementById('setBannerAction').value
             }
-        }
+        };
+        
+        const { error } = await db.from('settings').update(payload).eq('id', 1);
+        if (error) throw error;
+        alert("Settings saved successfully!");
+    } catch (err) {
+        alert("Error saving settings: " + err.message);
+    }
+}
 
         // Categories Management
         async function loadCategories() {
