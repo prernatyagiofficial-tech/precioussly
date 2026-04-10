@@ -2869,7 +2869,7 @@ function initiatePayment(btn, totalAmount) {
     if (amountToCharge > 0) {
         withLoading(btn, () => {
             const options = {
-                "key": "rzp_test_YOUR_KEY_HERE", // IMPORTANT: Put your real Razorpay ID here
+                "key": "rzp_live_RFC8iPX7kMLSuX", // IMPORTANT: Put your real Razorpay ID here
                 "amount": amountToCharge * 100, 
                 "currency": "INR",
                 "name": appData.settings.brandName,
