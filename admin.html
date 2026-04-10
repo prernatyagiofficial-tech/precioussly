@@ -10,10 +10,11 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #000; background-color: #f9f9f9; line-height: 1.4; overflow-x: hidden; }
 
         /* Forms & Buttons */
-        input, button, select, textarea { font-family: inherit; font-size: 13px; border: 1px solid #000; padding: 8px 10px; background: #fff; border-radius: 0; outline: none; width: 100%; margin-bottom: 10px; transition: border 0.2s; }
+        input, button, select, textarea { font-family: inherit; font-size: 13px; border: 1px solid #000; padding: 8px 10px; background: #fff; border-radius: 0; outline: none; width: 100%; margin-bottom: 10px; }
         input:focus, select:focus, textarea:focus { border-width: 2px; padding: 7px 9px; }
-        button { background: #000; color: #fff; cursor: pointer; font-weight: 600; padding: 10px; transition: background 0.2s, transform 0.1s; text-transform: uppercase; }
-        button:active { background: #333; transform: scale(0.98); }
+        button { background: #000; color: #fff; cursor: pointer; font-weight: 600; padding: 10px; text-transform: uppercase; }
+        button:active { background: #333; }
+        button:disabled { background: #666; cursor: not-allowed; }
         button.outline { background: #fff; color: #000; }
         button.outline:active { background: #eee; }
         button.danger { background: #ff4757; color: #fff; border-color: #ff4757; }
@@ -45,7 +46,7 @@
 
         /* Admin Layout */
         .admin-wrapper { display: flex; height: calc(100vh - 50px); }
-        aside { width: 220px; background: #fff; border-right: 1px solid #000; display: flex; flex-direction: column; overflow-y: auto; transition: left 0.3s ease; }
+        aside { width: 220px; background: #fff; border-right: 1px solid #000; display: flex; flex-direction: column; overflow-y: auto; }
         .nav-link { padding: 12px 15px; text-decoration: none; color: #000; border-bottom: 1px solid #000; font-weight: 600; cursor: pointer; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
         .nav-link:hover { background: #f0f0f0; }
         .nav-link.active { background: #000; color: #fff; }
@@ -71,9 +72,8 @@
         .badge.danger { background: #e74c3c; }
 
         /* Content Views */
-        .view-section { display: none; animation: fadeIn 0.3s; }
+        .view-section { display: none; }
         .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* Modal (Popup Form) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
@@ -239,21 +239,21 @@
                                 </div>
                             </div>
                             <div class="form-group">
-    <label>Logo Width (px)</label>
-    <input type="number" id="setLogoWidth" placeholder="e.g. 100">
-</div>
-<div class="form-group">
-    <label>Logo X Offset (Left/Right px)</label>
-    <input type="number" id="setLogoOffsetX" placeholder="e.g. 10">
-</div>
-<div class="form-group">
-    <label>Logo Y Offset (Up/Down px)</label>
-    <input type="number" id="setLogoOffsetY" placeholder="e.g. -5">
-</div>
-<div class="form-group">
-    <label>Header Vertical Spacing (Top/Bottom px)</label>
-    <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
-</div>
+                                <label>Logo Width (px)</label>
+                                <input type="number" id="setLogoWidth" placeholder="e.g. 100">
+                            </div>
+                            <div class="form-group">
+                                <label>Logo X Offset (Left/Right px)</label>
+                                <input type="number" id="setLogoOffsetX" placeholder="e.g. 10">
+                            </div>
+                            <div class="form-group">
+                                <label>Logo Y Offset (Up/Down px)</label>
+                                <input type="number" id="setLogoOffsetY" placeholder="e.g. -5">
+                            </div>
+                            <div class="form-group">
+                                <label>Header Vertical Spacing (Top/Bottom px)</label>
+                                <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
+                            </div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
                         </div>
 
@@ -279,27 +279,28 @@
                                     <button class="outline" onclick="triggerFileUpload('fileBanner', 'setBannerUrl')">UPLOAD</button>
                                 </div>
                             </div>
-                           <div class="form-group">
-    <label>Banner Click Action</label>
-    <select id="setBannerAction">
-        <option value="all">Shop All</option>
-        <option value="bestsellers">Best Sellers</option>
-    </select>
-</div>
+                            <div class="form-group">
+                                <label>Banner Click Action</label>
+                                <select id="setBannerAction">
+                                    <option value="all">Shop All</option>
+                                    <option value="bestsellers">Best Sellers</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
-<div id="view-users" class="view-section">
-    <div class="section-header">
-        <h1>Registered Users</h1>
-    </div>
-    <div class="table-responsive">
-        <table>
-            <thead><tr><th>Name / Email</th><th>Wishlist Items</th><th>Joined Date</th></tr></thead>
-            <tbody id="usersTableBody"><tr><td colspan="3" style="text-align:center; padding: 20px;">Loading users...</td></tr></tbody>
-        </table>
-    </div>
-</div>
+                
+                <div id="view-users" class="view-section">
+                    <div class="section-header">
+                        <h1>Registered Users</h1>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>Name / Email</th><th>Wishlist Items</th><th>Joined Date</th></tr></thead>
+                            <tbody id="usersTableBody"><tr><td colspan="3" style="text-align:center; padding: 20px;">Loading users...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -323,7 +324,7 @@
                     <label>Media URLs (Comma separated)</label>
                     <div class="flex-row">
                         <textarea id="prodMedia" rows="2" placeholder="https://img1.jpg, https://img2.mp4"></textarea>
-                        <button class="outline" onclick="document.getElementById('fileProdMedia').click()">UPLOAD</button>
+                        <button type="button" class="outline" onclick="document.getElementById('fileProdMedia').click()">UPLOAD</button>
                     </div>
                 </div>
 
@@ -341,7 +342,7 @@
                 </div>
                 
                 <div class="form-group full-width">
-                    <button id="saveProdBtn" onclick="saveProduct()">SAVE PRODUCT</button>
+                    <button type="button" id="saveProdBtn" onclick="saveProduct()">SAVE PRODUCT</button>
                 </div>
             </div>
         </div>
@@ -362,10 +363,10 @@
                 <label>Image URL</label>
                 <div class="flex-row">
                     <input type="text" id="catImgUrl">
-                    <button class="outline" onclick="triggerFileUpload('fileCatImg', 'catImgUrl')">UPLOAD</button>
+                    <button type="button" class="outline" onclick="triggerFileUpload('fileCatImg', 'catImgUrl')">UPLOAD</button>
                 </div>
             </div>
-            <button onclick="saveCategory()">SAVE CATEGORY</button>
+            <button type="button" onclick="saveCategory()">SAVE CATEGORY</button>
         </div>
     </div>
 
@@ -375,7 +376,7 @@
             <div class="form-group"><label>Minimum Order Threshold (₹)</label><input type="number" id="coupThreshold" required></div>
             <div class="form-group"><label>Discount Amount (₹)</label><input type="number" id="coupDiscount" required></div>
             <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="coupActive" checked> Is Active</label></div>
-            <button onclick="saveCoupon()">SAVE COUPON</button>
+            <button type="button" onclick="saveCoupon()">SAVE COUPON</button>
         </div>
     </div>
 
@@ -386,10 +387,10 @@
                 <label>Review Image URL</label>
                 <div class="flex-row">
                     <input type="text" id="reviewImgUrl" required>
-                    <button class="outline" onclick="triggerFileUpload('fileReviewImg', 'reviewImgUrl')">UPLOAD</button>
+                    <button type="button" class="outline" onclick="triggerFileUpload('fileReviewImg', 'reviewImgUrl')">UPLOAD</button>
                 </div>
             </div>
-            <button onclick="saveReview()">SAVE REVIEW</button>
+            <button type="button" onclick="saveReview()">SAVE REVIEW</button>
         </div>
     </div>
 
@@ -399,20 +400,34 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM';
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Global State
-        let currentEditId = null;
-        let adminData = { categories: [], products: [] };
+        // Core State Management
+        const State = {
+            currentEditId: null,
+            categories: [],
+            products: [],
+        };
+
+        const escapeHTML = (str) => {
+            if (typeof str !== 'string') return str;
+            return str.replace(/[&<>'"]/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match]));
+        };
 
         // UI & Auth
         async function checkSession() {
-            const { data: { session } } = await db.auth.getSession();
-            if (session) {
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('adminContainer').style.display = 'block';
-                loadAllData();
-            } else {
-                document.getElementById('loginContainer').style.display = 'block';
-                document.getElementById('adminContainer').style.display = 'none';
+            try {
+                const { data: { session }, error } = await db.auth.getSession();
+                if (error) throw error;
+                
+                if (session) {
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('adminContainer').style.display = 'block';
+                    await loadAllData();
+                } else {
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('adminContainer').style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Session check error:", err);
             }
         }
 
@@ -421,21 +436,36 @@
             const btn = document.getElementById('loginBtn');
             const err = document.getElementById('authError');
             btn.innerText = 'LOGGING IN...';
+            btn.disabled = true;
             
-            const { error } = await db.auth.signInWithPassword({ 
-                email: document.getElementById('email').value, 
-                password: document.getElementById('password').value 
-            });
-            
-            btn.innerText = 'LOGIN SECURELY';
-            if (error) { err.innerText = error.message; err.style.display = 'block'; } 
-            else { err.style.display = 'none'; checkSession(); }
+            try {
+                const { error } = await db.auth.signInWithPassword({ 
+                    email: document.getElementById('email').value, 
+                    password: document.getElementById('password').value 
+                });
+                
+                if (error) throw error;
+                err.style.display = 'none';
+                await checkSession();
+            } catch (error) {
+                err.innerText = error.message; 
+                err.style.display = 'block';
+            } finally {
+                btn.innerText = 'LOGIN SECURELY';
+                btn.disabled = false;
+            }
         });
 
-        async function logout() { await db.auth.signOut(); checkSession(); }
+        async function logout() { 
+            await db.auth.signOut(); 
+            await checkSession(); 
+        }
 
         // Layout Navigation
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        function toggleSidebar() { 
+            document.getElementById('sidebar').classList.toggle('open'); 
+        }
+        
         function switchView(viewId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
@@ -445,212 +475,270 @@
         }
 
         // Modal Helpers
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); currentEditId = null; }
+        function openModal(id) { 
+            document.getElementById(id).classList.add('active'); 
+        }
+        
+        function closeModal(id) { 
+            const modal = document.getElementById(id);
+            modal.classList.remove('active'); 
+            State.currentEditId = null;
+            
+            // Auto-reset form fields to prevent stale data
+            const inputs = modal.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') input.checked = false;
+                else if (input.id === 'catParentId') input.value = '';
+                else input.value = '';
+            });
+            // Reset titles
+            if (document.getElementById('prodModalTitle')) document.getElementById('prodModalTitle').innerText = 'Add Product';
+            if (document.getElementById('catModalTitle')) document.getElementById('catModalTitle').innerText = 'Add Category';
+            if (document.getElementById('couponModalTitle')) document.getElementById('couponModalTitle').innerText = 'Add Coupon';
+        }
 
         // Data Loading
         async function loadAllData() {
-    loadDashboard();
-    await loadCategories(); 
-    loadSettings();         
-    loadProducts();
-    loadCoupons();
-    loadReviews();
-    loadOrders();
-    loadUsers(); 
-}
+            try {
+                await Promise.all([
+                    loadDashboard(),
+                    loadCategories(), 
+                    loadSettings(),         
+                    loadProducts(),
+                    loadCoupons(),
+                    loadReviews(),
+                    loadOrders(),
+                    loadUsers()
+                ]);
+            } catch (err) {
+                console.error("Error loading master data:", err);
+            }
+        }
 
         async function loadDashboard() {
-    const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
-        db.from('orders').select('*', { count: 'exact', head: true }),
-        db.from('products').select('id'),
-        db.from('orders').select('total_amount').eq('status', 'Completed'),
-        db.from('profiles').select('*', { count: 'exact', head: true }) 
-    ]);
-    document.getElementById('statOrders').innerText = ordCount || 0;
-    document.getElementById('statProducts').innerText = prods?.length || 0;
-    document.getElementById('statUsers').innerText = userCount || 0; 
-    const revenue = revs?.reduce((acc, row) => acc + (row.total_amount || 0), 0) || 0;
-    document.getElementById('statRevenue').innerText = `₹${revenue.toLocaleString()}`;
-}
+            try {
+                const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
+                    db.from('orders').select('*', { count: 'exact', head: true }),
+                    db.from('products').select('id'),
+                    db.from('orders').select('total_amount').eq('status', 'Completed'),
+                    db.from('profiles').select('*', { count: 'exact', head: true }) 
+                ]);
+                document.getElementById('statOrders').innerText = ordCount || 0;
+                document.getElementById('statProducts').innerText = prods?.length || 0;
+                document.getElementById('statUsers').innerText = userCount || 0; 
+                const revenue = revs?.reduce((acc, row) => acc + (row.total_amount || 0), 0) || 0;
+                document.getElementById('statRevenue').innerText = `₹${revenue.toLocaleString()}`;
+            } catch (err) {
+                console.error("Dashboard error:", err);
+            }
+        }
 
-async function loadUsers() {
-    const { data, error } = await db.from('profiles').select('*').order('created_at', { ascending: false });
-    
-    if (error) console.error("Error loading users:", error);
-    
-    let html = '';
-    if(data && data.length > 0) {
-        data.forEach(u => {
-            const date = new Date(u.created_at).toLocaleDateString();
-            const wishlistCount = u.wishlist ? u.wishlist.length : 0;
-            const displayName = u.full_name || u.email;
-            
-            html += `<tr>
-                <td><strong>${displayName}</strong><br><span style="font-size:11px; color:#666;">${u.email}</span></td>
-                <td><span class="badge">${wishlistCount} items</span></td>
-                <td>${date}</td>
-            </tr>`;
-        });
-    }
-    document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No users registered yet</td></tr>';
-}
+        async function loadUsers() {
+            try {
+                const { data, error } = await db.from('profiles').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+                
+                let html = '';
+                if(data && data.length > 0) {
+                    html = data.map(u => `
+                        <tr>
+                            <td><strong>${escapeHTML(u.full_name || u.email)}</strong><br><span style="font-size:11px; color:#666;">${escapeHTML(u.email)}</span></td>
+                            <td><span class="badge">${u.wishlist ? u.wishlist.length : 0} items</span></td>
+                            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                }
+                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No users registered yet</td></tr>';
+            } catch (err) {
+                console.error("Error loading users:", err);
+            }
+        }
 
         // Settings Management
         async function loadSettings() {
-    const { data } = await db.from('settings').select('*').eq('id', 1).single();
-    if(data) {
-        document.getElementById('setBrandName').value = data.brand_name || '';
-        document.getElementById('setLogoUrl').value = data.logo_url || '';
-        document.getElementById('setLogoWidth').value = data.logo_width || 60;
-        document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
-        document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
-        document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
-        document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
-        document.getElementById('setEmail').value = data.email_id || '';
-        document.getElementById('setAnnouncement').value = data.announcement_text || '';
-        document.getElementById('setMinOrder').value = data.min_order_amount || 0;
-        document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
-        document.getElementById('setMinCod').value = data.min_cod_amount || 0;
-        
-        const banner = data.banner_config || {};
-        document.getElementById('setBannerUrl').value = banner.imageUrl || '';
-        // Set the dropdown to the saved target (fallback to 'all' if empty)
-        document.getElementById('setBannerAction').value = banner.target || 'all';
-   }
-}
+            try {
+                const { data, error } = await db.from('settings').select('*').eq('id', 1).single();
+                if (error) throw error;
+
+                if(data) {
+                    document.getElementById('setBrandName').value = data.brand_name || '';
+                    document.getElementById('setLogoUrl').value = data.logo_url || '';
+                    document.getElementById('setLogoWidth').value = data.logo_width || 60;
+                    document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
+                    document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
+                    document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
+                    document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
+                    document.getElementById('setEmail').value = data.email_id || '';
+                    document.getElementById('setAnnouncement').value = data.announcement_text || '';
+                    document.getElementById('setMinOrder').value = data.min_order_amount || 0;
+                    document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
+                    document.getElementById('setMinCod').value = data.min_cod_amount || 0;
+                    
+                    const banner = data.banner_config || {};
+                    document.getElementById('setBannerUrl').value = banner.imageUrl || '';
+                    document.getElementById('setBannerAction').value = banner.target || 'all';
+               }
+            } catch (err) {
+                console.error("Settings load error:", err);
+            }
+        }
+
         async function saveSettings() {
-    const payload = {
-        brand_name: document.getElementById('setBrandName').value,
-        logo_url: document.getElementById('setLogoUrl').value,
-        logo_width: Number(document.getElementById('setLogoWidth').value),
-        logo_offset_x: Number(document.getElementById('setLogoOffsetX').value),
-        logo_offset_y: Number(document.getElementById('setLogoOffsetY').value),
-        header_padding_y: Number(document.getElementById('setHeaderPaddingY').value),
-        whatsapp_number: document.getElementById('setWhatsapp').value,
-        email_id: document.getElementById('setEmail').value,
-        announcement_text: document.getElementById('setAnnouncement').value,
-        min_order_amount: Number(document.getElementById('setMinOrder').value),
-        cod_upfront_fee: Number(document.getElementById('setCodFee').value),
-        min_cod_amount: Number(document.getElementById('setMinCod').value),
-        banner_config: {
-            imageUrl: document.getElementById('setBannerUrl').value,
-            target: document.getElementById('setBannerAction').value
-        }
-    };
-    const { error } = await db.from('settings').update(payload).eq('id', 1);
-    if(error) alert("Error saving settings: " + error.message);
-    else alert("Settings saved successfully!");
-}
-
-async function loadCategories() {
-            const { data } = await db.from('categories').select('*').order('id', { ascending: true });
-            adminData.categories = data || [];
-            let html = '';
-            
-            let prodCatOptions = '<option value="">Select Category</option>';
-            let parentCatOptions = '<option value="">None (Main Category)</option>';
-            let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
-
-            // First loop: get main categories
-            const mainCats = adminData.categories.filter(c => !c.parent_id);
-            
-            mainCats.forEach(main => {
-                const img = main.img ? `<img src="${main.img}" class="prod-img-thumb">` : '-';
-                html += `<tr><td>${img}</td><td>${main.id}</td><td><strong>${main.name}</strong></td>
-                         <td>
-                           <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                           <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                         </td></tr>`;
+            try {
+                const payload = {
+                    brand_name: document.getElementById('setBrandName').value.trim(),
+                    logo_url: document.getElementById('setLogoUrl').value.trim(),
+                    logo_width: Number(document.getElementById('setLogoWidth').value) || 0,
+                    logo_offset_x: Number(document.getElementById('setLogoOffsetX').value) || 0,
+                    logo_offset_y: Number(document.getElementById('setLogoOffsetY').value) || 0,
+                    header_padding_y: Number(document.getElementById('setHeaderPaddingY').value) || 0,
+                    whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
+                    email_id: document.getElementById('setEmail').value.trim(),
+                    announcement_text: document.getElementById('setAnnouncement').value.trim(),
+                    min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
+                    cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
+                    min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
+                    banner_config: {
+                        imageUrl: document.getElementById('setBannerUrl').value.trim(),
+                        target: document.getElementById('setBannerAction').value
+                    }
+                };
                 
-                prodCatOptions += `<option value="${main.id}">${main.name}</option>`;
-                parentCatOptions += `<option value="${main.id}">${main.name}</option>`;
-                bannerOptions += `<option value="cat_${main.id}">Category: ${main.name}</option>`;
-
-                // Second loop: subcategories for this main category
-                const subCats = adminData.categories.filter(c => c.parent_id === main.id);
-                subCats.forEach(sub => {
-                    const subImg = sub.img ? `<img src="${sub.img}" class="prod-img-thumb">` : '-';
-                    html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${sub.name}</td>
-                             <td>
-                               <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                               <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                             </td></tr>`;
-                    prodCatOptions += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${sub.name}</option>`;
-                    bannerOptions += `<option value="cat_${sub.id}">Category: ${main.name} > ${sub.name}</option>`;
-                });
-            });
-            
-            document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
-            document.getElementById('prodCat').innerHTML = prodCatOptions;
-            document.getElementById('catParentId').innerHTML = parentCatOptions;
-            document.getElementById('setBannerAction').innerHTML = bannerOptions;
+                const { error } = await db.from('settings').update(payload).eq('id', 1);
+                if(error) throw error;
+                alert("Settings saved successfully!");
+            } catch (err) {
+                alert("Error saving settings: " + err.message);
+            }
         }
 
-        function editCategory(id) {
-            const cat = adminData.categories.find(c => c.id === id);
+        // Categories Management
+        async function loadCategories() {
+            try {
+                const { data, error } = await db.from('categories').select('*').order('id', { ascending: true });
+                if (error) throw error;
+
+                State.categories = data || [];
+                let html = '';
+                
+                let prodCatOptions = '<option value="">Select Category</option>';
+                let parentCatOptions = '<option value="">None (Main Category)</option>';
+                let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
+
+                const mainCats = State.categories.filter(c => !c.parent_id);
+                
+                mainCats.forEach(main => {
+                    const img = main.img ? `<img src="${escapeHTML(main.img)}" class="prod-img-thumb">` : '-';
+                    html += `<tr><td>${img}</td><td>${main.id}</td><td><strong>${escapeHTML(main.name)}</strong></td>
+                             <td>
+                               <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                               <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                             </td></tr>`;
+                    
+                    prodCatOptions += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+                    parentCatOptions += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+                    bannerOptions += `<option value="cat_${main.id}">Category: ${escapeHTML(main.name)}</option>`;
+
+                    const subCats = State.categories.filter(c => c.parent_id === main.id);
+                    subCats.forEach(sub => {
+                        const subImg = sub.img ? `<img src="${escapeHTML(sub.img)}" class="prod-img-thumb">` : '-';
+                        html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</td>
+                                 <td>
+                                   <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                                   <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                                 </td></tr>`;
+                        prodCatOptions += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+                        bannerOptions += `<option value="cat_${sub.id}">Category: ${escapeHTML(main.name)} > ${escapeHTML(sub.name)}</option>`;
+                    });
+                });
+                
+                document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
+                document.getElementById('prodCat').innerHTML = prodCatOptions;
+                document.getElementById('catParentId').innerHTML = parentCatOptions;
+                document.getElementById('setBannerAction').innerHTML = bannerOptions;
+            } catch (err) {
+                console.error("Categories load error:", err);
+            }
+        }
+
+        window.editCategory = function(id) {
+            const cat = State.categories.find(c => c.id === id);
             if(cat) {
-                currentEditId = id;
+                State.currentEditId = id;
                 document.getElementById('catModalTitle').innerText = 'Edit Category';
                 document.getElementById('catName').value = cat.name;
                 document.getElementById('catImgUrl').value = cat.img || '';
                 document.getElementById('catParentId').value = cat.parent_id || '';
                 
-                // Prevent setting a category as its own parent
                 Array.from(document.getElementById('catParentId').options).forEach(opt => {
-                    if (String(opt.value) === String(id)) opt.disabled = true;
-                    else opt.disabled = false;
+                    opt.disabled = String(opt.value) === String(id);
                 });
                 
                 openModal('categoryModal');
             }
-        }
+        };
 
         async function saveCategory() {
-            const parentIdVal = document.getElementById('catParentId').value;
-            const payload = { 
-                name: document.getElementById('catName').value, 
-                img: document.getElementById('catImgUrl').value,
-                parent_id: parentIdVal ? Number(parentIdVal) : null
-            };
-            if(!payload.name) return alert("Name is required");
-            
-            if(currentEditId) await db.from('categories').update(payload).eq('id', currentEditId);
-            else await db.from('categories').insert([payload]);
-            
-            closeModal('categoryModal');
-            loadCategories();
+            try {
+                const parentIdVal = document.getElementById('catParentId').value;
+                const payload = { 
+                    name: document.getElementById('catName').value.trim(), 
+                    img: document.getElementById('catImgUrl').value.trim(),
+                    parent_id: parentIdVal ? Number(parentIdVal) : null
+                };
+                
+                if(!payload.name) return alert("Name is required");
+                
+                if(State.currentEditId) {
+                    const { error } = await db.from('categories').update(payload).eq('id', State.currentEditId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await db.from('categories').insert([payload]);
+                    if (error) throw error;
+                }
+                
+                closeModal('categoryModal');
+                await loadCategories();
+            } catch (err) {
+                alert("Error saving category: " + err.message);
+            }
         }
 
         // Products Management
         async function loadProducts() {
-            const { data, error } = await db.from('products').select('*').order('id', { ascending: false });
+            try {
+                const { data, error } = await db.from('products').select('*').order('id', { ascending: false });
+                if (error) throw error;
 
-// Optional but highly recommended: Add a quick console log so you catch future database errors!
-if (error) console.error("Supabase Error loading products:", error);
-            adminData.products = data || [];
-            let html = '';
-            adminData.products.forEach(p => {
-                const catName = adminData.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
-                const img = p.media && p.media.length > 0 ? `<img src="${p.media[0]}" class="prod-img-thumb">` : '-';
-                let badges = [];
-                if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
-                if(p.is_ring) badges.push('<span class="badge warning">Ring</span>');
-                if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
+                State.products = data || [];
+                let html = '';
                 
-                html += `<tr><td>${img}</td><td>${p.name}</td><td>${catName}</td><td>₹${p.price}</td><td>${badges.join(' ')}</td>
-                         <td>
-                           <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                           <button class="danger" onclick="deleteRecord('products', ${p.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                         </td></tr>`;
-            });
-            document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No products</td></tr>';
+                State.products.forEach(p => {
+                    const catName = State.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
+                    const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb">` : '-';
+                    let badges = [];
+                    
+                    if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
+                    if(p.is_ring) badges.push('<span class="badge warning">Ring</span>');
+                    if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
+                    
+                    html += `<tr><td>${img}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(catName)}</td><td>₹${p.price}</td><td>${badges.join(' ')}</td>
+                             <td>
+                               <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                               <button class="danger" onclick="deleteRecord('products', ${p.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                             </td></tr>`;
+                });
+                
+                document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No products</td></tr>';
+            } catch (err) {
+                console.error("Supabase Error loading products:", err);
+            }
         }
 
-        function editProduct(id) {
-            const p = adminData.products.find(x => x.id === id);
+        window.editProduct = function(id) {
+            const p = State.products.find(x => x.id === id);
             if(p) {
-                currentEditId = id;
+                State.currentEditId = id;
                 document.getElementById('prodModalTitle').innerText = 'Edit Product';
                 document.getElementById('prodName').value = p.name;
                 document.getElementById('prodPrice').value = p.price;
@@ -658,33 +746,36 @@ if (error) console.error("Supabase Error loading products:", error);
                 document.getElementById('prodDesc').value = p.description || '';
                 document.getElementById('prodMedia').value = (p.media || []).join(', ');
                 document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
-                document.getElementById('prodVariants').value = JSON.stringify(p.variants || [], null, 2);
+                document.getElementById('prodVariants').value = p.variants ? JSON.stringify(p.variants, null, 2) : '';
                 document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
                 document.getElementById('prodRing').checked = !!p.is_ring;
                 document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
+                
                 openModal('productModal');
             }
-        }
+        };
 
         async function saveProduct() {
             const btn = document.getElementById('saveProdBtn');
-            btn.disabled = true; btn.innerText = "SAVING...";
+            btn.disabled = true; 
+            btn.innerText = "SAVING...";
 
             try {
                 let mediaArr = document.getElementById('prodMedia').value.split(',').map(s=>s.trim()).filter(Boolean);
                 let sizesArr = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
                 let variantsObj = [];
                 const varText = document.getElementById('prodVariants').value.trim();
+                
                 if(varText) {
                     try { variantsObj = JSON.parse(varText); } 
-                    catch(e) { throw new Error("Invalid JSON in Variants field"); }
+                    catch(e) { throw new Error("Invalid JSON in Variants field. Please fix format."); }
                 }
 
                 const payload = {
-                    name: document.getElementById('prodName').value,
+                    name: document.getElementById('prodName').value.trim(),
                     price: Number(document.getElementById('prodPrice').value),
                     cat_id: Number(document.getElementById('prodCat').value),
-                    description: document.getElementById('prodDesc').value,
+                    description: document.getElementById('prodDesc').value.trim(),
                     media: mediaArr,
                     sizes: sizesArr,
                     variants: variantsObj,
@@ -695,147 +786,189 @@ if (error) console.error("Supabase Error loading products:", error);
 
                 if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
 
-                if(currentEditId) await db.from('products').update(payload).eq('id', currentEditId);
-                else await db.from('products').insert([payload]);
+                if(State.currentEditId) {
+                    const { error } = await db.from('products').update(payload).eq('id', State.currentEditId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await db.from('products').insert([payload]);
+                    if (error) throw error;
+                }
 
                 closeModal('productModal');
-                loadProducts();
+                await loadProducts();
             } catch(e) {
                 alert(e.message);
             } finally {
-                btn.disabled = false; btn.innerText = "SAVE PRODUCT";
+                btn.disabled = false; 
+                btn.innerText = "SAVE PRODUCT";
             }
         }
 
         // Coupons Management
         async function loadCoupons() {
-            const { data } = await db.from('coupons').select('*').order('min_threshold', { ascending: false });
-            let html = '';
-            if(data) {
-                data.forEach(c => {
-                    const status = c.active ? '<span class="badge success">Active</span>' : '<span class="badge danger">Inactive</span>';
-                    html += `<tr><td>${c.id}</td><td>₹${c.min_threshold}</td><td>₹${c.discount_amount}</td><td>${status}</td>
-                             <td>
-                               <button class="outline" onclick="editCoupon(${c.id}, ${c.min_threshold}, ${c.discount_amount}, ${c.active})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                               <button class="danger" onclick="deleteRecord('coupons', ${c.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                             </td></tr>`;
-                });
+            try {
+                const { data, error } = await db.from('coupons').select('*').order('min_threshold', { ascending: false });
+                if (error) throw error;
+
+                let html = '';
+                if(data && data.length > 0) {
+                    data.forEach(c => {
+                        const status = c.active ? '<span class="badge success">Active</span>' : '<span class="badge danger">Inactive</span>';
+                        html += `<tr><td>${c.id}</td><td>₹${c.min_threshold}</td><td>₹${c.discount_amount}</td><td>${status}</td>
+                                 <td>
+                                   <button class="outline" onclick="editCoupon(${c.id}, ${c.min_threshold}, ${c.discount_amount}, ${c.active})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                                   <button class="danger" onclick="deleteRecord('coupons', ${c.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                                 </td></tr>`;
+                    });
+                }
+                document.getElementById('couponsTableBody').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">No coupons</td></tr>';
+            } catch (err) {
+                console.error("Coupons load error:", err);
             }
-            document.getElementById('couponsTableBody').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">No coupons</td></tr>';
         }
 
-        function editCoupon(id, min, disc, active) {
-            currentEditId = id;
+        window.editCoupon = function(id, min, disc, active) {
+            State.currentEditId = id;
             document.getElementById('couponModalTitle').innerText = 'Edit Coupon';
             document.getElementById('coupThreshold').value = min;
             document.getElementById('coupDiscount').value = disc;
             document.getElementById('coupActive').checked = active;
             openModal('couponModal');
-        }
+        };
 
         async function saveCoupon() {
-            const payload = {
-                min_threshold: Number(document.getElementById('coupThreshold').value),
-                discount_amount: Number(document.getElementById('coupDiscount').value),
-                active: document.getElementById('coupActive').checked
-            };
-            if(currentEditId) await db.from('coupons').update(payload).eq('id', currentEditId);
-            else await db.from('coupons').insert([payload]);
-            closeModal('couponModal');
-            loadCoupons();
+            try {
+                const payload = {
+                    min_threshold: Number(document.getElementById('coupThreshold').value),
+                    discount_amount: Number(document.getElementById('coupDiscount').value),
+                    active: document.getElementById('coupActive').checked
+                };
+                
+                if(State.currentEditId) {
+                    const { error } = await db.from('coupons').update(payload).eq('id', State.currentEditId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await db.from('coupons').insert([payload]);
+                    if (error) throw error;
+                }
+                
+                closeModal('couponModal');
+                await loadCoupons();
+            } catch (err) {
+                alert("Error saving coupon: " + err.message);
+            }
         }
 
         // Reviews Management
         async function loadReviews() {
-    // Removed the strict .order() requirement and added error logging
-    const { data, error } = await db.from('reviews').select('*');
-    
-    // Log the error so you aren't flying blind if it fails again!
-    if (error) {
-        console.error("Supabase Error fetching reviews:", error);
-    }
+            try {
+                const { data, error } = await db.from('reviews').select('*').order('id', { ascending: false });
+                if (error) throw error;
 
-    let html = '';
-    if(data && data.length > 0) {
-        // Manually sort by ID descending so newest is still on top
-        const sortedData = data.sort((a, b) => b.id - a.id);
-
-        sortedData.forEach(r => {
-            // Safely grab the date if it exists, otherwise show 'N/A'
-            const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A';
-            
-            // Mirroring your website's safe image fallback logic
-            const imgUrl = r.image_url || r.image || r.media || '';
-
-            html += `<tr><td><img src="${imgUrl}" class="prod-img-thumb"></td><td>${date}</td>
-                     <td><button class="danger" onclick="deleteRecord('reviews', ${r.id})" style="padding:4px 8px; font-size:10px;">DEL</button></td></tr>`;
-        });
-    }
-    document.getElementById('reviewsTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No reviews</td></tr>';
-}
+                let html = '';
+                if(data && data.length > 0) {
+                    data.forEach(r => {
+                        const date = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A';
+                        const imgUrl = escapeHTML(r.image_url || r.image || r.media || '');
+                        html += `<tr><td><img src="${imgUrl}" class="prod-img-thumb"></td><td>${date}</td>
+                                 <td><button class="danger" onclick="deleteRecord('reviews', ${r.id})" style="padding:4px 8px; font-size:10px;">DEL</button></td></tr>`;
+                    });
+                }
+                document.getElementById('reviewsTableBody').innerHTML = html || '<tr><td colspan="3" style="text-align:center;">No reviews</td></tr>';
+            } catch (err) {
+                console.error("Supabase Error fetching reviews:", err);
+            }
+        }
 
         async function saveReview() {
-            const url = document.getElementById('reviewImgUrl').value;
-            if(!url) return alert("Image URL required");
-            await db.from('reviews').insert([{ image_url: url }]);
-            closeModal('reviewModal');
-            loadReviews();
+            try {
+                const url = document.getElementById('reviewImgUrl').value.trim();
+                if(!url) return alert("Image URL required");
+                
+                const { error } = await db.from('reviews').insert([{ image_url: url }]);
+                if (error) throw error;
+                
+                closeModal('reviewModal');
+                await loadReviews();
+            } catch (err) {
+                alert("Error saving review: " + err.message);
+            }
         }
 
         // Orders Management
         async function loadOrders() {
-    const { data } = await db.from('orders').select('*').order('created_at', { ascending: false });
-    let html = '';
-    if(data) {
-        data.forEach(o => {
-            const customerName = o.customer_details?.name || 'Guest';
-            const date = new Date(o.created_at).toLocaleDateString();
-            
-            // Dynamic badge coloring based on your new flow
-            let badgeClass = '';
-            if (o.status === 'In Progress') badgeClass = 'warning';
-            else if (o.status === 'Confirmed') badgeClass = 'success'; // Blue/Green
-            else if (o.status === 'Delivered') badgeClass = 'success'; 
-            else if (o.status === 'Cancelled') badgeClass = 'danger';
+            try {
+                const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
 
-            html += `<tr><td>${o.id}</td><td>${date}</td><td>${customerName}</td><td>₹${o.total_amount}</td>
-                     <td><span class="badge ${badgeClass}">${o.status}</span></td>
-                     <td>
-                       <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-weight:600; cursor:pointer;">
-                         <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
-                         <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
-                         <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
-                         <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-                       </select>
-                     </td></tr>`;
-        });
-    }
-    document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
-}
+                let html = '';
+                if(data && data.length > 0) {
+                    data.forEach(o => {
+                        const customerName = escapeHTML(o.customer_details?.name || 'Guest');
+                        const date = new Date(o.created_at).toLocaleDateString();
+                        
+                        let badgeClass = '';
+                        if (o.status === 'In Progress') badgeClass = 'warning';
+                        else if (o.status === 'Confirmed') badgeClass = 'success';
+                        else if (o.status === 'Delivered') badgeClass = 'success'; 
+                        else if (o.status === 'Cancelled') badgeClass = 'danger';
 
-        async function updateOrderStatus(id, newStatus) {
-            await db.from('orders').update({ status: newStatus }).eq('id', id);
-        }
-
-        // Generic Delete
-        async function deleteRecord(table, id) {
-            if(confirm(`Are you sure you want to delete this record from ${table}?`)) {
-                await db.from(table).delete().eq('id', id);
-                if(table==='products') loadProducts();
-                if(table==='categories') loadCategories();
-                if(table==='coupons') loadCoupons();
-                if(table==='reviews') loadReviews();
+                        html += `<tr><td>${o.id}</td><td>${date}</td><td>${customerName}</td><td>₹${o.total_amount}</td>
+                                 <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
+                                 <td>
+                                   <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-weight:600; cursor:pointer;">
+                                     <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
+                                     <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
+                                     <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                                     <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                                   </select>
+                                 </td></tr>`;
+                    });
+                }
+                document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
+            } catch (err) {
+                console.error("Orders load error:", err);
             }
         }
 
+        window.updateOrderStatus = async function(id, newStatus) {
+            try {
+                const { error } = await db.from('orders').update({ status: newStatus }).eq('id', id);
+                if (error) throw error;
+                await loadOrders(); 
+                await loadDashboard(); 
+            } catch (err) {
+                alert("Failed to update status: " + err.message);
+            }
+        };
+
+        // Generic Delete
+        window.deleteRecord = async function(table, id) {
+            if(confirm(`Are you sure you want to delete this record from ${table}?`)) {
+                try {
+                    const { error } = await db.from(table).delete().eq('id', id);
+                    if (error) throw error;
+
+                    if(table==='products') await loadProducts();
+                    if(table==='categories') await loadCategories();
+                    if(table==='coupons') await loadCoupons();
+                    if(table==='reviews') await loadReviews();
+                    
+                    await loadDashboard();
+                } catch (err) {
+                    alert("Delete failed: " + err.message);
+                }
+            }
+        };
+
         // File Upload Utilities
-        function triggerFileUpload(inputId, targetInputId) {
+        window.triggerFileUpload = function(inputId, targetInputId) {
             const fileInput = document.getElementById(inputId);
             fileInput.setAttribute('data-target', targetInputId);
             fileInput.click();
-        }
+        };
 
-        async function handleDirectUpload(event, fallbackTargetId) {
+        window.handleDirectUpload = async function(event, fallbackTargetId) {
             const file = event.target.files[0];
             if(!file) return;
             const targetId = event.target.getAttribute('data-target') || fallbackTargetId;
@@ -847,37 +980,41 @@ if (error) console.error("Supabase Error loading products:", error);
                 const fileName = `upload_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
                 const { error } = await db.storage.from('product-images').upload(fileName, file);
                 if(error) throw error;
+                
                 const { data } = db.storage.from('product-images').getPublicUrl(fileName);
                 targetEl.value = data.publicUrl;
             } catch(e) {
                 alert("Upload failed: " + e.message);
                 targetEl.value = originalVal;
+            } finally {
+                event.target.value = '';
             }
-            event.target.value = ''; // Reset
-        }
+        };
 
-        async function handleProductMediaUpload(event) {
+        window.handleProductMediaUpload = async function(event) {
             const file = event.target.files[0];
             if(!file) return;
             const targetEl = document.getElementById('prodMedia');
-            const btn = event.target.previousElementSibling; // Upload button
+            const btn = event.target.previousElementSibling; 
             
             try {
                 btn.innerText = "UPLOADING...";
+                btn.disabled = true;
                 const fileName = `prod_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
                 const { error } = await db.storage.from('product-images').upload(fileName, file);
                 if(error) throw error;
-                const { data } = db.storage.from('product-images').getPublicUrl(fileName);
                 
+                const { data } = db.storage.from('product-images').getPublicUrl(fileName);
                 let currentVal = targetEl.value.trim();
                 targetEl.value = currentVal ? currentVal + ', ' + data.publicUrl : data.publicUrl;
             } catch(e) {
                 alert("Upload failed: " + e.message);
             } finally {
                 btn.innerText = "UPLOAD";
-                event.target.value = ''; // Reset
+                btn.disabled = false;
+                event.target.value = '';
             }
-        }
+        };
 
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
