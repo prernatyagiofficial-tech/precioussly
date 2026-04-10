@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Advanced Admin Panel - Shria</title>
+    <title>Admin Panel</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -120,7 +120,7 @@
         <header>
             <div class="header-left">
                 <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-                <div class="header-title">Shria Admin</div>
+                <div class="header-title">Admin</div>
             </div>
             <button class="logout-btn outline" onclick="logout()">LOGOUT</button>
         </header>
@@ -415,7 +415,17 @@
             if (typeof str !== 'string') return str;
             return str.replace(/[&<>'"]/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match]));
         };
-
+// Listen for live order updates from Supabase
+db.channel('live-orders')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+        // If the admin is looking at the orders page, refresh it
+        if (document.getElementById('view-orders').classList.contains('active')) {
+            loadOrders();
+        }
+        // Always refresh the dashboard to update the "Total Orders" count
+        loadDashboard(); 
+    })
+    .subscribe();
         // UI & Auth
         async function checkSession() {
             try {
@@ -932,52 +942,109 @@
             }
         }
 
-        // Orders Management
-        async function loadOrders() {
-            try {
-                const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
-                if (error) throw error;
+// --- UPDATED ORDERS MANAGEMENT FOR ADMIN PANEL ---
+async function loadOrders() {
+    try {
+        const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
 
-                let html = '';
-                if(data && data.length > 0) {
-                    data.forEach(o => {
-                        const customerName = escapeHTML(o.customer_details?.name || 'Guest');
-                        const date = new Date(o.created_at).toLocaleDateString();
-                        
-                        let badgeClass = '';
-                        if (o.status === 'In Progress') badgeClass = 'warning';
-                        else if (o.status === 'Confirmed') badgeClass = 'success';
-                        else if (o.status === 'Delivered') badgeClass = 'success'; 
-                        else if (o.status === 'Cancelled') badgeClass = 'danger';
+        let html = '';
+        if (data && data.length > 0) {
+            data.forEach(o => {
+                // Extracting details from the JSON customer_details object
+                const customerName = escapeHTML(o.customer_details?.name || 'Guest');
+                const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
+                const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
+                const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
+                
+                const date = new Date(o.created_at).toLocaleDateString();
+                
+                // Status Badge Logic
+                let badgeClass = '';
+                if (o.status === 'In Progress') badgeClass = 'warning';
+                else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
+                else if (o.status === 'Cancelled') badgeClass = 'danger';
 
-                        html += `<tr><td>${o.id}</td><td>${date}</td><td>${customerName}</td><td>₹${o.total_amount}</td>
-                                 <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
-                                 <td>
-                                   <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-weight:600; cursor:pointer;">
-                                     <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
-                                     <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
-                                     <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
-                                     <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-                                   </select>
-                                 </td></tr>`;
-                    });
-                }
-                document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No orders yet</td></tr>';
-            } catch (err) {
-                console.error("Orders load error:", err);
-            }
+                html += `
+                    <tr>
+                        <td><strong>${o.id}</strong><br><span style="font-size:10px; color:#666;">${date}</span></td>
+                        <td>
+                            <strong>${customerName}</strong><br>
+                            <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
+                            <span style="font-size:11px; color:#666;">✉️ ${customerEmail}</span>
+                        </td>
+                        <td>
+                            <div style="max-width:200px; font-size:11px; line-height:1.2;">${fullAddress}</div>
+                        </td>
+                        <td><strong>₹${o.total_amount.toLocaleString()}</strong></td>
+                        <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
+                        <td>
+                            <div class="flex-row" style="margin-bottom:0; gap:5px;">
+                                <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
+                                    <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
+                                    <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
+                                    <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                                    <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                                </select>
+                                <button class="outline" onclick="viewOrderItems('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0;">ITEMS</button>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
         }
+        document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found in database</td></tr>';
+    } catch (err) {
+        console.error("Orders load error:", err);
+        document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
+    }
+}
 
-        window.updateOrderStatus = async function(id, newStatus) {
-            try {
-                const { error } = await db.from('orders').update({ status: newStatus }).eq('id', id);
-                if (error) throw error;
-                await loadOrders(); 
-                await loadDashboard(); 
-            } catch (err) {
-                alert("Failed to update status: " + err.message);
-            }
-        };
+window.viewOrderItems = async function(orderId) {
+    try {
+        // Fetch the specific order from Supabase
+        const { data, error } = await db.from('orders').select('items').eq('id', orderId).single();
+        if (error) throw error;
+
+        let html = '';
+        // Loop through the items JSON array
+        data.items.forEach(item => {
+            let specs = [];
+            if (item.variant && item.variant !== "Default") specs.push(`Color: ${item.variant}`);
+            if (item.size) specs.push(`Size: ${item.size}`);
+            if (item.alphabet) specs.push(`Letter: ${item.alphabet}`);
+            const variantDisplay = specs.join('<br>');
+
+            html += `<tr>
+                <td><strong>${escapeHTML(item.name)}</strong></td>
+                <td style="font-size:11px; color:#666;">${variantDisplay || '-'}</td>
+                <td>₹${item.price}</td>
+                <td><strong>x${item.qty}</strong></td>
+            </tr>`;
+        });
+
+        document.getElementById('orderItemsTableBody').innerHTML = html;
+        openModal('orderItemsModal'); // Open the modal we just created
+    } catch (err) {
+        alert("Could not load order items: " + err.message);
+    }
+};
+
+window.updateOrderStatus = async function(id, newStatus) {
+    // Add a small visual confirmation
+    if(!confirm(`Change Order ${id} status to ${newStatus}?`)) return;
+
+    try {
+        const { error } = await db.from('orders').update({ status: newStatus }).eq('id', id);
+        if (error) throw error;
+        
+        // Refresh data
+        await loadOrders(); 
+        await loadDashboard(); 
+        alert("Status updated successfully!");
+    } catch (err) {
+        alert("Failed to update status: " + err.message);
+    }
+};
 
         // Generic Delete
         window.deleteRecord = async function(table, id) {
