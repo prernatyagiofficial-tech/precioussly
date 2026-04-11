@@ -1339,7 +1339,8 @@
                 id: row.id, name: row.name || 'Product', price: Number(row.price || 0), catId: row.cat_id || row.category_id,
                 desc: row.description || row.desc || '', isBestSeller: parseBool(row.is_best_seller || row.bestseller),
                 media: safeParseJSON(row.media, []), variants: safeParseJSON(row.variants, []), sizes: safeParseJSON(row.sizes, []),
-                isRing: parseBool(row.is_ring), isAlphabet: parseBool(row.is_alphabet)
+                // ADD variantLabel TO THIS LINE:
+                isRing: parseBool(row.is_ring), isAlphabet: parseBool(row.is_alphabet), variantLabel: row.variant_label || 'Color'
             };
         }
 
@@ -2401,7 +2402,7 @@
                     const selectedClass = idx === 0 ? 'selected' : '';
                     optionsHtml += `<button class="color-option-btn ${selectedClass} ${hasVideoClass}" onclick="changeProductVariant('${prod.id}', ${idx})" title="${v.name || ''}">${thumbContent}</button>`;
                 });
-                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">Color: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || ''}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
+                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || ''}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
             let sizeHtml = '';
