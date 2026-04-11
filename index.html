@@ -2816,6 +2816,17 @@ function handleCheckoutClick(btn) {
             navigate({view: 'checkout', amount: totalAmount});
             const isCODAvailable = totalAmount >= appData.settings.minCODAmount;
             
+            // --- NEW: Grab user details if they are logged in ---
+            let prefillName = '';
+            let prefillEmail = '';
+            
+            if (state.user) {
+                prefillEmail = state.user.email || '';
+                // Google usually stores the user's name inside the user_metadata object
+                prefillName = state.user.user_metadata?.full_name || state.user.user_metadata?.name || '';
+            }
+            // ----------------------------------------------------
+
             let html = `
                 <div class="back-nav" onclick="renderCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Cart</div>
                 <div class="section-title-wrapper" style="padding-top: 0;"><h3>Checkout</h3></div>
@@ -2835,12 +2846,12 @@ function handleCheckoutClick(btn) {
                     <div class="checkout-form-wrapper" style="padding: 0 20px;">
                         <div class="form-group">
                             <label>Full Name</label>
-                            <input type="text" id="chkName" placeholder="Enter your full name" required>
+                            <input type="text" id="chkName" placeholder="Enter your full name" value="${prefillName}" required>
                             <div class="error-message" id="errName">Please enter your full name</div>
                         </div>
                         <div class="form-group">
                             <label>Email Address</label>
-                            <input type="email" id="chkEmail" placeholder="Enter your email" required>
+                            <input type="email" id="chkEmail" placeholder="Enter your email" value="${prefillEmail}" required>
                             <div class="error-message" id="errEmail">Please enter a valid email</div>
                         </div>
                         <div class="row-group">
