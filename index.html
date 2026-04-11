@@ -1980,7 +1980,20 @@ if (session && window.location.href.includes('code=')) {
             searchContainer.style.display = 'none';
             
             const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
-            const bannerContent = bannerConfig.imageUrl ? `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
+let bannerContent = `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
+
+if (bannerConfig.imageUrl) {
+    // Check if the URL contains .mp4 to identify it as a video
+    const isVideo = bannerConfig.imageUrl.toLowerCase().includes('.mp4');
+    
+    if (isVideo) {
+        // Use video tag for mp4 links (muted is required for autoplay to work on mobile)
+        bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
+    } else {
+        // Use standard image tag for everything else
+        bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
+    }
+}
 
             let bannerClickAction = `renderCategory('all')`;
             if (bannerConfig.target === 'bestsellers') {
