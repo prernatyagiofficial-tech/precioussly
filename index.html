@@ -534,18 +534,18 @@
         .cart-layout { display: flex; flex-direction: column; }
         .checkout-layout { display: flex; flex-direction: column; }
 
-        /* General specific views (Product Details) */
-        .product-hero { position: relative; width: 100%; height: auto; background: var(--placeholder-bg); overflow: hidden; }
-        
+/* General specific views (Product Details) */
+.product-hero { position: relative; width: 100%; aspect-ratio: 1 / 1; background: var(--placeholder-bg); overflow: hidden; }
+
 .carousel-track { 
     display: flex; 
     width: 100%; 
-    height: auto;
+    height: 100%;
     align-items: center; 
     transition: transform 0.65s cubic-bezier(0.25, 1, 0.5, 1); 
 }
-.carousel-slide { min-width: 100%; height: auto; position: relative; display: flex; align-items: center; justify-content: center; }
-        .carousel-slide img, .carousel-slide video { width: 100%; height: auto; object-fit: contain; display: block; }
+.carousel-slide { min-width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+.carousel-slide img, .carousel-slide video { width: 100%; height: 100%; object-fit: cover; display: block; }
         
         .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: none; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
         .carousel-btn:hover { background: #fff; transform: translateY(-50%) scale(1.1); }
@@ -911,7 +911,7 @@
             .section-title-wrapper h3 { font-size: 32px; }
             
             .product-layout-wrapper { display: flex; flex-direction: row; gap: 50px; padding: 40px; align-items: flex-start; max-width: 1100px; margin: 0 auto;}
-            .product-hero { width: 50%; height: auto; border-radius: 24px; flex-shrink: 0; margin-bottom: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+            .product-hero { width: 50%; aspect-ratio: 1 / 1; border-radius: 24px; flex-shrink: 0; margin-bottom: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
             .product-body { width: 50%; margin-top: 0; border-radius: 0; padding: 0; box-shadow: none; background: transparent; }
             .hero-back-btn, .hero-wishlist-btn { top: 30px; }
             .hero-back-btn { left: 30px; display: none; } /* Hide inside hero if we have external back btn */
