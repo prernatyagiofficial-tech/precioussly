@@ -2627,111 +2627,122 @@
     const currentScrollY = window.scrollY; // Save the exact scroll position
     navigate({view: 'cart'});
     searchContainer.style.display = 'none';
-            let html = `
-                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
-                <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
-            `;
+    let html = `
+        <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
+        <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
+    `;
 
-            if(state.cart.length === 0) {
-                html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Your cart is empty.</p></div>`;
-            } else {
-                let subtotal = 0;
-                html += `<div class="cart-layout"><div class="cart-items-wrapper"><div class="cart-container">`;
-                state.cart.forEach((item, index) => {
-                    subtotal += (item.price * item.qty);
-                    const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
-                    const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
-                    let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
-                    
-                    if (firstMedia) {
-                        if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                        else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
-                    }
-
-                    let displaySpecs = [];
-                    if (item.variant && item.variant !== "Default") displaySpecs.push(`Color: ${item.variant}`);
-                    if (item.size) displaySpecs.push(`Size: ${item.size}`);
-                    if (item.alphabet) displaySpecs.push(`Letter: ${item.alphabet}`);
-                    const variantDisplay = displaySpecs.length > 0 ? `<div class="cart-item-variant">${displaySpecs.join(' | ')}</div>` : '';
-
-                    html += `
-                        <div class="cart-item">
-                            <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                            <div class="cart-item-img" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${imgContent}</div>
-                            <div class="cart-item-info">
-                                <div class="cart-item-title" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${item.name}</div>
-                                ${variantDisplay}
-                                <div class="cart-item-price">${formatPrice(item.price)}</div>
-                                <div class="qty-controls">
-                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-                                    <span class="qty-value">${item.qty}</span>
-                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                html += `</div></div><div class="cart-summary-wrapper">`;
-
-                let discount = 0;
-                let appliedThreshold = 0;
-                for (let rule of appData.coupons) {
-                    if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
-                }
-
-                let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
-                const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
-                displayDiscounts.forEach(rule => {
-                    const isApplied = (rule.minThreshold === appliedThreshold);
-                    couponsHtml += `
-                        <div class="coupon-card" style="${isApplied ? 'border-color: var(--dark-green); background: var(--light-green);' : ''}">
-                            <div class="coupon-text">GET ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
-                            ${isApplied ? `<div class="coupon-applied-badge">Applied</div>` : ''}
-                        </div>
-                    `;
-                });
-                couponsHtml += `</div></div>`;
-
-                const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
-                const total = subtotal + shipping - discount;
-                const isMinOrderMet = total >= appData.settings.minOrderAmount;
-
-                html += `
-                    ${couponsHtml}
-                    <div class="cart-summary">
-                        ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
-                        <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
-                        <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
-                        ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
-                        <div class="summary-total">
-                            <span>Total</span> 
-                            <div style="text-align: right;">
-                                ${discount > 0 ? `<div style="font-size:13px; color:var(--text-gray); text-decoration:line-through; font-weight:500;">${formatPrice(subtotal + shipping)}</div>` : ''}
-                                <span>${formatPrice(total)}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="cart-checkout-wrapper">
-                        ${isMinOrderMet ? 
-                            `<button class="btn-primary" onclick="triggerHaptic('success'); withLoading(this, () => renderCheckout(), 1200)"><span class="btn-text">Proceed to Checkout</span></button>` :
-                            `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
-                             <button class="btn-primary" disabled>Proceed to Checkout</button>`
-                        }
-                    </div>
-                `;
-                html += `</div></div>`;
+    if(state.cart.length === 0) {
+        html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Your cart is empty.</p></div>`;
+    } else {
+        let subtotal = 0;
+        html += `<div class="cart-layout"><div class="cart-items-wrapper"><div class="cart-container">`;
+        state.cart.forEach((item, index) => {
+            subtotal += (item.price * item.qty);
+            const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
+            const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
+            let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
+            
+            if (firstMedia) {
+                if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
+                else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
             }
-            requestAnimationFrame(() => {
-                mainContent.innerHTML = html;
-                if (preserveScroll) {
-                    window.scrollTo(0, currentScrollY); // Stay in the same spot
-                } else {
-                    window.scrollTo(0, 0); // Scroll to top on fresh load
-                }
-            });
+
+            let displaySpecs = [];
+            if (item.variant && item.variant !== "Default") displaySpecs.push(`Color: ${item.variant}`);
+            if (item.size) displaySpecs.push(`Size: ${item.size}`);
+            if (item.alphabet) displaySpecs.push(`Letter: ${item.alphabet}`);
+            const variantDisplay = displaySpecs.length > 0 ? `<div class="cart-item-variant">${displaySpecs.join(' | ')}</div>` : '';
+
+            html += `
+                <div class="cart-item">
+                    <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <div class="cart-item-img" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${imgContent}</div>
+                    <div class="cart-item-info">
+                        <div class="cart-item-title" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${item.name}</div>
+                        ${variantDisplay}
+                        <div class="cart-item-price">${formatPrice(item.price)}</div>
+                        <div class="qty-controls">
+                            <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                            <span class="qty-value">${item.qty}</span>
+                            <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div></div><div class="cart-summary-wrapper">`;
+
+        let discount = 0;
+        let appliedThreshold = 0;
+        for (let rule of appData.coupons) {
+            if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
         }
+
+        let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
+        const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
+        displayDiscounts.forEach(rule => {
+            const isApplied = (rule.minThreshold === appliedThreshold);
+            couponsHtml += `
+                <div class="coupon-card" style="${isApplied ? 'border-color: var(--dark-green); background: var(--light-green);' : ''}">
+                    <div class="coupon-text">GET ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
+                    ${isApplied ? `<div class="coupon-applied-badge">Applied</div>` : ''}
+                </div>
+            `;
+        });
+        couponsHtml += `</div></div>`;
+
+        const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+        const total = subtotal + shipping - discount;
+        const isMinOrderMet = total >= appData.settings.minOrderAmount;
+
+        // --- NEW: Calculate Free Shipping Progress ---
+        const amountForFreeShipping = appData.settings.freeShippingThreshold - subtotal;
+        let freeShippingMessage = "";
+        if (amountForFreeShipping > 0) {
+            freeShippingMessage = `<div class="savings-message" style="background: #fff5e6; color: #e67e22; border-color: #e67e22;">Add <strong>${formatPrice(amountForFreeShipping)}</strong> more to get <strong>FREE Shipping</strong>! </div>`;
+        } else {
+            freeShippingMessage = `<div class="savings-message">You've unlocked <strong>FREE Shipping</strong>! </div>`;
+        }
+        // ---------------------------------------------
+
+        html += `
+            ${couponsHtml}
+            <div class="cart-summary">
+                ${freeShippingMessage}
+                ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
+                <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
+                <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
+                ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
+                <div class="summary-total">
+                    <span>Total</span> 
+                    <div style="text-align: right;">
+                        ${discount > 0 ? `<div style="font-size:13px; color:var(--text-gray); text-decoration:line-through; font-weight:500;">${formatPrice(subtotal + shipping)}</div>` : ''}
+                        <span>${formatPrice(total)}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="cart-checkout-wrapper">
+                ${isMinOrderMet ? 
+                    `<button class="btn-primary" onclick="triggerHaptic('success'); withLoading(this, () => renderCheckout(), 1200)"><span class="btn-text">Proceed to Checkout</span></button>` :
+                    `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
+                     <button class="btn-primary" disabled>Proceed to Checkout</button>`
+                }
+            </div>
+        `;
+        html += `</div></div>`;
+    }
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
+        if (preserveScroll) {
+            window.scrollTo(0, currentScrollY); // Stay in the same spot
+        } else {
+            window.scrollTo(0, 0); // Scroll to top on fresh load
+        }
+    });
+}
 
 function createSlug(text) {
             return text.toString().toLowerCase()
