@@ -333,6 +333,7 @@
     <input type="file" id="fileCatImg" style="display:none;" onchange="handleDirectUpload(event, 'catImgUrl')">
     <input type="file" id="fileProdMedia" style="display:none;" onchange="handleProductMediaUpload(event)">
     <input type="file" id="fileReviewImg" style="display:none;" onchange="handleDirectUpload(event, 'reviewImgUrl')">
+    <input type="file" id="fileVariantMedia" style="display:none;" onchange="handleVariantMediaUpload(event)">
 
     <div id="productModal" class="modal-overlay">
         <div class="modal-box">
@@ -354,9 +355,12 @@
                 <div class="form-group full-width"><label>Sizes (Comma separated)</label><input type="text" id="prodSizes" placeholder="S, M, L, XL"></div>
                 
                 <div class="form-group full-width">
-                    <label>Variants (Valid JSON Array)</label>
-                    <textarea id="prodVariants" rows="3" placeholder='[{"name":"Red", "media":["url1"]}]'></textarea>
-                </div>
+    <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Product Variants</label>
+    
+    <div id="variantsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;"></div>
+    
+    <button type="button" class="outline" onclick="addVariantBox()">+ ADD NEW VARIANT</button>
+</div>
 
                 <div class="form-group">
                     <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
@@ -447,6 +451,58 @@
             if (typeof str !== 'string') return str;
             return str.replace(/[&<>'"]/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match]));
         };
+        let variantCounter = 0;
+
+        function addVariantBox(name = '', mediaStr = '') {
+            const container = document.getElementById('variantsContainer');
+            const varId = 'var_' + variantCounter++;
+            
+            const box = document.createElement('div');
+            box.style.cssText = "border: 1px solid #000; padding: 15px; position: relative; background: #f9f9f9;";
+            
+            box.innerHTML = `
+                <button type="button" class="danger" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 4px 8px; font-size: 10px;" onclick="this.parentElement.remove()">REMOVE</button>
+                <div class="form-group">
+                    <label>Variant Name (e.g., Red, Blue)</label>
+                    <input type="text" class="var-name" value="${escapeHTML(name)}" placeholder="Enter variant name" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Media URLs (Comma separated)</label>
+                    <div class="flex-row">
+                        <textarea class="var-media" id="${varId}_media" rows="2" placeholder="https://img1.jpg, https://img2.mp4">${escapeHTML(mediaStr)}</textarea>
+                        <button type="button" class="outline" onclick="triggerFileUpload('fileVariantMedia', '${varId}_media')">UPLOAD</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(box);
+        }
+
+        window.handleVariantMediaUpload = async function(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            const targetId = event.target.getAttribute('data-target');
+            const targetEl = document.getElementById(targetId);
+            
+            try {
+                const uploadBtn = document.querySelector(`button[onclick="triggerFileUpload('fileVariantMedia', '${targetId}')"]`);
+                if(uploadBtn) { uploadBtn.innerText = "UPLOADING..."; uploadBtn.disabled = true; }
+                
+                const fileName = `variant_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                const { error } = await db.storage.from('product-images').upload(fileName, file);
+                if(error) throw error;
+                
+                const { data } = db.storage.from('product-images').getPublicUrl(fileName);
+                let currentVal = targetEl.value.trim();
+                targetEl.value = currentVal ? currentVal + ', ' + data.publicUrl : data.publicUrl;
+            } catch(e) {
+                alert("Upload failed: " + e.message);
+            } finally {
+                const uploadBtn = document.querySelector(`button[onclick="triggerFileUpload('fileVariantMedia', '${targetId}')"]`);
+                if(uploadBtn) { uploadBtn.innerText = "UPLOAD"; uploadBtn.disabled = false; }
+                event.target.value = '';
+            }
+        };
 // Listen for live order updates from Supabase
 db.channel('live-orders')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
@@ -529,6 +585,7 @@ db.channel('live-orders')
             const modal = document.getElementById(id);
             modal.classList.remove('active'); 
             State.currentEditId = null;
+            if (id === 'productModal') document.getElementById('variantsContainer').innerHTML = '';
             
             // Auto-reset form fields to prevent stale data
             const inputs = modal.querySelectorAll('input, textarea, select');
@@ -846,7 +903,14 @@ db.channel('live-orders')
                 document.getElementById('prodDesc').value = p.description || '';
                 document.getElementById('prodMedia').value = (p.media || []).join(', ');
                 document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
-                document.getElementById('prodVariants').value = p.variants ? JSON.stringify(p.variants, null, 2) : '';
+                document.getElementById('variantsContainer').innerHTML = '';
+                variantCounter = 0;
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
+                        addVariantBox(v.name, mediaStr);
+                    });
+                }
                 document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
                 document.getElementById('prodRing').checked = !!p.is_ring;
                 document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
@@ -865,13 +929,17 @@ db.channel('live-orders')
         let mediaArr = document.getElementById('prodMedia').value.split(',').map(s=>s.trim()).filter(Boolean);
         let sizesArr = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
         let variantsObj = [];
-        const varText = document.getElementById('prodVariants').value.trim();
+        const variantBoxes = document.querySelectorAll('#variantsContainer > div');
         
-        if(varText) {
-            try { variantsObj = JSON.parse(varText); } 
-            catch(e) { throw new Error("Invalid JSON in Variants field. Please fix format."); }
-        }
-
+        variantBoxes.forEach(box => {
+            const vName = box.querySelector('.var-name').value.trim();
+            const vMediaStr = box.querySelector('.var-media').value.trim();
+            
+            if (vName || vMediaStr) {
+                const vMediaArr = vMediaStr.split(',').map(s => s.trim()).filter(Boolean);
+                variantsObj.push({ name: vName, media: vMediaArr });
+            }
+        });
         const payload = {
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
