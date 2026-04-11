@@ -2893,6 +2893,22 @@ function initiatePayment(btn, totalAmount) {
     const phone = document.getElementById('chkPhone').value;
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
+    // --- NEW: Calculate exact financial breakdown ---
+    const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+    let discount = 0;
+    let appliedCouponStr = "None";
+    
+    // Check which coupon was applied
+    for (let rule of appData.coupons) {
+        if (subtotal >= rule.minThreshold) { 
+            discount = rule.discountAmount; 
+            appliedCouponStr = `₹${rule.discountAmount} off (Min ₹${rule.minThreshold})`;
+            break; 
+        }
+    }
+    // ------------------------------------------------
+
     let amountToCharge = totalAmount;
     let amountDueOnDelivery = 0;
 
@@ -2902,7 +2918,7 @@ function initiatePayment(btn, totalAmount) {
         amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
     }
 
-    // Payload containing all necessary details to save the order later
+    // --- UPDATED: Add the new fields to orderDetails ---
     const orderDetails = {
         name: name,
         email: email,
@@ -2910,7 +2926,11 @@ function initiatePayment(btn, totalAmount) {
         address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
         paymentMethod: paymentMethod,
         amountPaid: amountToCharge,
-        amountDue: amountDueOnDelivery
+        amountDue: amountDueOnDelivery,
+        subtotal: subtotal,          // New!
+        shippingFee: shipping,       // New!
+        discount: discount,          // New!
+        couponApplied: appliedCouponStr // New!
     };
 
     if (amountToCharge > 0) {
@@ -2977,16 +2997,16 @@ function initiatePayment(btn, totalAmount) {
                 };
                 
                 // NEW UPDATED CODE TO ADD:
-const rzp = new Razorpay(options);
+                const rzp = new Razorpay(options);
 
-// Catch the error gracefully instead of showing the ugly browser alert
-rzp.on('payment.failed', function (response) {
-    console.error("Payment Failed:", response.error);
-    // Use your existing toast notification for a smooth user experience
-    showToast("Payment Failed: " + response.error.description);
-});
+                // Catch the error gracefully instead of showing the ugly browser alert
+                rzp.on('payment.failed', function (response) {
+                    console.error("Payment Failed:", response.error);
+                    // Use your existing toast notification for a smooth user experience
+                    showToast("Payment Failed: " + response.error.description);
+                });
 
-rzp.open();
+                rzp.open();
                 
             } catch (e) {
                 console.error("Payment Gateway Error:", e);
