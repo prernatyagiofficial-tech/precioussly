@@ -2934,23 +2934,29 @@ function initiatePayment(btn, totalAmount) {
                     "description": "Payment for Order",
                     "image": appData.settings.logoUrl,
                     "handler": async function (response) { 
-                        // 3. DO NOT TRUST FRONTEND SUCCESS YET. Verify with Backend.
                         showToast("Verifying payment...");
                         
-                        const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
-                            body: {
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
-                            }
-                        });
+                        try {
+                            const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
+                                body: {
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature
+                                }
+                            });
 
-                        // 4. Only process the order if the backend mathematically verifies the signature
-                        if (verifyData && verifyData.success) {
-                            processOrderPlacement(totalAmount, orderDetails); 
-                        } else {
-                            console.error("Verification Error:", verifyError);
-                            showToast("Payment verification failed! Order not placed.");
+                            if (verifyError) throw verifyError;
+
+                            // Added 'await' here to ensure the flow waits for the database insertion
+                            if (verifyData && verifyData.success) {
+                                await processOrderPlacement(totalAmount, orderDetails); 
+                            } else {
+                                console.error("Verification Error:", verifyData);
+                                alert("Payment verification failed! Order not placed.");
+                            }
+                        } catch (err) {
+                            console.error("Verification Exception:", err);
+                            alert("Error verifying payment with server: " + err.message);
                         }
                     },
                     "prefill": { 
@@ -3004,7 +3010,9 @@ rzp.open();
 
     if (error) {
         console.error("Order insertion failed:", error);
-        showToast("Error saving order. Please contact support.");
+        // This alert will instantly tell you exactly why Supabase rejected the order
+        alert("Database Error: Failed to save order. " + error.message); 
+        showToast("Error saving order.");
         return; 
     }
 
