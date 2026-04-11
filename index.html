@@ -1186,10 +1186,21 @@
             itemToRemove: null
         };
 
-        function persistUserData() {
-            localStorage.setItem('eco_cart', JSON.stringify(state.cart));
-            localStorage.setItem('eco_wishlist', JSON.stringify(state.wishlist));
+        async function persistUserData() {
+    localStorage.setItem('eco_cart', JSON.stringify(state.cart));
+    localStorage.setItem('eco_wishlist', JSON.stringify(state.wishlist));
+
+    // Sync wishlist to Supabase if the user is logged in
+    if (state.user) {
+        try {
+            await db.from('profiles').update({ 
+                wishlist: state.wishlist 
+            }).eq('id', state.user.id);
+        } catch (error) {
+            console.error("Error syncing wishlist to database:", error);
         }
+    }
+}
 
         // --- AUTHENTICATION STATE & LOGOUT ---
         // 1. Get initial session on page load (crucial for Google OAuth redirects)
@@ -1198,20 +1209,26 @@
         });
 
         // 2. Listen for auth changes (handles both Email and Google OAuth flows)
-        db.auth.onAuthStateChange((event, session) => {
-            state.user = session ? session.user : null;
-            
-            // Update the UI if the user logs in or out
-            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-                generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
-                renderMenu();
-                
-                // If they are currently looking at the login page, update the view
-                if (history.state && history.state.view === 'login') {
-                     renderLogin(); 
-                }
-            }
-        });
+        db.auth.onAuthStateChange(async (event, session) => {
+    state.user = session ? session.user : null;
+    
+    // Update the UI if the user logs in or out
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        
+        // If signed in, sync their local wishlist to Supabase immediately
+        if (event === 'SIGNED_IN' && state.user) {
+             await persistUserData();
+        }
+
+        generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
+        renderMenu();
+        
+        // If they are currently looking at the login page, update the view
+        if (history.state && history.state.view === 'login') {
+             renderLogin(); 
+        }
+    }
+});
 
         // 3. Handle user sign out (Trigger Modal)
         function handleSignOut() {
