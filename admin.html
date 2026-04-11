@@ -354,8 +354,12 @@
 
                 <div class="form-group full-width"><label>Sizes (Comma separated)</label><input type="text" id="prodSizes" placeholder="S, M, L, XL"></div>
                 
-                <div class="form-group full-width">
+
+<div class="form-group full-width"><label>Variant Label (e.g., Color, Style, Material)</label><input type="text" id="prodVariantLabel" placeholder="Color"></div>
+                
+<div class="form-group full-width">
     <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Product Variants</label>
+                
     
     <div id="variantsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;"></div>
     
@@ -903,6 +907,9 @@ db.channel('live-orders')
                 document.getElementById('prodDesc').value = p.description || '';
                 document.getElementById('prodMedia').value = (p.media || []).join(', ');
                 document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
+                document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
+// ADD THIS NEW LINE:
+document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
                 document.getElementById('variantsContainer').innerHTML = '';
                 variantCounter = 0;
                 if (p.variants && Array.isArray(p.variants)) {
@@ -951,7 +958,8 @@ db.channel('live-orders')
             is_best_seller: document.getElementById('prodBestSeller').checked,
             is_ring: document.getElementById('prodRing').checked,
             is_alphabet: document.getElementById('prodAlphabet').checked,
-            is_hidden: document.getElementById('prodHidden').checked // Ye line add ki gayi hai
+            is_hidden: document.getElementById('prodHidden').checked, // Don't forget this comma!
+            variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
         };
 
         if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
