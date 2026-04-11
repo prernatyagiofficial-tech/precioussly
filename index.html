@@ -2898,11 +2898,11 @@ function initiatePayment(btn, totalAmount) {
         amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
     }
 
-    // UPDATED: Added email and phone to orderDetails payload
+    // Payload containing all necessary details to save the order later
     const orderDetails = {
         name: name,
-        email: email, // This goes to Supabase
-        phone: phone, // This goes to Supabase
+        email: email,
+        phone: phone,
         address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
         paymentMethod: paymentMethod,
         amountPaid: amountToCharge,
@@ -2910,6 +2910,7 @@ function initiatePayment(btn, totalAmount) {
     };
 
     if (amountToCharge > 0) {
+        // Notice the 'async' here!
         withLoading(btn, async () => {
             try {
                 // 1. Ask Backend to securely create a Razorpay Order
@@ -2918,6 +2919,7 @@ function initiatePayment(btn, totalAmount) {
                 });
 
                 if (orderError || !orderData || !orderData.id) {
+                    console.error("Backend Order Creation Error:", orderError);
                     showToast("Failed to initialize secure payment.");
                     return;
                 }
@@ -2925,15 +2927,16 @@ function initiatePayment(btn, totalAmount) {
                 // 2. Open Razorpay Modal with the secure Order ID
                 const options = {
                     "key": "rzp_live_RFC8iPX7kMLSuX", // Public Key ID STAYS here
-                    "amount": orderData.amount, // Secured amount from backend
+                    "amount": orderData.amount,       // Secured amount from backend
                     "currency": "INR",
-                    "order_id": orderData.id, // Secured Order ID from backend
+                    "order_id": orderData.id,         // Secured Order ID from backend
                     "name": appData.settings.brandName,
                     "description": "Payment for Order",
                     "image": appData.settings.logoUrl,
                     "handler": async function (response) { 
                         // 3. DO NOT TRUST FRONTEND SUCCESS YET. Verify with Backend.
                         showToast("Verifying payment...");
+                        
                         const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
                             body: {
                                 razorpay_order_id: response.razorpay_order_id,
@@ -2942,9 +2945,11 @@ function initiatePayment(btn, totalAmount) {
                             }
                         });
 
+                        // 4. Only process the order if the backend mathematically verifies the signature
                         if (verifyData && verifyData.success) {
                             processOrderPlacement(totalAmount, orderDetails); 
                         } else {
+                            console.error("Verification Error:", verifyError);
                             showToast("Payment verification failed! Order not placed.");
                         }
                     },
@@ -2968,8 +2973,12 @@ function initiatePayment(btn, totalAmount) {
                 console.error("Payment Gateway Error:", e);
                 showToast("Payment Gateway Error. Please try again.");
             }
-        }, 1200); 
+        }, 1200); // 1.2 second loading delay
     } else {
+        // If amount is 0 (Free order or full discount), place order directly
+        withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); 
+    }
+}
 
         async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
