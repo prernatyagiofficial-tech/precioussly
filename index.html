@@ -2783,26 +2783,10 @@ function createSlug(text) {
 function handleCheckoutClick(btn) {
     triggerHaptic('success');
     
-    if (!state.user) {
-        // 1. Spinner runs for 1.2 seconds
-        withLoading(btn, () => {
-            
-            // --- THIS HAPPENS EXACTLY WHEN THE SPINNER STOPS ---
-            
-            // 2. Popup appears (it will float on top of the screen)
-            showToast("Please sign in first to place your order ✨");
-            
-            // 3. Redirect happens instantly (no waiting!)
-            renderLogin();
-            
-        }, 1200); 
-        
-    } else {
-        // Normal checkout flow for logged-in users
-        withLoading(btn, () => {
-            renderCheckout();
-        }, 1200);
-    }
+    // Normal checkout flow for all users (Guest & Logged-in)
+    withLoading(btn, () => {
+        renderCheckout();
+    }, 1200);
 }
         function renderCheckout() {
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
