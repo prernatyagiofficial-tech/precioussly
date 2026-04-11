@@ -2966,8 +2966,17 @@ function initiatePayment(btn, totalAmount) {
                     }
                 };
                 
-                const rzp = new Razorpay(options);
-                rzp.open();
+                // NEW UPDATED CODE TO ADD:
+const rzp = new Razorpay(options);
+
+// Catch the error gracefully instead of showing the ugly browser alert
+rzp.on('payment.failed', function (response) {
+    console.error("Payment Failed:", response.error);
+    // Use your existing toast notification for a smooth user experience
+    showToast("Payment Failed: " + response.error.description);
+});
+
+rzp.open();
                 
             } catch (e) {
                 console.error("Payment Gateway Error:", e);
