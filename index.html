@@ -1217,10 +1217,13 @@
         db.auth.onAuthStateChange((event, session) => {
             state.user = session ? session.user : null;
             
-            // NEW: Clean up the messy ?code= URL after a successful login
-            if (session && window.location.href.includes('code=')) {
-                history.replaceState({view: 'login'}, "", window.location.pathname + '?view=login');
-            }
+// NEW: Clean up the messy ?code= URL after a successful login
+if (session && window.location.href.includes('code=')) {
+    history.replaceState({view: 'login'}, "", window.location.pathname + '?view=login');
+    
+    // Show a success message so the customer knows they can continue
+    showToast("Sign in successful! You can now place your order. 🎉");
+}
             
             // MODIFIED: Update the UI on ANY auth state change (including INITIAL_SESSION after OAuth redirect)
             generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
@@ -2726,7 +2729,7 @@
             </div>
             <div class="cart-checkout-wrapper">
                 ${isMinOrderMet ? 
-                    `<button class="btn-primary" onclick="triggerHaptic('success'); withLoading(this, () => renderCheckout(), 1200)"><span class="btn-text">Proceed to Checkout</span></button>` :
+    `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
                     `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
                      <button class="btn-primary" disabled>Proceed to Checkout</button>`
                 }
@@ -2777,7 +2780,30 @@ function createSlug(text) {
                 if (codInfo) codInfo.style.display = 'none';
             }
         }
-
+function handleCheckoutClick(btn) {
+    triggerHaptic('success');
+    
+    if (!state.user) {
+        // 1. Spinner runs for 1.2 seconds
+        withLoading(btn, () => {
+            
+            // --- THIS HAPPENS EXACTLY WHEN THE SPINNER STOPS ---
+            
+            // 2. Popup appears (it will float on top of the screen)
+            showToast("Please sign in first to place your order ✨");
+            
+            // 3. Redirect happens instantly (no waiting!)
+            renderLogin();
+            
+        }, 1200); 
+        
+    } else {
+        // Normal checkout flow for logged-in users
+        withLoading(btn, () => {
+            renderCheckout();
+        }, 1200);
+    }
+}
         function renderCheckout() {
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
