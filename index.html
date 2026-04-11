@@ -1691,21 +1691,27 @@
 
         async function signInWithGoogle(btn) {
     triggerHaptic('light');
-    
-    // Button ko disable kiya
-    btn.disabled = true;
 
-    // BAS YE EK NAYI LINE ADD KARNI HAI
-    setTimeout(() => { if (btn) btn.disabled = false; }, 1500);
+    if (btn) btn.disabled = true;
 
-    const { error } = await db.auth.signInWithOAuth({ 
-        provider: 'google', 
-        options: { redirectTo: window.location.origin } 
-    });
-    
-    if (error) { 
-        showToast(error.message); 
-        btn.disabled = false;
+    try {
+        const { error } = await db.auth.signInWithOAuth({
+            provider: 'google',
+            options: { 
+                // Uses the exact current URL to prevent origin mismatches
+                redirectTo: window.location.href 
+            }
+        });
+
+        if (error) throw error;
+        
+        // Note: Do not re-enable the button on success, 
+        // as the page needs to redirect to Google's servers.
+
+    } catch (error) {
+        console.error("Google Auth Error:", error);
+        showToast("Login failed: " + (error.message || "Please try again."));
+        if (btn) btn.disabled = false;
     }
 }
 
