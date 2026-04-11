@@ -1208,27 +1208,24 @@
             state.user = session ? session.user : null;
         });
 
-        // 2. Listen for auth changes (handles both Email and Google OAuth flows)
-        db.auth.onAuthStateChange(async (event, session) => {
-    state.user = session ? session.user : null;
-    
-    // Update the UI if the user logs in or out
-    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        
-        // If signed in, sync their local wishlist to Supabase immediately
-        if (event === 'SIGNED_IN' && state.user) {
-             await persistUserData();
-        }
-
-        generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
-        renderMenu();
-        
-        // If they are currently looking at the login page, update the view
-        if (history.state && history.state.view === 'login') {
-             renderLogin(); 
-        }
-    }
-});
+// 2. Listen for auth changes (handles both Email and Google OAuth flows)
+        db.auth.onAuthStateChange((event, session) => {
+            state.user = session ? session.user : null;
+            
+            // NEW: Clean up the messy ?code= URL after a successful login
+            if (session && window.location.href.includes('code=')) {
+                history.replaceState({view: 'login'}, "", window.location.pathname + '?view=login');
+            }
+            
+            // MODIFIED: Update the UI on ANY auth state change (including INITIAL_SESSION after OAuth redirect)
+            generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
+            renderMenu();
+            
+            // If they are currently looking at the login page, update the view to show Account details
+            if (history.state && history.state.view === 'login') {
+                 renderLogin(); 
+            }
+        });
 
         // 3. Handle user sign out (Trigger Modal)
         function handleSignOut() {
@@ -1691,27 +1688,21 @@
 
         async function signInWithGoogle(btn) {
     triggerHaptic('light');
+    
+    btn.disabled = true;
+    setTimeout(() => { if (btn) btn.disabled = false; }, 1500);
 
-    if (btn) btn.disabled = true;
-
-    try {
-        const { error } = await db.auth.signInWithOAuth({
-            provider: 'google',
-            options: { 
-                // Uses the exact current URL to prevent origin mismatches
-                redirectTo: window.location.href 
-            }
-        });
-
-        if (error) throw error;
-        
-        // Note: Do not re-enable the button on success, 
-        // as the page needs to redirect to Google's servers.
-
-    } catch (error) {
-        console.error("Google Auth Error:", error);
-        showToast("Login failed: " + (error.message || "Please try again."));
-        if (btn) btn.disabled = false;
+    const { error } = await db.auth.signInWithOAuth({ 
+        provider: 'google', 
+        options: { 
+            // MODIFIED: Append /?view=login so the user comes exactly back to the account screen
+            redirectTo: window.location.origin + '/?view=login' 
+        } 
+    });
+    
+    if (error) { 
+        showToast(error.message); 
+        btn.disabled = false;
     }
 }
 
@@ -1735,11 +1726,14 @@
                 updateBadges();
                 renderMenu();
 
-               // Read URL parameters to handle direct shared links
+// Read URL parameters to handle direct shared links
                 const urlParams = new URLSearchParams(window.location.search);
                 const viewParam = urlParams.get('view');
                 const idParam = urlParams.get('id');
                 const productSlug = urlParams.get('product'); // Read the new clean URL parameter
+                
+                // NEW: Check if this is a Supabase Auth Redirect
+                const isAuthRedirect = urlParams.has('code') || window.location.hash.includes('access_token');
 
                 // 1. Check for clean product URL (e.g. ?product=blue-tshirt)
                 if (productSlug) {
@@ -1751,7 +1745,7 @@
                         renderProduct(prod.id);
                     } else {
                         // Fallback if product not found
-                        history.replaceState({view: 'home'}, "", "?view=home");
+                        history.replaceState({view: 'home'}, "", window.location.pathname);
                         isPopState = true;
                         updateFabVisibility('home');
                         renderHome();
@@ -1768,9 +1762,17 @@
             isPopState = true;
             updateFabVisibility('category');
             renderCategory(idParam);
+        } else if (viewParam === 'login') {
+            // NEW: Explicitly handle returning to the login page after Google Auth
+            const newUrl = isAuthRedirect ? window.location.href : window.location.pathname + '?view=login';
+            history.replaceState({view: 'login'}, "", newUrl);
+            isPopState = true;
+            updateFabVisibility('login');
+            renderLogin();
         } else {
-            // REMOVED "?view=home" AND REPLACED WITH window.location.pathname
-            history.replaceState({view: 'home'}, "", window.location.pathname);
+            // MODIFIED: ONLY strip URL parameters if it is NOT an active authentication redirect
+            const newUrl = isAuthRedirect ? window.location.href : window.location.pathname;
+            history.replaceState({view: 'home'}, "", newUrl);
             isPopState = true;
             updateFabVisibility('home');
             renderHome();
