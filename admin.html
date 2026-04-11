@@ -420,7 +420,16 @@
             <button type="button" onclick="saveReview()">SAVE REVIEW</button>
         </div>
     </div>
-
+<div id="orderItemsModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 800px; width: 95%; padding: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; border: none; padding: 0; line-height: 1.3; word-break: break-word; padding-right: 15px; flex: 1;" id="oiModalTitle">Order Details</h3>
+                <button class="outline" style="width: auto !important; padding: 4px 12px; margin: 0; flex-shrink: 0;" onclick="closeModal('orderItemsModal')">X</button>
+            </div>
+            <div id="oiContent">
+            </div>
+        </div>
+    </div>
     <script>
         // Supabase Initialization
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
@@ -1047,31 +1056,91 @@ async function loadOrders() {
 
 window.viewOrderItems = async function(orderId) {
     try {
-        // Fetch the specific order from Supabase
-        const { data, error } = await db.from('orders').select('items').eq('id', orderId).single();
+        // Fetch the full order
+        const { data: order, error } = await db.from('orders').select('*').eq('id', orderId).single();
         if (error) throw error;
 
-        let html = '';
-        // Loop through the items JSON array
-        data.items.forEach(item => {
+        document.getElementById('oiModalTitle').innerText = `ORDER #${order.id}`;
+
+        let itemsHtml = `<div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-height: 45vh; overflow-y: auto; overflow-x: hidden; padding-right: 5px;">`;
+        
+        order.items.forEach(item => {
+            // Extract Image/Video Thumbnail
+            let imgSrc = '';
+            if (item.media && item.media.length > 0) {
+                imgSrc = item.media[0];
+            }
+            const isVideo = imgSrc && typeof imgSrc === 'string' && imgSrc.toLowerCase().endsWith('.mp4');
+            
+            let mediaTag = `<div style="width:60px; height:60px; background:#f0f0f0; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; text-transform:uppercase; flex-shrink: 0;">No Pic</div>`;
+            if (imgSrc) {
+                if (isVideo) {
+                    mediaTag = `<video src="${imgSrc}" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;" muted></video>`;
+                } else {
+                    mediaTag = `<img src="${imgSrc}" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;">`;
+                }
+            }
+
+            // Extract Variants
             let specs = [];
             if (item.variant && item.variant !== "Default") specs.push(`Color: ${item.variant}`);
             if (item.size) specs.push(`Size: ${item.size}`);
             if (item.alphabet) specs.push(`Letter: ${item.alphabet}`);
-            const variantDisplay = specs.join('<br>');
+            const variantDisplay = specs.length > 0 ? `<div style="font-size:11px; color:#555; margin-top:4px;">${specs.join(' | ')}</div>` : '';
 
-            html += `<tr>
-                <td><strong>${escapeHTML(item.name)}</strong></td>
-                <td style="font-size:11px; color:#666;">${variantDisplay || '-'}</td>
-                <td>₹${item.price}</td>
-                <td><strong>x${item.qty}</strong></td>
-            </tr>`;
+            // Build Item Row (Mobile friendly flexbox)
+            itemsHtml += `
+            <div style="display: flex; gap: 12px; align-items: flex-start; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">
+                ${mediaTag}
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 700; font-size: 13px; word-wrap: break-word;">${escapeHTML(item.name)}</div>
+                    ${variantDisplay}
+                    <div style="font-size: 11px; color: #555; margin-top: 6px;">₹${item.price.toLocaleString()} x ${item.qty}</div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <div style="font-size: 14px; font-weight: 700;">₹${(item.price * item.qty).toLocaleString()}</div>
+                </div>
+            </div>`;
         });
+        itemsHtml += `</div>`;
 
-        document.getElementById('orderItemsTableBody').innerHTML = html;
-        openModal('orderItemsModal'); // Open the modal we just created
+        // Build Customer & Financial Summary
+        const c = order.customer_details || {};
+        const paymentMethod = c.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online';
+        
+        // CSS Grid with auto-fit forces 1 column on mobile, 2 on desktop. Break-all prevents email overflow.
+        let summaryHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; background: #fff; padding: 15px; border: 1px solid #000; box-shadow: 3px 3px 0px #000;">
+            <div style="min-width: 0;">
+                <h4 style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 12px;">Customer Details</h4>
+                <div style="font-size: 12px; line-height: 1.6;">
+                    <strong>Name:</strong> ${escapeHTML(c.name || 'N/A')}<br>
+                    <strong>Phone:</strong> ${escapeHTML(c.phone || 'N/A')}<br>
+                    <strong>Email:</strong> <span style="word-break: break-all;">${escapeHTML(c.email || 'N/A')}</span><br>
+                    <strong style="display:block; margin-top: 4px;">Address:</strong> 
+                    <div style="word-wrap: break-word;">${escapeHTML(c.address || 'N/A')}</div>
+                </div>
+            </div>
+            <div style="min-width: 0;">
+                <h4 style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 12px;">Order Summary</h4>
+                <div style="font-size: 12px; line-height: 1.6;">
+                    <div style="display:flex; justify-content:space-between; gap: 10px;"><span>Payment:</span> <strong style="text-align:right;">${paymentMethod}</strong></div>
+                    ${c.paymentMethod === 'cod' ? `
+                        <div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 4px;"><span>Advance:</span> <strong>₹${(c.amountPaid || 0).toLocaleString()}</strong></div>
+                        <div style="display:flex; justify-content:space-between; gap: 10px; color:#e74c3c; margin-top: 4px;"><span>Due:</span> <strong>₹${(c.amountDue || 0).toLocaleString()}</strong></div>
+                    ` : ''}
+                    <div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; font-size: 14px;">
+                        <span>Total:</span> <strong>₹${order.total_amount.toLocaleString()}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        document.getElementById('oiContent').innerHTML = itemsHtml + summaryHtml;
+        openModal('orderItemsModal');
     } catch (err) {
-        alert("Could not load order items: " + err.message);
+        alert("Could not load order details: " + err.message);
+        console.error(err);
     }
 };
 
