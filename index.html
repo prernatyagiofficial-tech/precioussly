@@ -2999,7 +2999,7 @@ rzp.open();
     triggerHaptic('success');
     
     const orderData = {
-        id: 'ORD' + Math.floor(100000 + Math.random() * 900000),
+        id: Math.floor(100000 + Math.random() * 900000),
         total_amount: totalAmount,
         items: state.cart,
         customer_details: orderDetails,
