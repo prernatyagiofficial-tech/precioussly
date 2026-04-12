@@ -120,6 +120,29 @@
 .pagination-controls { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 2px solid #000; margin-top: 10px; }
 .pagination-controls button { width: auto; padding: 6px 15px; margin: 0; }
 .page-info { font-weight: 700; font-size: 12px; text-transform: uppercase; }
+       /* --- Category Tree & Drag-Drop Styles --- */
+        .tree-toggle { 
+            background: #fff; color: #000; border: 2px solid #000; 
+            width: 20px; height: 20px; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            cursor: pointer; font-weight: 900; margin-right: 10px; 
+            padding: 0; font-size: 14px; box-shadow: 2px 2px 0px #000;
+            transition: all 0.1s;
+        }
+        .tree-toggle:active { box-shadow: 0px 0px 0px #000; transform: translate(2px, 2px); }
+        
+        .cat-drag-handle { 
+            cursor: grab; font-size: 16px; font-weight: bold; color: #000; 
+            margin-right: 10px; user-select: none; display: inline-block; vertical-align: middle; 
+        }
+        .cat-drag-handle:active { cursor: grabbing; color: #999; }
+
+        .nested-table { 
+            width: 100%; border-collapse: collapse; margin: 0; 
+            background: #f4f4f4; border-top: 1px solid #000; border-bottom: 2px solid #000;
+        }
+        .nested-table td { padding: 10px 12px; border-bottom: 1px dashed #ccc; border-right: none;}
+        .nested-table tr:last-child td { border-bottom: none; }
         @media (max-width: 768px) {
             aside { position: fixed; left: -220px; top: 50px; height: calc(100vh - 50px); z-index: 99; }
             aside.open { left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
@@ -260,15 +283,14 @@
     </div>
 </div>
 
-                <div id="view-categories" class="view-section">
+<div id="view-categories" class="view-section">
                     <div class="section-header">
                         <h1>Categories</h1>
                         <button onclick="openModal('categoryModal')">+ ADD CATEGORY</button>
                     </div>
                     <div class="table-responsive">
-                        <table>
-                            <thead><tr><th>Pic</th><th>ID</th><th>Name</th><th>Action</th></tr></thead>
-                            <tbody id="categoriesTableBody"><tr><td colspan="4" style="text-align:center; padding: 20px;">Loading...</td></tr></tbody>
+                        <table id="categoriesTable">
+                            <tbody><tr><td colspan="4" style="text-align:center; padding: 20px;">Loading categories...</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -845,49 +867,93 @@ db.channel('live-orders')
                 if (error) throw error;
 
                 State.categories = data || [];
-                let html = '';
                 
                 let prodCatOptions = '<option value="">Select Category</option>';
                 let parentCatOptions = '<option value="">None (Main Category)</option>';
                 let bannerOptions = '<option value="all">Shop All</option><option value="bestsellers">Best Sellers</option>';
 
+                // Build Table HTML with nested structure
+                let tableHtml = `
+                    <thead>
+                        <tr>
+                            <th style="width: 75px; text-align: center;">Pic</th>
+                            <th style="width: 50px;">ID</th>
+                            <th>Name</th>
+                            <th style="width: 140px;">Action</th>
+                        </tr>
+                    </thead>
+                `;
+
                 const mainCats = State.categories.filter(c => !c.parent_id);
-                
+
                 mainCats.forEach(main => {
-                    const img = main.img ? `<img src="${escapeHTML(main.img)}" class="prod-img-thumb">` : '-';
+                    const img = main.img ? `<img src="${escapeHTML(main.img)}" class="prod-img-thumb" style="display:inline-block; vertical-align:middle; width: 35px; height: 35px;">` : '-';
                     const hiddenBadge = main.is_hidden ? '<span class="badge danger">Hidden</span> ' : '';
-                    html += `<tr><td>${img}</td><td>${main.id}</td><td>${hiddenBadge}<strong>${escapeHTML(main.name)}</strong></td>
-                             <td>
-                               <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'up', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↑</button>
-                               <button class="outline" onclick="reorderRecord('categories', ${main.id}, 'down', 'parent_id', null)" style="padding:4px 8px; font-size:10px;">↓</button>
-                               <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                               <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                             </td></tr>`;
+                    const subCats = State.categories.filter(c => c.parent_id === main.id);
+                    const hasSubcats = subCats.length > 0;
                     
+                    const toggleBtn = hasSubcats ? `<button class="tree-toggle" onclick="toggleCatTree(${main.id}, this)">+</button>` : `<span style="display:inline-block; width:34px;"></span>`;
+
+                    tableHtml += `
+                        <tbody class="main-cat-group" data-id="${main.id}">
+                            <tr style="background: #fff;">
+                                <td style="text-align: center;"><span class="cat-drag-handle main-handle" title="Drag to reorder">⋮⋮</span> ${img}</td>
+                                <td>${main.id}</td>
+                                <td>${toggleBtn}${hiddenBadge}<strong style="font-size: 13px; text-transform: uppercase;">${escapeHTML(main.name)}</strong></td>
+                                <td>
+                                    <button class="outline" onclick="editCategory(${main.id})" style="padding:4px 8px; font-size:10px; margin: 0;">EDIT</button>
+                                    <button class="danger" onclick="deleteRecord('categories', ${main.id})" style="padding:4px 8px; font-size:10px; margin: 0;">DEL</button>
+                                </td>
+                            </tr>`;
+
                     prodCatOptions += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
                     parentCatOptions += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
                     bannerOptions += `<option value="cat_${main.id}">Category: ${escapeHTML(main.name)}</option>`;
 
-                    const subCats = State.categories.filter(c => c.parent_id === main.id);
-                    subCats.forEach(sub => {
-                        const subImg = sub.img ? `<img src="${escapeHTML(sub.img)}" class="prod-img-thumb">` : '-';
-                        const subHiddenBadge = sub.is_hidden ? '<span class="badge danger">Hidden</span> ' : '';
-                        html += `<tr><td>${subImg}</td><td>${sub.id}</td><td>&nbsp;&nbsp;&nbsp;↳ ${subHiddenBadge}${escapeHTML(sub.name)}</td>
-                                 <td>
-                                   <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'up', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↑</button>
-                                   <button class="outline" onclick="reorderRecord('categories', ${sub.id}, 'down', 'parent_id', ${main.id})" style="padding:4px 8px; font-size:10px;">↓</button>
-                                   <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                                   <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                                 </td></tr>`;
-                        prodCatOptions += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
-                        bannerOptions += `<option value="cat_${sub.id}">Category: ${escapeHTML(main.name)} > ${escapeHTML(sub.name)}</option>`;
-                    });
+                    // Inject nested table for subcategories
+                    if (hasSubcats) {
+                        tableHtml += `
+                            <tr id="subcat-container-${main.id}" style="display: none;">
+                                <td colspan="4" style="padding: 0;">
+                                    <table class="nested-table">
+                                        <tbody class="subcat-sortable-list" data-parent-id="${main.id}">`;
+                        
+                        subCats.forEach(sub => {
+                            const subImg = sub.img ? `<img src="${escapeHTML(sub.img)}" class="prod-img-thumb" style="display:inline-block; vertical-align:middle; width: 30px; height: 30px;">` : '-';
+                            const subHiddenBadge = sub.is_hidden ? '<span class="badge danger">Hidden</span> ' : '';
+                            
+                            tableHtml += `
+                                            <tr class="sub-cat-row" data-id="${sub.id}">
+                                                <td style="width: 75px; text-align: center;"><span class="cat-drag-handle sub-handle" title="Drag to reorder">⋮⋮</span> ${subImg}</td>
+                                                <td style="width: 50px;">${sub.id}</td>
+                                                <td>&nbsp;&nbsp;&nbsp;↳ ${subHiddenBadge}${escapeHTML(sub.name)}</td>
+                                                <td style="width: 140px;">
+                                                    <button class="outline" onclick="editCategory(${sub.id})" style="padding:4px 8px; font-size:10px; margin: 0;">EDIT</button>
+                                                    <button class="danger" onclick="deleteRecord('categories', ${sub.id})" style="padding:4px 8px; font-size:10px; margin: 0;">DEL</button>
+                                                </td>
+                                            </tr>`;
+                                            
+                            prodCatOptions += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+                            bannerOptions += `<option value="cat_${sub.id}">Category: ${escapeHTML(main.name)} > ${escapeHTML(sub.name)}</option>`;
+                        });
+                        
+                        tableHtml += `
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>`;
+                    }
+                    tableHtml += `</tbody>`;
                 });
-                
-                document.getElementById('categoriesTableBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;">No categories</td></tr>';
+
+                document.getElementById('categoriesTable').innerHTML = tableHtml || '<tbody><tr><td colspan="4" style="text-align:center;">No categories</td></tr></tbody>';
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
                 document.getElementById('catParentId').innerHTML = parentCatOptions;
                 document.getElementById('setBannerAction').innerHTML = bannerOptions;
+
+                // Re-bind SortableJS
+                initCategorySortable();
+
             } catch (err) {
                 console.error("Categories load error:", err);
             }
@@ -1671,6 +1737,71 @@ window.updateOrderStatus = async function(id, newStatus) {
 
             } catch (err) {
                 alert("Reorder failed: " + err.message);
+            }
+        };
+        // --- Category Tree & Drag-Drop Logic ---
+        window.toggleCatTree = function(id, btn) {
+            const container = document.getElementById(`subcat-container-${id}`);
+            if (container.style.display === 'none') {
+                container.style.display = 'table-row';
+                btn.innerText = '−'; // Collapse Icon
+            } else {
+                container.style.display = 'none';
+                btn.innerText = '+'; // Expand Icon
+            }
+        };
+
+        function initCategorySortable() {
+            // 1. Sortable for Main Categories (Drags entire grouped tbody)
+            const mainTable = document.getElementById('categoriesTable');
+            if (window.mainCatSortable) window.mainCatSortable.destroy();
+            
+            window.mainCatSortable = new Sortable(mainTable, {
+                handle: '.main-handle',
+                draggable: 'tbody.main-cat-group',
+                animation: 150,
+                onEnd: async function () {
+                    await updateCategorySortOrder(mainTable, 'tbody.main-cat-group');
+                }
+            });
+
+            // 2. Sortable for Subcategories (Drags rows inside their specific parent's nested table)
+            const subEls = document.querySelectorAll('.subcat-sortable-list');
+            subEls.forEach(subEl => {
+                new Sortable(subEl, {
+                    handle: '.sub-handle',
+                    draggable: '.sub-cat-row',
+                    animation: 150,
+                    onEnd: async function () {
+                        await updateCategorySortOrder(subEl, '.sub-cat-row');
+                    }
+                });
+            });
+        }
+
+        window.updateCategorySortOrder = async function(containerEl, rowSelector) {
+            const items = Array.from(containerEl.querySelectorAll(rowSelector));
+            
+            // Map the visual DOM order to sequential sort_order indexes
+            const updates = items.map((item, index) => ({
+                id: Number(item.getAttribute('data-id')),
+                sort_order: index 
+            }));
+
+            try {
+                // Fire bulk updates to Supabase concurrently
+                await Promise.all(updates.map(u => 
+                    db.from('categories').update({ sort_order: u.sort_order }).eq('id', u.id)
+                ));
+                
+                // Update local state gracefully so UI doesn't visually stutter
+                updates.forEach(u => {
+                    const cat = State.categories.find(c => c.id === u.id);
+                    if (cat) cat.sort_order = u.sort_order;
+                });
+            } catch (err) {
+                alert("Sorting update failed: " + err.message);
+                loadCategories(); // Revert UI if the network request fails
             }
         };
         // File Upload Utilities
