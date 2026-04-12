@@ -402,20 +402,25 @@
             display: flex; overflow-x: auto; gap: 15px; padding: 0 20px 20px; scrollbar-width: none;
         }
         .horizontal-scroll::-webkit-scrollbar { display: none; }
-        .horizontal-scroll .product-card { min-width: 160px; flex: 0 0 auto; }
+        .horizontal-scroll .product-card { min-width: 130px; flex: 0 0 auto; }
 
-        .product-card {
-            background: #fff; border-radius: var(--radius-lg); overflow: hidden;
-            display: flex; flex-direction: column; cursor: pointer; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s;
-            border: 1px solid var(--border-color); position: relative;
+.product-card {
+            background: transparent; 
+            display: flex; flex-direction: column; cursor: pointer; 
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: none; position: relative;
         }
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: transparent; }
-        .product-card:active { transform: scale(0.97); }
-        .product-card .img-wrapper { width: 100%; aspect-ratio: 1/1; overflow: hidden; position: relative; }
+        .product-card:hover { transform: translateY(-5px); }
+        
+        .product-card .img-wrapper { 
+            width: 100%; aspect-ratio: 1/1; overflow: hidden; position: relative; 
+            border-radius: var(--radius-md); /* Adds the curved corners to the image */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04); /* Adds a very soft shadow to make the image pop */
+        }
         .product-card .img-wrapper img, .product-card .img-wrapper video { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
         .product-card:hover .img-wrapper img, .product-card:hover .img-wrapper video { transform: scale(1.05); }
         
-        .product-info { padding: 15px; text-align: left; }
+        .product-info { padding: 12px 4px 5px 4px; text-align: left; }
         .product-title {
             font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-dark);
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1974,9 +1979,6 @@ if (session && window.location.href.includes('code=')) {
                 <div class="product-card" onclick="renderProduct('${prod.id}')">
                     <div class="img-wrapper" style="width: 100%; aspect-ratio: 1 / 1;">
                         ${mediaContent}
-                        <button class="wishlist-float" onclick="toggleWishlist(event, '${prod.id}')">
-                            ${getHeartSvg(prod.id)}
-                        </button>
                     </div>
                     <div class="product-info">
                         <div class="product-title">${prod.name}</div>
@@ -2036,7 +2038,7 @@ if (bannerConfig.imageUrl) {
             if (bestSellers.length > 0) {
                 html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
                 bestSellers.forEach(prod => {
-                     html += `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(prod)}</div>`;
+                     html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
                 });
                 html += `</div>`;
             }
