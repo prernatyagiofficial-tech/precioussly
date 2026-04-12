@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin Panel</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #000; background-color: #f9f9f9; line-height: 1.4; overflow-x: hidden; }
@@ -98,7 +99,27 @@
         .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .settings-card { background: #fff; border: 1px solid #000; padding: 20px; box-shadow: 3px 3px 0px #000; }
         .settings-card h3 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; font-size: 14px;}
-        
+        /* Product Management UI Upgrades */
+.toolbar-flex { display: flex; gap: 10px; align-items: center; background: #fff; padding: 10px; border: 1px solid #000; margin-bottom: 15px; box-shadow: 3px 3px 0px #000; }
+.toolbar-flex input, .toolbar-flex select { margin-bottom: 0; flex: 1; border: 1px solid #000; }
+
+.bulk-action-bar { display: none; background: #000; color: #fff; padding: 10px 15px; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.bulk-action-bar.active { display: flex; }
+.bulk-action-bar span { font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; }
+.bulk-action-bar button { width: auto; margin-bottom: 0; padding: 5px 12px; font-size: 11px; border: 1px solid #fff; }
+.bulk-action-bar button:active { background: #fff; color: #000; }
+
+.drag-handle { cursor: grab; font-size: 16px; font-weight: bold; color: #999; padding: 0 10px; user-select: none; }
+.drag-handle:active { cursor: grabbing; color: #000; }
+
+.inline-edit-container { display: flex; align-items: center; gap: 8px; }
+.inline-edit-btn { background: transparent; color: #000; border: none; font-size: 12px; cursor: pointer; padding: 2px 5px; width: auto; margin: 0; }
+.inline-edit-btn:hover { background: #eee; }
+.inline-edit-input { padding: 4px 6px; font-size: 13px; border: 2px solid #000; width: 100%; margin: 0; box-shadow: 2px 2px 0px #000; }
+
+.pagination-controls { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 2px solid #000; margin-top: 10px; }
+.pagination-controls button { width: auto; padding: 6px 15px; margin: 0; }
+.page-info { font-weight: 700; font-size: 12px; text-transform: uppercase; }
         @media (max-width: 768px) {
             aside { position: fixed; left: -220px; top: 50px; height: calc(100vh - 50px); z-index: 99; }
             aside.open { left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
@@ -192,18 +213,52 @@
                     </div>
                 </div>
 
-                <div id="view-products" class="view-section">
-                    <div class="section-header">
-                        <h1>Manage Products</h1>
-                        <button onclick="openModal('productModal')">+ ADD PRODUCT</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table>
-                            <thead><tr><th>Pic</th><th>Name</th><th>Category</th><th>Price</th><th>Badges</th><th>Action</th></tr></thead>
-                            <tbody id="productsTableBody"><tr><td colspan="6" style="text-align:center; padding: 20px;">Loading products...</td></tr></tbody>
-                        </table>
-                    </div>
-                </div>
+               <div id="view-products" class="view-section">
+    <div class="section-header">
+        <h1>Manage Products</h1>
+        <button onclick="openModal('productModal')">+ ADD PRODUCT</button>
+    </div>
+
+    <div class="toolbar-flex">
+        <input type="text" id="prodSearchFilter" placeholder="Search product name..." oninput="debounceProductSearch()">
+        <select id="prodCatFilter" onchange="loadProducts(1)">
+            <option value="">All Categories</option>
+            </select>
+    </div>
+
+    <div id="bulkActionBar" class="bulk-action-bar">
+        <span id="bulkCountText">0 ITEMS SELECTED</span>
+        <div style="display:flex; gap:10px;">
+            <button onclick="executeBulkAction('hide')">HIDE SELECTED</button>
+            <button class="danger" onclick="executeBulkAction('delete')" style="border-color:#ff4757;">DELETE SELECTED</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllProds" onchange="toggleAllProducts(this)"></th>
+                    <th style="width: 40px;"></th> <th>Pic</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Badges</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+                <tr><td colspan="8" style="text-align:center; padding: 20px;">Loading products...</td></tr>
+            </tbody>
+        </table>
+        
+        <div class="pagination-controls">
+            <button class="outline" id="btnPrevPage" onclick="loadProducts(prodCurrentPage - 1)">PREV</button>
+            <span class="page-info" id="prodPageInfo">Page 1 of 1</span>
+            <button class="outline" id="btnNextPage" onclick="loadProducts(prodCurrentPage + 1)">NEXT</button>
+        </div>
+    </div>
+</div>
 
                 <div id="view-categories" class="view-section">
                     <div class="section-header">
@@ -470,8 +525,11 @@
             currentEditId: null,
             categories: [],
             products: [],
-            orders: [], // Added to cache orders for instant tab filtering
+            orders: [], 
         };
+        let prodCurrentPage = 1;
+const PROD_PAGE_SIZE = 50;
+let productSearchTimeout;
 
         const escapeHTML = (str) => {
             if (typeof str !== 'string') return str;
@@ -880,74 +938,277 @@ db.channel('live-orders')
             }
         }
 
-        // Products Management
-        async function loadProducts() {
-            try {
-                const { data, error } = await db.from('products')
-                    .select('*')
-                    .order('sort_order', { ascending: true })
-                    .order('id', { ascending: false });
-                    
-                if (error) throw error;
+async function loadProducts(page = 1) {
+    prodCurrentPage = page;
+    const searchQ = document.getElementById('prodSearchFilter').value.trim();
+    const catFilter = document.getElementById('prodCatFilter').value;
 
-                State.products = data || [];
-                let html = '';
-                
-                State.products.forEach(p => {
-                    const catName = State.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
-                    const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb">` : '-';
-                    let badges = [];
-                    
-                    if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
-                    
-                    if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
-                    if(p.is_hidden) badges.push('<span class="badge danger">Hidden</span>');
-                    
-                    html += `<tr><td>${img}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(catName)}</td><td>₹${p.price}</td><td>${badges.join(' ')}</td>
-                             <td>
-                               <button class="outline" onclick="reorderRecord('products', ${p.id}, 'up', 'cat_id', ${p.cat_id})" style="padding:4px 8px; font-size:10px;">↑</button>
-                               <button class="outline" onclick="reorderRecord('products', ${p.id}, 'down', 'cat_id', ${p.cat_id})" style="padding:4px 8px; font-size:10px;">↓</button>
-                               <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
-                               <button class="danger" onclick="deleteRecord('products', ${p.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
-                             </td></tr>`;
-                });
-                
-                document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;">No products</td></tr>';
-            } catch (err) {
-                console.error("Supabase Error loading products:", err);
-            }
+    try {
+        // Base Query with exact count
+        let query = db.from('products').select('*', { count: 'exact' });
+
+        // Apply Filters
+        if (searchQ) query = query.ilike('name', `%${searchQ}%`);
+        if (catFilter) query = query.eq('cat_id', catFilter);
+
+        // Pagination setup
+        const from = (page - 1) * PROD_PAGE_SIZE;
+        const to = from + PROD_PAGE_SIZE - 1;
+
+        const { data, count, error } = await query
+            .order('sort_order', { ascending: true })
+            .order('id', { ascending: false })
+            .range(from, to);
+
+        if (error) throw error;
+
+        State.products = data || [];
+        renderProductsTable(count, searchQ, catFilter);
+        
+        // Populate category dropdown if empty
+        const filterDropdown = document.getElementById('prodCatFilter');
+        if (filterDropdown.options.length <= 1 && State.categories.length > 0) {
+            let opts = '<option value="">All Categories</option>';
+            State.categories.forEach(c => {
+                opts += `<option value="${c.id}">${escapeHTML(c.name)}</option>`;
+            });
+            filterDropdown.innerHTML = opts;
+            filterDropdown.value = catFilter; // retain selection
         }
 
-        window.editProduct = function(id) {
-            const p = State.products.find(x => x.id === id);
-            if(p) {
-                State.currentEditId = id;
-                document.getElementById('prodModalTitle').innerText = 'Edit Product';
-                document.getElementById('prodName').value = p.name;
-                document.getElementById('prodPrice').value = p.price;
-                document.getElementById('prodCat').value = p.cat_id;
-                document.getElementById('prodDesc').value = p.description || '';
-                document.getElementById('prodMedia').value = (p.media || []).join(', ');
-                document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
-                document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
-// ADD THIS NEW LINE:
-document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
-                document.getElementById('variantsContainer').innerHTML = '';
-                variantCounter = 0;
-                if (p.variants && Array.isArray(p.variants)) {
-                    p.variants.forEach(v => {
-                        const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
-                        addVariantBox(v.name, mediaStr);
-                    });
-                }
-                document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
-                
-                document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
-                document.getElementById('prodHidden').checked = !!p.is_hidden;
-                
-                openModal('productModal');
+    } catch (err) {
+        console.error("Supabase Error loading products:", err);
+    }
+}
+
+function renderProductsTable(totalCount, isSearching, isFiltering) {
+    let html = '';
+    
+    // Update Pagination UI
+    const totalPages = Math.ceil(totalCount / PROD_PAGE_SIZE) || 1;
+    document.getElementById('prodPageInfo').innerText = `Page ${prodCurrentPage} of ${totalPages} (${totalCount} Total)`;
+    document.getElementById('btnPrevPage').disabled = prodCurrentPage <= 1;
+    document.getElementById('btnNextPage').disabled = prodCurrentPage >= totalPages;
+
+    // Reset Bulk Actions
+    document.getElementById('selectAllProds').checked = false;
+    updateBulkActionBar();
+
+    State.products.forEach(p => {
+        const catName = State.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
+        const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb">` : '-';
+        let badges = [];
+        
+        if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
+        if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
+        if(p.is_hidden) badges.push('<span class="badge danger">Hidden</span>');
+
+        // Note: SortableJS requires a data-id attribute on the row
+        html += `<tr data-id="${p.id}">
+            <td style="text-align: center;"><input type="checkbox" class="prod-row-cb" value="${p.id}" onchange="updateBulkActionBar()"></td>
+            <td><div class="drag-handle">⋮⋮</div></td>
+            <td>${img}</td>
+            <td>
+                <div class="inline-edit-container" id="inline-name-${p.id}">
+                    <span style="font-weight: 600;">${escapeHTML(p.name)}</span>
+                    <button class="inline-edit-btn" onclick="makeEditable(${p.id}, 'name', \`${escapeHTML(p.name).replace(/`/g, "\\`")}\`)">✏️</button>
+                </div>
+            </td>
+            <td>${escapeHTML(catName)}</td>
+            <td>
+                <div class="inline-edit-container" id="inline-price-${p.id}">
+                    <span>₹${p.price}</span>
+                    <button class="inline-edit-btn" onclick="makeEditable(${p.id}, 'price', ${p.price})">✏️</button>
+                </div>
+            </td>
+            <td>${badges.join(' ')}</td>
+            <td>
+                <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                <button class="danger" onclick="deleteRecord('products', ${p.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+            </td>
+        </tr>`;
+    });
+    
+    document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="8" style="text-align:center;">No products match your criteria</td></tr>';
+    
+    // Initialize Drag and Drop (Disable if filtering/searching to prevent global sort corruption)
+    initSortable(isSearching || isFiltering);
+}
+
+function debounceProductSearch() {
+    clearTimeout(productSearchTimeout);
+    productSearchTimeout = setTimeout(() => { loadProducts(1); }, 400);
+}
+
+// --- Drag & Drop Sorting ---
+function initSortable(isDisabled) {
+    const el = document.getElementById('productsTableBody');
+    if (window.productSortable) window.productSortable.destroy();
+    
+    window.productSortable = new Sortable(el, {
+        handle: '.drag-handle',
+        animation: 150,
+        disabled: !!isDisabled, // Disable dragging when search/filters are active
+        onEnd: async function () {
+            const rows = Array.from(el.querySelectorAll('tr[data-id]'));
+            const baseSort = (prodCurrentPage - 1) * PROD_PAGE_SIZE;
+            
+            // Map the new physical DOM order to a sequentially updated sort_order array
+            const updates = rows.map((row, index) => {
+                return {
+                    id: Number(row.getAttribute('data-id')),
+                    sort_order: baseSort + index
+                };
+            });
+
+            try {
+                // Supabase doesn't natively support bulk updates of different values in one call easily via JS client, 
+                // so we run them concurrently.
+                await Promise.all(updates.map(u => 
+                    db.from('products').update({ sort_order: u.sort_order }).eq('id', u.id)
+                ));
+            } catch (err) {
+                alert("Sorting update failed: " + err.message);
+                loadProducts(prodCurrentPage); // Revert UI
             }
-        };
+        }
+    });
+}
+
+// --- Inline Quick Edit ---
+window.makeEditable = function(id, field, currentValue) {
+    const container = document.getElementById(`inline-${field}-${id}`);
+    const inputType = field === 'price' ? 'number' : 'text';
+    
+    // Escape single quotes for the function calls
+    const safeVal = typeof currentValue === 'string' ? currentValue.replace(/'/g, "\\'") : currentValue;
+
+    container.innerHTML = `
+        <input type="${inputType}" class="inline-edit-input" value="${escapeHTML(String(currentValue))}"
+            onblur="saveInlineEdit(${id}, '${field}', this.value, '${safeVal}')"
+            onkeydown="if(event.key === 'Enter') this.blur(); if(event.key === 'Escape') cancelInlineEdit(${id}, '${field}', '${safeVal}')"
+            autofocus>
+    `;
+    const input = container.querySelector('input');
+    input.focus();
+    
+    // Move cursor to end of text
+    if(inputType === 'text') {
+        const val = input.value;
+        input.value = '';
+        input.value = val;
+    }
+};
+
+window.cancelInlineEdit = function(id, field, originalValue) {
+    // Re-render the original HTML
+    const container = document.getElementById(`inline-${field}-${id}`);
+    const displayValue = field === 'price' ? `₹${originalValue}` : escapeHTML(String(originalValue));
+    container.innerHTML = `
+        <span style="${field === 'name' ? 'font-weight: 600;' : ''}">${displayValue}</span>
+        <button class="inline-edit-btn" onclick="makeEditable(${id}, '${field}', \`${escapeHTML(String(originalValue)).replace(/`/g, "\\`")}\`)">✏️</button>
+    `;
+};
+
+window.saveInlineEdit = async function(id, field, newValue, originalValue) {
+    if (String(newValue).trim() === String(originalValue).trim()) {
+        return cancelInlineEdit(id, field, originalValue); // No change
+    }
+
+    try {
+        const payload = {};
+        payload[field] = field === 'price' ? Number(newValue) : newValue.trim();
+
+        const { error } = await db.from('products').update(payload).eq('id', id);
+        if (error) throw error;
+        
+        // Update local state directly to avoid full reload
+        const prodIndex = State.products.findIndex(p => p.id === id);
+        if(prodIndex > -1) State.products[prodIndex][field] = payload[field];
+
+        cancelInlineEdit(id, field, payload[field]);
+    } catch (err) {
+        alert(`Failed to update ${field}: ` + err.message);
+        cancelInlineEdit(id, field, originalValue); // Revert on failure
+    }
+};
+
+// --- Bulk Actions ---
+window.toggleAllProducts = function(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.prod-row-cb');
+    checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    updateBulkActionBar();
+};
+
+window.updateBulkActionBar = function() {
+    const checkedBoxes = document.querySelectorAll('.prod-row-cb:checked');
+    const actionBar = document.getElementById('bulkActionBar');
+    
+    if (checkedBoxes.length > 0) {
+        document.getElementById('bulkCountText').innerText = `${checkedBoxes.length} ITEM(S) SELECTED`;
+        actionBar.classList.add('active');
+    } else {
+        actionBar.classList.remove('active');
+        document.getElementById('selectAllProds').checked = false;
+    }
+};
+
+window.executeBulkAction = async function(action) {
+    const checkedBoxes = Array.from(document.querySelectorAll('.prod-row-cb:checked'));
+    if (checkedBoxes.length === 0) return;
+
+    const ids = checkedBoxes.map(cb => Number(cb.value));
+    const confirmMsg = action === 'delete' 
+        ? `PERMANENTLY DELETE ${ids.length} products? This cannot be undone.` 
+        : `Hide ${ids.length} products from the storefront?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        if (action === 'delete') {
+            const { error } = await db.from('products').delete().in('id', ids);
+            if (error) throw error;
+        } else if (action === 'hide') {
+            const { error } = await db.from('products').update({ is_hidden: true }).in('id', ids);
+            if (error) throw error;
+        }
+
+        document.getElementById('selectAllProds').checked = false;
+        updateBulkActionBar();
+        await loadProducts(prodCurrentPage); // Refresh current page
+    } catch (err) {
+        alert("Bulk action failed: " + err.message);
+    }
+};
+
+// Ensure your existing editProduct function is put back here:
+window.editProduct = function(id) {
+    const p = State.products.find(x => x.id === id);
+    if(p) {
+        State.currentEditId = id;
+        document.getElementById('prodModalTitle').innerText = 'Edit Product';
+        document.getElementById('prodName').value = p.name;
+        document.getElementById('prodPrice').value = p.price;
+        document.getElementById('prodCat').value = p.cat_id;
+        document.getElementById('prodDesc').value = p.description || '';
+        document.getElementById('prodMedia').value = (p.media || []).join(', ');
+        document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
+        document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
+        document.getElementById('variantsContainer').innerHTML = '';
+        variantCounter = 0;
+        if (p.variants && Array.isArray(p.variants)) {
+            p.variants.forEach(v => {
+                const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
+                addVariantBox(v.name, mediaStr);
+            });
+        }
+        document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
+        document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
+        document.getElementById('prodHidden').checked = !!p.is_hidden;
+        openModal('productModal');
+    }
+};
+        
 
   async function saveProduct() {
     const btn = document.getElementById('saveProdBtn');
