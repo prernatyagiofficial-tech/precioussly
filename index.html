@@ -3088,18 +3088,26 @@ function initiatePayment(btn, totalAmount) {
     renderThankYou(orderData.id);
 }
 
-        // --- NEW FUNCTION: Sync local storage with live DB status ---
+// --- NEW FUNCTION: Sync local storage with live DB status ---
 async function syncLocalOrdersWithSupabase() {
     const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
     if (localOrders.length === 0) return;
 
-    const orderIds = localOrders.map(o => o.id);
-    const { data, error } = await db.from('orders').select('*').in('id', orderIds);
+    // 1. Convert IDs to strings to prevent Supabase query errors
+    const orderIds = localOrders.map(o => String(o.id)); 
+    
+    const { data, error } = await db.from('orders').select('id, status').in('id', orderIds);
 
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
         const updatedOrders = localOrders.map(localOrder => {
-            const liveOrder = data.find(d => d.id === localOrder.id);
-            return liveOrder ? liveOrder : localOrder;
+            // 2. FIX: Force both IDs to be strings so they match perfectly
+            const liveOrder = data.find(d => String(d.id) === String(localOrder.id));
+            
+            if (liveOrder) {
+                // 3. FIX: Only update the status so we don't break the local UI data
+                localOrder.status = liveOrder.status;
+            }
+            return localOrder;
         });
         localStorage.setItem('shria_orders', JSON.stringify(updatedOrders));
     }
