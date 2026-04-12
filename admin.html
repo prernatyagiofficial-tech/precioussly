@@ -56,7 +56,12 @@
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
         .section-header h1 { font-size: 18px; text-transform: uppercase; font-weight: 700;}
         .section-header button { width: auto; padding: 6px 15px; margin-bottom: 0;}
-
+/* Order Tabs */
+        .order-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #000; overflow-x: auto; scrollbar-width: none; }
+        .order-tabs::-webkit-scrollbar { display: none; }
+        .order-tab { padding: 10px 20px; font-weight: 700; cursor: pointer; text-transform: uppercase; font-size: 12px; background: transparent; border: none; color: #666; transition: all 0.2s; white-space: nowrap; }
+        .order-tab:hover { color: #000; }
+        .order-tab.active { background: #000; color: #fff; }
         /* Tables */
         .table-responsive { overflow-x: auto; background: #fff; border: 1px solid #000; box-shadow: 3px 3px 0px #000; margin-bottom: 20px;}
         table { width: 100%; border-collapse: collapse; text-align: left; }
@@ -160,8 +165,17 @@
                     </div>
                 </div>
 
-                <div id="view-orders" class="view-section">
+<div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
+                    
+                    <div class="order-tabs" id="orderTabs">
+                        <button class="order-tab active" onclick="filterOrders('All', this)">ALL</button>
+                        <button class="order-tab" onclick="filterOrders('In Progress', this)">IN PROGRESS</button>
+                        <button class="order-tab" onclick="filterOrders('Confirmed', this)">CONFIRMED</button>
+                        <button class="order-tab" onclick="filterOrders('Delivered', this)">DELIVERED</button>
+                        <button class="order-tab" onclick="filterOrders('Cancelled', this)">CANCELLED</button>
+                    </div>
+
                     <div class="table-responsive">
                         <table>
                             <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
@@ -448,6 +462,7 @@
             currentEditId: null,
             categories: [],
             products: [],
+            orders: [], // Added to cache orders for instant tab filtering
         };
 
         const escapeHTML = (str) => {
@@ -1073,60 +1088,85 @@ document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
         }
 
 // --- UPDATED ORDERS MANAGEMENT FOR ADMIN PANEL ---
+let currentOrderFilter = 'All'; 
+
+window.filterOrders = function(status, btn) {
+    currentOrderFilter = status;
+    
+    // Update tab UI
+    document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    
+    // Re-render table
+    renderOrdersTable(status);
+};
+
 async function loadOrders() {
     try {
         const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
         if (error) throw error;
 
-        let html = '';
-        if (data && data.length > 0) {
-            data.forEach(o => {
-                // Extracting details from the JSON customer_details object
-                const customerName = escapeHTML(o.customer_details?.name || 'Guest');
-                const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
-                const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
-                const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
-                
-                const date = new Date(o.created_at).toLocaleDateString();
-                
-                // Status Badge Logic
-                let badgeClass = '';
-                if (o.status === 'In Progress') badgeClass = 'warning';
-                else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
-                else if (o.status === 'Cancelled') badgeClass = 'danger';
-
-                html += `
-                    <tr>
-                        <td><strong>${o.id}</strong><br><span style="font-size:10px; color:#666;">${date}</span></td>
-                        <td>
-                            <strong>${customerName}</strong><br>
-                            <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
-                            <span style="font-size:11px; color:#666;">✉️ ${customerEmail}</span>
-                        </td>
-                        <td>
-                            <div style="max-width:200px; font-size:11px; line-height:1.2;">${fullAddress}</div>
-                        </td>
-                        <td><strong>₹${o.total_amount.toLocaleString()}</strong></td>
-                        <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
-                        <td>
-                            <div class="flex-row" style="margin-bottom:0; gap:5px;">
-                                <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
-                                    <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
-                                    <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
-                                    <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
-                                    <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-                                </select>
-                                <button class="outline" onclick="viewOrderItems('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0;">ITEMS</button>
-                            </div>
-                        </td>
-                    </tr>`;
-            });
-        }
-        document.getElementById('ordersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found in database</td></tr>';
+        State.orders = data || []; // Cache the data globally
+        
+        // Render using the currently selected tab
+        renderOrdersTable(currentOrderFilter);
     } catch (err) {
         console.error("Orders load error:", err);
         document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
     }
+}
+
+function renderOrdersTable(filterStatus) {
+    let html = '';
+    
+    // Filter the cached orders array
+    const filteredOrders = filterStatus === 'All' 
+        ? State.orders 
+        : State.orders.filter(o => o.status === filterStatus);
+
+    if (filteredOrders && filteredOrders.length > 0) {
+        filteredOrders.forEach(o => {
+            const customerName = escapeHTML(o.customer_details?.name || 'Guest');
+            const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
+            const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
+            const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
+            
+            const date = new Date(o.created_at).toLocaleDateString();
+            
+            let badgeClass = '';
+            if (o.status === 'In Progress') badgeClass = 'warning';
+            else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
+            else if (o.status === 'Cancelled') badgeClass = 'danger';
+
+            html += `
+                <tr>
+                    <td><strong>${o.id}</strong><br><span style="font-size:10px; color:#666;">${date}</span></td>
+                    <td>
+                        <strong>${customerName}</strong><br>
+                        <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
+                        <span style="font-size:11px; color:#666;">✉️ ${customerEmail}</span>
+                    </td>
+                    <td>
+                        <div style="max-width:200px; font-size:11px; line-height:1.2;">${fullAddress}</div>
+                    </td>
+                    <td><strong>₹${o.total_amount.toLocaleString()}</strong></td>
+                    <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
+                    <td>
+                        <div class="flex-row" style="margin-bottom:0; gap:5px;">
+                            <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
+                                <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
+                                <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
+                                <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                                <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                            </select>
+                            <button class="outline" onclick="viewOrderItems('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0;">ITEMS</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    }
+    
+    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:20px;">No ${filterStatus !== 'All' ? filterStatus.toLowerCase() : ''} orders found</td></tr>`;
 }
 
 window.viewOrderItems = async function(orderId) {
