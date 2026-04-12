@@ -1952,13 +1952,18 @@ if (session && window.location.href.includes('code=')) {
             }
 
             return `
-                <div class="product-card" onclick="renderProduct('${prod.id}')">
+                <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
                     <div class="img-wrapper" style="width: 100%; aspect-ratio: 1 / 1;">
                         ${mediaContent}
                     </div>
-                    <div class="product-info">
-                        <div class="product-title">${prod.name}</div>
-                        <div class="product-price">${formatPrice(prod.price)}</div>
+                    <div class="product-info" style="display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
+                        <div>
+                            <div class="product-title">${prod.name}</div>
+                            <div class="product-price">${formatPrice(prod.price)}</div>
+                        </div>
+                        <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
+                            <span class="btn-text">Add to Cart</span>
+                        </button>
                     </div>
                 </div>
             `;
@@ -2317,6 +2322,7 @@ if (bannerConfig.imageUrl) {
         window.changeAlphabet = changeAlphabet;
         window.openSizeChartModal = openSizeChartModal;
         window.closeSizeChartModal = closeSizeChartModal;
+        window.quickAddToCart = quickAddToCart;
         
         
         function shareProduct(prodId) {
@@ -2518,7 +2524,21 @@ if (prod.sizes && prod.sizes.length > 0) {
                 callback();
             }, delay); // Uses custom delay, defaults to 500ms
         }
+function quickAddToCart(event, btn, prodId) {
+            // Stop the click from opening the product details page
+            event.stopPropagation(); 
+            
+            const prod = appData.products.find(p => String(p.id) === String(prodId));
+            if (!prod) return;
 
+            // Reset selections to defaults so it doesn't accidentally add the wrong size/variant from a previous product
+            selectedProductVariantIndex = 0;
+            selectedProductSize = prod.sizes && prod.sizes.length > 0 ? prod.sizes[0] : null;
+            selectedAlphabet = prod.isAlphabet ? 'A' : null; 
+            
+            // Trigger the exact same Add to Cart function you already have
+            addToCart(btn, prodId);
+        }
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
