@@ -168,6 +168,14 @@
 <div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
                     
+                    <div class="flex-row" style="margin-bottom: 20px;">
+                        <input type="text" id="orderSearch" placeholder="Search by Order ID, Name, or Phone..." style="flex: 1; margin-bottom: 0;" oninput="applyOrderFilters()">
+                        <select id="paymentFilter" style="width: auto; margin-bottom: 0;" onchange="applyOrderFilters()">
+                            <option value="All">All Payments</option>
+                            <option value="cod">COD</option>
+                            <option value="online">Online</option>
+                        </select>
+                    </div>
                     <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" onclick="filterOrders('All', this)">ALL</button>
                         <button class="order-tab" onclick="filterOrders('In Progress', this)">IN PROGRESS</button>
@@ -1101,6 +1109,10 @@ window.filterOrders = function(status, btn) {
     renderOrdersTable(status);
 };
 
+window.applyOrderFilters = function() {
+    renderOrdersTable(currentOrderFilter);
+};
+
 async function loadOrders() {
     try {
         const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
@@ -1119,11 +1131,44 @@ async function loadOrders() {
 function renderOrdersTable(filterStatus) {
     let html = '';
     
-    // Filter the cached orders array
-    const filteredOrders = filterStatus === 'All' 
+    // 1. Get the values from the new search and filter inputs
+    const searchInput = document.getElementById('orderSearch');
+    const paymentInput = document.getElementById('paymentFilter');
+    
+    const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const paymentFilter = paymentInput ? paymentInput.value : 'All';
+
+    // 2. Filter by Status (The tabs)
+    let filteredOrders = filterStatus === 'All' 
         ? State.orders 
         : State.orders.filter(o => o.status === filterStatus);
 
+    // 3. Filter by Search Query (ID, Name, Phone)
+    if (searchQuery) {
+        filteredOrders = filteredOrders.filter(o => {
+            const orderId = String(o.id).toLowerCase();
+            const custName = (o.customer_details?.name || '').toLowerCase();
+            const custPhone = String(o.customer_details?.phone || '').toLowerCase();
+            
+            return orderId.includes(searchQuery) || custName.includes(searchQuery) || custPhone.includes(searchQuery);
+        });
+    }
+
+    // 4. Filter by Payment Method
+    if (paymentFilter !== 'All') {
+        filteredOrders = filteredOrders.filter(o => {
+            const pMethod = o.customer_details?.paymentMethod || '';
+            
+            if (paymentFilter === 'cod') {
+                return pMethod === 'cod';
+            } else if (paymentFilter === 'online') {
+                return pMethod !== 'cod'; // Anything that isn't explicitly COD is considered online
+            }
+            return true;
+        });
+    }
+
+    // 5. Build the HTML Rows
     if (filteredOrders && filteredOrders.length > 0) {
         filteredOrders.forEach(o => {
             const customerName = escapeHTML(o.customer_details?.name || 'Guest');
@@ -1166,7 +1211,7 @@ function renderOrdersTable(filterStatus) {
         });
     }
     
-    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:20px;">No ${filterStatus !== 'All' ? filterStatus.toLowerCase() : ''} orders found</td></tr>`;
+    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found matching your filters</td></tr>`;
 }
 
 window.viewOrderItems = async function(orderId) {
