@@ -1155,31 +1155,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="ringSizeModal">
-        <div class="modal-box" style="max-width: 500px; width: 90%; text-align: left;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 class="modal-title" style="margin: 0;">How to Measure Ring Size</h3>
-                <button class="close-btn" onclick="closeRingSizeModal()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div style="font-size: 15px; color: var(--text-gray); line-height: 1.7;">
-                <p style="margin-bottom: 12px; color: var(--text-dark);"><strong>Method 1: Use a String or Paper</strong></p>
-                <ol style="padding-left: 20px; margin-bottom: 20px;">
-                    <li style="margin-bottom: 6px;">Wrap a piece of string or paper around the base of your finger.</li>
-                    <li style="margin-bottom: 6px;">Mark the point where the ends meet with a pen.</li>
-                    <li style="margin-bottom: 6px;">Measure the string or paper with a ruler in millimeters (mm).</li>
-                    <li>Divide by 3.14 (or match to a standard ring size chart) to get the diameter.</li>
-                </ol>
-                <p style="margin-bottom: 12px; color: var(--text-dark);"><strong>Method 2: Measure an Existing Ring</strong></p>
-                <ul style="padding-left: 20px;">
-                    <li style="margin-bottom: 6px;">Take a ring that fits you well.</li>
-                    <li style="margin-bottom: 6px;">Measure the inside diameter in millimeters using a ruler.</li>
-                    <li>Match the diameter to our standard ring sizes.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
+   
     <div id="orderItemsModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 600px;">
         <h3>Order Items <button class="outline" style="padding: 2px 8px;" onclick="closeModal('orderItemsModal')">X</button></h3>
@@ -1361,7 +1337,7 @@ if (session && window.location.href.includes('code=')) {
                 desc: row.description || row.desc || '', isBestSeller: parseBool(row.is_best_seller || row.bestseller),
                 media: safeParseJSON(row.media, []), variants: safeParseJSON(row.variants, []), sizes: safeParseJSON(row.sizes, []),
                 // ADD variantLabel TO THIS LINE:
-                isRing: parseBool(row.is_ring), isAlphabet: parseBool(row.is_alphabet), variantLabel: row.variant_label || 'Color'
+                isAlphabet: parseBool(row.is_alphabet), variantLabel: row.variant_label || 'Color'
             };
         }
 
@@ -1520,7 +1496,7 @@ if (session && window.location.href.includes('code=')) {
     }
 }
         const sizeChartModal = document.getElementById('sizeChartModal');
-        const ringSizeModal = document.getElementById('ringSizeModal');
+        
 
         let isPopState = false;
 
@@ -1581,7 +1557,7 @@ if (session && window.location.href.includes('code=')) {
             if(sideMenu.classList.contains('active')) toggleMenu();
             if(confirmModal.classList.contains('active')) closeModal();
             if(sizeChartModal.classList.contains('active')) closeSizeChartModal();
-            if(ringSizeModal && ringSizeModal.classList.contains('active')) closeRingSizeModal();
+            
             
             if (e.state) {
                 const s = e.state;
@@ -2331,8 +2307,7 @@ if (bannerConfig.imageUrl) {
 
         function openSizeChartModal() { sizeChartModal.classList.add('active'); document.body.classList.add('no-scroll'); }
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
-        function openRingSizeModal() { ringSizeModal.classList.add('active'); document.body.classList.add('no-scroll'); }
-        function closeRingSizeModal() { ringSizeModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
+        
 
         window.updateCarousel = updateCarousel;
         window.handleTouchStart = handleTouchStart;
@@ -2342,8 +2317,7 @@ if (bannerConfig.imageUrl) {
         window.changeAlphabet = changeAlphabet;
         window.openSizeChartModal = openSizeChartModal;
         window.closeSizeChartModal = closeSizeChartModal;
-        window.openRingSizeModal = openRingSizeModal;
-        window.closeRingSizeModal = closeRingSizeModal;
+        
         
         function shareProduct(prodId) {
             triggerHaptic('pop');
@@ -2437,23 +2411,15 @@ if (bannerConfig.imageUrl) {
             }
 
             let sizeHtml = '';
-            if (prod.isRing || (prod.sizes && prod.sizes.length > 0)) {
-                let guideLink = prod.isRing ? `<span class="size-chart-link" onclick="openRingSizeModal()">How to Measure Your Ring Size</span>` : `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
-                let titleLabel = prod.isRing ? 'Enter Ring Size' : 'Select Size';
+if (prod.sizes && prod.sizes.length > 0) {
+    let guideLink = `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
+    let titleLabel = 'Select Size';
 
-                let sizeOptions = '';
-                if (prod.isRing) {
-                    selectedProductSize = ""; 
-                    sizeOptions = `<div class="form-group" style="margin-bottom: 0;">
-                        <input type="text" id="customRingSizeInput" placeholder="e.g., 7 or 7.5" style="width: 100%; padding: 14px 18px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 15px; background: #fff; outline: none; transition: border-color 0.3s;" oninput="selectedProductSize = this.value; this.classList.remove('error'); document.getElementById('errRingSize').style.display='none';">
-                        <div class="error-message" id="errRingSize" style="display: none; margin-top: 6px;">Please enter a valid ring size.</div>
-                    </div>`;
-                } else if (prod.sizes && prod.sizes.length > 0) {
-                    selectedProductSize = prod.sizes[0];
-                    sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
-                }
-                sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
-            }
+    selectedProductSize = prod.sizes[0];
+    let sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
+
+    sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
+}
 
             let alphabetHtml = '';
             if (prod.isAlphabet) {
@@ -2556,17 +2522,7 @@ if (bannerConfig.imageUrl) {
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
-            if (prod.isRing && (!prod.sizes || prod.sizes.length === 0)) {
-                const sizeVal = selectedProductSize ? selectedProductSize.trim() : "";
-                if (!/^\d+(\.\d+)?$/.test(sizeVal)) {
-                    triggerHaptic('pop');
-                    const inputEl = document.getElementById('customRingSizeInput');
-                    const errEl = document.getElementById('errRingSize');
-                    if (inputEl && errEl) { inputEl.classList.add('error'); errEl.style.display = 'block'; } 
-                    else { showToast("Please enter a valid ring size."); }
-                    return;
-                }
-            }
+            
 
             if (prod.isAlphabet && !selectedAlphabet) {
                 triggerHaptic('pop');
