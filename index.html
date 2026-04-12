@@ -375,9 +375,9 @@
             overflow: hidden;
         }
 
-        .section-title-wrapper {
-            display: flex; align-items: center; justify-content: center; padding: 40px 20px 20px;
-        }
+.section-title-wrapper {
+    display: flex; align-items: center; justify-content: center; padding: 40px 20px 10px;
+}
         .section-title-wrapper h3 {
             font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); font-weight: 600;
         }
@@ -398,9 +398,9 @@
         .category-card span { font-size: 14px; font-weight: 500; transition: color 0.3s; }
         .category-card:hover span { color: var(--brand-color); }
 
-        .horizontal-scroll {
-            display: flex; overflow-x: auto; gap: 15px; padding: 0 20px 20px; scrollbar-width: none;
-        }
+.horizontal-scroll {
+    display: flex; overflow-x: auto; gap: 15px; padding: 10px 20px 20px; scrollbar-width: none;
+}
         .horizontal-scroll::-webkit-scrollbar { display: none; }
         .horizontal-scroll .product-card { min-width: 130px; flex: 0 0 auto; }
 
@@ -922,9 +922,9 @@
             .app-container { box-shadow: 0 0 50px rgba(0,0,0,0.08); margin: 20px auto; border-radius: 20px; overflow: hidden; min-height: calc(100vh - 40px); }
             header { padding: 0 20px; }
             .nav-bar { padding: 20px 40px; }
-            .grid-container { grid-template-columns: repeat(3, 1fr); gap: 30px; padding: 0 40px 40px; }
-            .horizontal-scroll { padding: 0 40px 40px; gap: 20px; }
-            .section-title-wrapper { padding: 60px 40px 30px; }
+.grid-container { grid-template-columns: repeat(3, 1fr); gap: 30px; padding: 0 40px 40px; }
+.horizontal-scroll { padding: 10px 40px 40px; gap: 20px; }
+.section-title-wrapper { padding: 60px 40px 20px; }
             .section-title-wrapper h3 { font-size: 32px; }
             
             .product-layout-wrapper { display: flex; flex-direction: row; gap: 50px; padding: 40px; align-items: flex-start; max-width: 1100px; margin: 0 auto;}
@@ -2012,7 +2012,7 @@ if (bannerConfig.imageUrl) {
 
             const bestSellers = appData.products.filter(p => p.isBestSeller);
             if (bestSellers.length > 0) {
-                html += `<div class="section-title-wrapper"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
                 bestSellers.forEach(prod => {
                      html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
                 });
@@ -2020,7 +2020,7 @@ if (bannerConfig.imageUrl) {
             }
 
             if (appData.reviews && appData.reviews.length > 0) {
-                html += `<div class="section-title-wrapper"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 0 20px 20px; scrollbar-width: none;">`;
+                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
                 appData.reviews.forEach(review => {
                     let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
                     html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
@@ -2440,7 +2440,7 @@ if (prod.sizes && prod.sizes.length > 0) {
                 relatedProductsHtml = `
                     <div style="max-width: 1100px; margin: 20px auto 40px; padding: 0 20px;">
                         <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600;">You May Also Like</h3>
-                        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; scrollbar-width: none; margin: 0 -20px; padding: 0 20px 20px;">
+                        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; scrollbar-width: none; margin: 0 -20px; padding: 10px 20px 20px;">
                             ${relatedProducts.map(p => `<div style="flex: 0 0 160px; min-width: 160px;">${getProductCardHTML(p)}</div>`).join('')}
                         </div>
                     </div>
