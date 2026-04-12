@@ -176,12 +176,12 @@
                             <option value="online">Online</option>
                         </select>
                     </div>
-                    <div class="order-tabs" id="orderTabs">
-                        <button class="order-tab active" onclick="filterOrders('All', this)">ALL</button>
-                        <button class="order-tab" onclick="filterOrders('In Progress', this)">IN PROGRESS</button>
-                        <button class="order-tab" onclick="filterOrders('Confirmed', this)">CONFIRMED</button>
-                        <button class="order-tab" onclick="filterOrders('Delivered', this)">DELIVERED</button>
-                        <button class="order-tab" onclick="filterOrders('Cancelled', this)">CANCELLED</button>
+<div class="order-tabs" id="orderTabs">
+                        <button class="order-tab active" onclick="filterOrders('All', this)">ALL <span id="count-all"></span></button>
+                        <button class="order-tab" onclick="filterOrders('In Progress', this)">IN PROGRESS <span id="count-inprogress"></span></button>
+                        <button class="order-tab" onclick="filterOrders('Confirmed', this)">CONFIRMED <span id="count-confirmed"></span></button>
+                        <button class="order-tab" onclick="filterOrders('Delivered', this)">DELIVERED <span id="count-delivered"></span></button>
+                        <button class="order-tab" onclick="filterOrders('Cancelled', this)">CANCELLED <span id="count-cancelled"></span></button>
                     </div>
 
                     <div class="table-responsive">
@@ -1095,23 +1095,32 @@ document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
             }
         }
 
-// --- UPDATED ORDERS MANAGEMENT FOR ADMIN PANEL ---
-let currentOrderFilter = 'All'; 
+        // --- UPDATED ORDERS MANAGEMENT FOR ADMIN PANEL ---
+        let currentOrderFilter = 'All'; 
 
-window.filterOrders = function(status, btn) {
-    currentOrderFilter = status;
-    
-    // Update tab UI
-    document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-    
-    // Re-render table
-    renderOrdersTable(status);
-};
+        function updateTabCounts() {
+            const orders = State.orders || [];
+            document.getElementById('count-all').innerText = `(${orders.length})`;
+            document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
+            document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
+            document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
+            document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
+        }
 
-window.applyOrderFilters = function() {
-    renderOrdersTable(currentOrderFilter);
-};
+        window.filterOrders = function(status, btn) {
+            currentOrderFilter = status;
+            
+            // Update tab UI
+            document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            
+            // Re-render table
+            renderOrdersTable(status);
+        };
+
+        window.applyOrderFilters = function() {
+            renderOrdersTable(currentOrderFilter);
+        };
 
 async function loadOrders() {
     try {
@@ -1119,6 +1128,9 @@ async function loadOrders() {
         if (error) throw error;
 
         State.orders = data || []; // Cache the data globally
+        
+        // NEW: Update the counts on the tabs based on the freshly loaded data
+        updateTabCounts(); 
         
         // Render using the currently selected tab
         renderOrdersTable(currentOrderFilter);
