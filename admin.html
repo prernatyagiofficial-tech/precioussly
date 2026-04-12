@@ -266,6 +266,7 @@
                     <th>Name</th>
                     <th>Category</th>
                     <th>Price</th>
+                    <th>Stock</th>
                     <th>Badges</th>
                     <th>Action</th>
                 </tr>
@@ -440,6 +441,7 @@
             <div class="grid-form">
                 <div class="form-group"><label>Product Name</label><input type="text" id="prodName" required></div>
                 <div class="form-group"><label>Price (₹)</label><input type="number" id="prodPrice" required></div>
+                <div class="form-group"><label>Stock (Optional)</label><input type="number" id="prodStock" placeholder="Leave empty for unlimited"></div>
                 <div class="form-group"><label>Category</label><select id="prodCat"></select></div>
                 <div class="form-group full-width"><label>Description</label><textarea id="prodDesc" rows="3"></textarea></div>
                 
@@ -1087,6 +1089,7 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
                     <button class="inline-edit-btn" onclick="makeEditable(${p.id}, 'price', ${p.price})">✏️</button>
                 </div>
             </td>
+            <td>${p.stock !== null && p.stock !== undefined ? p.stock : '<span style="color:#2ecc71;font-weight:bold;">∞</span>'}</td>
             <td>${badges.join(' ')}</td>
             <td>
                 <button class="outline" onclick="editProduct(${p.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
@@ -1095,7 +1098,8 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
         </tr>`;
     });
     
-    document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="8" style="text-align:center;">No products match your criteria</td></tr>';
+    // Updated colspan to 9 to account for the newly added Stock column
+    document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="9" style="text-align:center;">No products match your criteria</td></tr>';
     
     // Initialize Drag and Drop (Disable if filtering/searching to prevent global sort corruption)
     initSortable(isSearching || isFiltering);
@@ -1255,6 +1259,7 @@ window.editProduct = function(id) {
         document.getElementById('prodModalTitle').innerText = 'Edit Product';
         document.getElementById('prodName').value = p.name;
         document.getElementById('prodPrice').value = p.price;
+        document.getElementById('prodStock').value = (p.stock !== null && p.stock !== undefined) ? p.stock : '';
         document.getElementById('prodCat').value = p.cat_id;
         document.getElementById('prodDesc').value = p.description || '';
         document.getElementById('prodMedia').value = (p.media || []).join(', ');
@@ -1299,6 +1304,7 @@ window.editProduct = function(id) {
         const payload = {
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
+            stock: document.getElementById('prodStock').value.trim() === '' ? null : Number(document.getElementById('prodStock').value),
             cat_id: Number(document.getElementById('prodCat').value),
             description: document.getElementById('prodDesc').value.trim(),
             media: mediaArr,
