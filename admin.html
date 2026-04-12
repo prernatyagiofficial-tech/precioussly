@@ -367,9 +367,8 @@
 </div>
 
                 <div class="form-group">
-                    <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
-                    <label class="checkbox-label"><input type="checkbox" id="prodRing"> Is Ring (Custom Size input)</label>
-                    <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
+<label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
+<label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
                     <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
                 </div>
                 
@@ -877,7 +876,7 @@ db.channel('live-orders')
                     let badges = [];
                     
                     if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
-                    if(p.is_ring) badges.push('<span class="badge warning">Ring</span>');
+                    
                     if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
                     if(p.is_hidden) badges.push('<span class="badge danger">Hidden</span>');
                     
@@ -919,7 +918,7 @@ document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
                     });
                 }
                 document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
-                document.getElementById('prodRing').checked = !!p.is_ring;
+                
                 document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
                 document.getElementById('prodHidden').checked = !!p.is_hidden;
                 
@@ -956,7 +955,7 @@ document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
             sizes: sizesArr,
             variants: variantsObj,
             is_best_seller: document.getElementById('prodBestSeller').checked,
-            is_ring: document.getElementById('prodRing').checked,
+            
             is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, // Don't forget this comma!
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
