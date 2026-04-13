@@ -355,6 +355,10 @@
                                 <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
                             </div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
+                            <div class="form-group full-width" style="margin-top: 15px;">
+    <label>About Us Text (Your Brand Story)</label>
+    <textarea id="setAboutUs" rows="4" placeholder="Tell your customers about your brand..."></textarea>
+</div>
 <div class="form-group">
     <label class="checkbox-label"><input type="checkbox" id="setAnnouncementScrolling"> Scroll Announcement (Marquee)</label>
 </div>
@@ -801,6 +805,7 @@ db.channel('live-orders')
             // Announcement Settings
             document.getElementById('setAnnouncement').value = data.announcement_text || '';
             document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
+            document.getElementById('setAboutUs').value = data.about_us_text || '';
             
             // Order, COD & Shipping Rules
             document.getElementById('setMinOrder').value = data.min_order_amount || 0;
@@ -838,6 +843,7 @@ db.channel('live-orders')
             // Announcement
             announcement_text: document.getElementById('setAnnouncement').value.trim(),
             announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
+            about_us_text: document.getElementById('setAboutUs').value.trim(),
             
             // Order, COD & Shipping Rules
             min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
