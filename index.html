@@ -514,11 +514,24 @@
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* Policies View */
-        .policy-container { padding: 0 20px 40px; max-width: 800px; margin: 0 auto; }
-        .policy-section { margin-bottom: 30px; }
-        .policy-section h4 { font-size: 18px; margin-bottom: 12px; color: var(--text-dark); font-weight: 600; }
-        .policy-section p { font-size: 14px; color: var(--text-gray); line-height: 1.7; margin-bottom: 10px;}
+/* Professional Policies & Info View */
+        .policy-wrapper { max-width: 800px; margin: 0 auto; padding: 0 20px 40px; min-height: 60vh; }
+        .policy-nav { display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; }
+        .policy-nav::-webkit-scrollbar { display: none; }
+        .policy-nav-item { font-size: 14px; font-weight: 600; color: var(--text-gray); cursor: pointer; white-space: nowrap; transition: color 0.3s; padding-bottom: 12px; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.5px; }
+        .policy-nav-item:hover { color: var(--text-dark); }
+        .policy-nav-item.active { color: var(--text-dark); border-bottom-color: var(--text-dark); }
+        .policy-content-section { display: none; animation: fadeIn 0.4s ease; }
+        .policy-content-section.active { display: block; }
+        .policy-content-section h4 { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 15px; color: var(--text-dark); font-weight: 600; }
+        .policy-content-section p, .policy-content-section ul { font-size: 14px; color: var(--text-gray); line-height: 1.8; margin-bottom: 15px; }
+        .policy-content-section ul { padding-left: 20px; }
+        .policy-content-section li { margin-bottom: 8px; }
+        .contact-card { background: var(--secondary-bg); border: 1px solid var(--border-color); padding: 25px; border-radius: var(--radius-lg); margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;}
+        .contact-row { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--text-dark); font-weight: 500; text-decoration: none; transition: transform 0.2s;}
+        .contact-row:hover { transform: translateX(5px); color: var(--brand-color); }
+        .contact-row svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Utilities */
         .empty-state { text-align: center; padding: 80px 20px; color: var(--text-gray); width: 100%; grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -1049,7 +1062,7 @@
 
         <main id="main-content"></main>
 
-        <footer>
+<footer>
             <div class="footer-content">
                 <div class="footer-brand-section">
                     <div class="footer-brand" id="footerBrandName"></div>
@@ -1067,7 +1080,9 @@
                         <div class="footer-links-title">Support</div>
                         <a href="javascript:void(0)" onclick="renderOrders()">Your Orders</a>
                         <a href="javascript:void(0)" onclick="renderTrackOrder()">Track Order</a>
-                        <a href="javascript:void(0)" onclick="renderPolicies()">Store Policies</a>
+                        <a href="javascript:void(0)" onclick="renderPolicies('about')">About Us</a>
+                        <a href="javascript:void(0)" onclick="renderPolicies('contact')">Contact Us</a>
+                        <a href="javascript:void(0)" onclick="renderPolicies('shipping')">Store Policies</a>
                     </div>
                 </div>
 
@@ -1081,16 +1096,16 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                         </a>
                         <a href="#" id="instagramLink" target="_blank" title="Instagram" style="display: none;">
-    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-</a>
+                            <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                        </a>
                     </div>
                 </div>
             </div>
             <div class="footer-bottom">
                 <div class="footer-bottom-links">
-                    <a href="javascript:void(0)" onclick="renderPolicies()">Privacy Policy</a>
+                    <a href="javascript:void(0)" onclick="renderPolicies('privacy')">Privacy Policy</a>
                     <span>•</span>
-                    <a href="javascript:void(0)" onclick="renderPolicies()">Terms of Service</a>
+                    <a href="javascript:void(0)" onclick="renderPolicies('terms')">Terms of Service</a>
                 </div>
                 <div>&copy; <span id="year"></span> <span id="copyrightBrand"></span> Store. All rights reserved.</div>
             </div>
@@ -1319,6 +1334,7 @@ if (session && window.location.href.includes('code=')) {
         instagramUrl: row.instagram_url || '',
         announcementText: row.announcement_text || '',
         announcementScrolling: parseBool(row.announcement_scrolling),
+        aboutUsText: row.about_us_text || `Welcome to ${row.brand_name || 'Shria'}. We are dedicated to providing you with the best curated collections tailored for elegance and quality.`,
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
@@ -2110,21 +2126,114 @@ if (bannerConfig.imageUrl) {
             });
         }
 
-        // Additional simple renders
-        function renderPolicies() {
-            navigate({view: 'policies'});
+function switchPolicyTab(tabId) {
+            document.querySelectorAll('.policy-nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.policy-content-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.getElementById('content-' + tabId).classList.add('active');
+        }
+
+        function renderPolicies(activeTab = 'about') {
+            navigate({view: 'policies', id: activeTab});
             searchContainer.style.display = 'none';
+            
+            const brand = appData.settings.brandName || 'Shria';
+            const email = appData.settings.emailId || 'support@example.com';
+            const phone = appData.settings.whatsappNumber || '+91 0000000000';
+            const insta = appData.settings.instagramUrl || '#';
+            const aboutText = appData.settings.aboutUsText || `Welcome to ${brand}. We are dedicated to providing you with the best curated collections tailored for elegance and quality.`;
+
             mainContent.innerHTML = `
                 <div class="back-nav" onclick="renderHome()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Store
                 </div>
-                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom:30px;">
-                    <h3>Store Policies</h3>
+                
+                <div class="section-title-wrapper" style="padding-top: 0; padding-bottom: 20px;">
+                    <h3>Help Center & Policies</h3>
                 </div>
-                <div class="policy-container">
-                    <div class="policy-section"><h4>Privacy Policy</h4><p>We value your privacy. Your personal information is collected strictly for processing your orders.</p></div>
-                    <div class="policy-section"><h4>Terms of Service</h4><p>By using the ${appData.settings.brandName} platform, you agree to comply with our guidelines.</p></div>
-                    <div class="policy-section"><h4>Shipping & Returns</h4><p>Orders are dispatched within 2-3 business days. Delivery times vary based on location.</p></div>
+
+                <div class="policy-wrapper">
+                    <div class="policy-nav">
+                        <div class="policy-nav-item ${activeTab === 'about' ? 'active' : ''}" id="tab-about" onclick="switchPolicyTab('about')">About Us</div>
+                        <div class="policy-nav-item ${activeTab === 'contact' ? 'active' : ''}" id="tab-contact" onclick="switchPolicyTab('contact')">Contact Us</div>
+                        <div class="policy-nav-item ${activeTab === 'shipping' ? 'active' : ''}" id="tab-shipping" onclick="switchPolicyTab('shipping')">Shipping</div>
+                        <div class="policy-nav-item ${activeTab === 'refund' ? 'active' : ''}" id="tab-refund" onclick="switchPolicyTab('refund')">Refunds & Cancellations</div>
+                        <div class="policy-nav-item ${activeTab === 'terms' ? 'active' : ''}" id="tab-terms" onclick="switchPolicyTab('terms')">Terms</div>
+                        <div class="policy-nav-item ${activeTab === 'privacy' ? 'active' : ''}" id="tab-privacy" onclick="switchPolicyTab('privacy')">Privacy</div>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'about' ? 'active' : ''}" id="content-about">
+                        <h4>Our Story</h4>
+                        <p>${aboutText}</p>
+                        <p>At <strong>${brand}</strong>, our mission is to deliver exceptional quality and seamless shopping experiences directly to your doorstep. We carefully curate our catalog to ensure every item meets our high standards of design and durability.</p>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'contact' ? 'active' : ''}" id="content-contact">
+                        <h4>Get In Touch</h4>
+                        <p>We're here to help! If you have any questions regarding your order, our products, or store policies, please reach out to us through any of the channels below.</p>
+                        <div class="contact-card">
+                            <a href="https://wa.me/${phone}" target="_blank" class="contact-row">
+                                <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                WhatsApp: ${phone}
+                            </a>
+                            <a href="mailto:${email}" class="contact-row">
+                                <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                Email: ${email}
+                            </a>
+                            <a href="${insta}" target="_blank" class="contact-row" style="${!appData.settings.instagramUrl ? 'display:none;' : ''}">
+                                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                                Follow us on Instagram
+                            </a>
+                        </div>
+                        <p><strong>Business Hours:</strong> Monday - Saturday, 10:00 AM to 7:00 PM</p>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'shipping' ? 'active' : ''}" id="content-shipping">
+                        <h4>Shipping & Delivery Policy</h4>
+                        <p>At <strong>${brand}</strong>, we are committed to delivering your order accurately, in good condition, and always on time.</p>
+                        <ul>
+                            <li><strong>Processing Time:</strong> Orders are typically processed and dispatched within 2-3 business days of order confirmation.</li>
+                            <li><strong>Delivery Time:</strong> Standard delivery generally takes 4-7 business days depending on your location within India.</li>
+                            <li><strong>Tracking:</strong> Once your order is dispatched, you will receive a tracking link via email or SMS to monitor your shipment.</li>
+                            <li><strong>Delays:</strong> While we strive to meet delivery timelines, unforeseen circumstances (e.g., severe weather, logistical delays) may occasionally cause slight delays.</li>
+                        </ul>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'refund' ? 'active' : ''}" id="content-refund">
+                        <h4>Refund & Cancellation Policy</h4>
+                        <p>We want you to love what you ordered, but if something isn't right, let us know.</p>
+                        <p><strong>Cancellations:</strong></p>
+                        <p>Once a product has been ordered, if you wish to cancel it, you must immediately contact us directly on WhatsApp at <strong>${phone}</strong>. Cancellations are only accepted if the order has not yet been dispatched from our warehouse.</p>
+                        <p><strong>Refunds:</strong></p>
+                        <ul>
+                            <li>If a cancellation is successful before dispatch, or if a valid return is processed, a refund will be initiated.</li>
+                            <li>Approved refunds will be processed and credited back to your original payment method within <strong>7 business days</strong>.</li>
+                            <li>For Cash on Delivery (COD) orders, our support team will request your UPI or bank details on WhatsApp to process the refund.</li>
+                        </ul>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'terms' ? 'active' : ''}" id="content-terms">
+                        <h4>Terms & Conditions</h4>
+                        <p>Welcome to <strong>${brand}</strong>. By accessing and using our website, you agree to be bound by the following terms and conditions:</p>
+                        <ul>
+                            <li><strong>Use of Platform:</strong> You agree to use this website only for lawful purposes and in a manner that does not infringe upon the rights of others.</li>
+                            <li><strong>Product Accuracy:</strong> We make every effort to display the colors and images of our products accurately. However, we cannot guarantee that your device's display will reflect the exact color of the physical product.</li>
+                            <li><strong>Pricing:</strong> All prices are subject to change without prior notice. We reserve the right to modify or discontinue products at any time.</li>
+                            <li><strong>User Accounts:</strong> You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</li>
+                        </ul>
+                    </div>
+
+                    <div class="policy-content-section ${activeTab === 'privacy' ? 'active' : ''}" id="content-privacy">
+                        <h4>Privacy Policy</h4>
+                        <p>Your privacy is important to <strong>${brand}</strong>. This policy outlines how we collect, use, and protect your personal information.</p>
+                        <ul>
+                            <li><strong>Information Collection:</strong> We collect necessary information (name, email, address, phone number) exclusively to process and fulfill your orders.</li>
+                            <li><strong>Data Security:</strong> Your data is secured using industry-standard encryption. We do not sell, trade, or rent your personal identification information to third parties.</li>
+                            <li><strong>Payment Processing:</strong> All online payments are processed through secure, certified third-party payment gateways. We do not store your credit card or UPI PIN details.</li>
+                            <li><strong>Communication:</strong> By providing your contact details, you consent to receive order updates, tracking details, and occasional promotional messages. You can opt out of promotional messages at any time.</li>
+                        </ul>
+                    </div>
+
                 </div>
             `;
             window.scrollTo(0,0);
