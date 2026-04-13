@@ -189,6 +189,7 @@
                 <div class="nav-link" onclick="switchView('categories', this)">Categories</div>
                 <div class="nav-link" onclick="switchView('coupons', this)">Coupons</div>
                 <div class="nav-link" onclick="switchView('reviews', this)">Reviews</div>
+                <div class="nav-link" onclick="switchView('shoppable', this)">Shoppable Media</div>
                 <div class="nav-link" onclick="switchView('settings', this)">Store Settings</div>
                 <div class="nav-link" onclick="switchView('users', this)">Registered Users</div>
             </aside>
@@ -328,7 +329,28 @@
                         </table>
                     </div>
                 </div>
-
+<div id="view-shoppable" class="view-section">
+    <div class="section-header">
+        <h1>Shoppable Media</h1>
+        <button onclick="openShoppableModal()">+ ADD MEDIA</button>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Order</th>
+                    <th>Media</th>
+                    <th>Linked Product</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="shoppableTableBody">
+                <tr><td colspan="5" style="text-align:center; padding: 20px;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
                 <div id="view-settings" class="view-section">
                     <div class="section-header">
                         <h1>Store Settings</h1>
@@ -361,6 +383,10 @@
                                 <label>Header Vertical Spacing (Top/Bottom px)</label>
                                 <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
                             </div>
+                            <div class="form-group">
+    <label>Shoppable Auto-Scroll Timer (Seconds)</label>
+    <input type="number" id="setShoppableTimer" placeholder="e.g. 5">
+</div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
                             <div class="form-group full-width" style="margin-top: 15px;">
     <label>About Us Text (Your Brand Story)</label>
@@ -441,6 +467,7 @@
     </div>
 
     <input type="file" id="fileLogo" style="display:none;" onchange="handleDirectUpload(event, 'setLogoUrl')">
+    <input type="file" id="fileShoppable" style="display:none;" onchange="handleDirectUpload(event, 'shopMediaUrl')">
     <input type="file" id="fileBanner" style="display:none;" onchange="handleDirectUpload(event, 'setBannerUrl')">
     <input type="file" id="fileCatImg" style="display:none;" onchange="handleDirectUpload(event, 'catImgUrl')">
     <input type="file" id="fileProdMedia" style="display:none;" onchange="handleProductMediaUpload(event)">
@@ -542,6 +569,32 @@
             <button type="button" onclick="saveReview()">SAVE REVIEW</button>
         </div>
     </div>
+    <div id="shoppableModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 500px;">
+        <h3><span id="shopModalTitle">Add Media</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('shoppableModal')">X</button></h3>
+        <div class="form-group">
+            <label>Media URL (.mp4 or image)</label>
+            <div class="flex-row">
+                <input type="text" id="shopMediaUrl" required>
+                <button type="button" class="outline" onclick="triggerFileUpload('fileShoppable', 'shopMediaUrl')">UPLOAD</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Instagram Link (Optional)</label>
+            <input type="url" id="shopInstaUrl" placeholder="https://instagram.com/...">
+        </div>
+        <div class="form-group">
+            <label>Linked Product</label>
+            <select id="shopProductId">
+                <option value="">Select a Product</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" id="shopActive" checked> Is Active</label>
+        </div>
+        <button type="button" onclick="saveShoppable()">SAVE MEDIA</button>
+    </div>
+</div>
 <div id="orderItemsModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 800px; width: 95%; padding: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
@@ -552,6 +605,7 @@
             </div>
         </div>
     </div>
+    
     <script>
         // Supabase Initialization
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
@@ -564,6 +618,7 @@
             categories: [],
             products: [],
             orders: [], 
+            shoppable: []
         };
         let prodCurrentPage = 1;
 const PROD_PAGE_SIZE = 50;
@@ -762,6 +817,97 @@ db.channel('live-orders')
             if (document.getElementById('couponModalTitle')) document.getElementById('couponModalTitle').innerText = 'Add Coupon';
         }
 
+async function loadShoppable() {
+    try {
+        const { data, error } = await db.from('shoppable_media').select('*, products(name)').order('sort_order', { ascending: true });
+        if (error) throw error;
+        State.shoppable = data || [];
+
+        let html = '';
+        if(State.shoppable.length > 0) {
+            State.shoppable.forEach((item, index) => {
+                const status = item.is_active ? '<span class="badge success">Active</span>' : '<span class="badge danger">Hidden</span>';
+                const isVideo = item.media_url && item.media_url.toLowerCase().endsWith('.mp4');
+                const mediaTag = isVideo ? `<video src="${item.media_url}" style="width:40px;height:40px;object-fit:cover;" muted></video>` : `<img src="${item.media_url}" class="prod-img-thumb">`;
+                const prodName = item.products ? escapeHTML(item.products.name) : 'None';
+                
+                html += `<tr>
+                    <td>
+                        <button class="outline" style="padding:2px 5px; margin:0;" onclick="reorderRecord('shoppable_media', ${item.id}, 'up')">▲</button>
+                        <button class="outline" style="padding:2px 5px; margin:0;" onclick="reorderRecord('shoppable_media', ${item.id}, 'down')">▼</button>
+                    </td>
+                    <td>${mediaTag}</td>
+                    <td>${prodName}</td>
+                    <td>${status}</td>
+                    <td>
+                        <button class="outline" onclick="editShoppable(${item.id})" style="padding:4px 8px; font-size:10px;">EDIT</button>
+                        <button class="danger" onclick="deleteRecord('shoppable_media', ${item.id})" style="padding:4px 8px; font-size:10px;">DEL</button>
+                    </td>
+                </tr>`;
+            });
+        }
+        document.getElementById('shoppableTableBody').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">No media found.</td></tr>';
+    } catch (err) {
+        console.error("Shoppable load error:", err);
+    }
+}
+
+window.openShoppableModal = function() {
+    State.currentEditId = null;
+    document.getElementById('shopModalTitle').innerText = 'Add Media';
+    document.getElementById('shopMediaUrl').value = '';
+    document.getElementById('shopInstaUrl').value = '';
+    document.getElementById('shopActive').checked = true;
+    
+    // Populate Products Dropdown
+    let prodOpts = '<option value="">Select a Product</option>';
+    State.products.forEach(p => prodOpts += `<option value="${p.id}">${escapeHTML(p.name)}</option>`);
+    document.getElementById('shopProductId').innerHTML = prodOpts;
+    
+    openModal('shoppableModal');
+};
+
+window.editShoppable = function(id) {
+    const item = State.shoppable.find(s => s.id === id);
+    if(item) {
+        openShoppableModal(); // Sets up dropdowns first
+        State.currentEditId = id;
+        document.getElementById('shopModalTitle').innerText = 'Edit Media';
+        document.getElementById('shopMediaUrl').value = item.media_url;
+        document.getElementById('shopInstaUrl').value = item.instagram_url || '';
+        document.getElementById('shopProductId').value = item.product_id || '';
+        document.getElementById('shopActive').checked = !!item.is_active;
+    }
+};
+
+window.saveShoppable = async function() {
+    try {
+        const payload = {
+            media_url: document.getElementById('shopMediaUrl').value.trim(),
+            instagram_url: document.getElementById('shopInstaUrl').value.trim(),
+            product_id: document.getElementById('shopProductId').value ? Number(document.getElementById('shopProductId').value) : null,
+            is_active: document.getElementById('shopActive').checked
+        };
+        
+        if(!payload.media_url) return alert("Media URL required");
+
+        if(State.currentEditId) {
+            const { error } = await db.from('shoppable_media').update(payload).eq('id', State.currentEditId);
+            if (error) throw error;
+        } else {
+            // Get highest sort order
+            const highest = State.shoppable.reduce((max, item) => Math.max(max, item.sort_order || 0), -1);
+            payload.sort_order = highest + 1;
+            const { error } = await db.from('shoppable_media').insert([payload]);
+            if (error) throw error;
+        }
+        
+        closeModal('shoppableModal');
+        await loadShoppable();
+    } catch (err) {
+        alert("Error saving: " + err.message);
+    }
+};
         // Data Loading
         async function loadAllData() {
             try {
@@ -773,7 +919,8 @@ db.channel('live-orders')
                     loadCoupons(),
                     loadReviews(),
                     loadOrders(),
-                    loadUsers()
+                    loadUsers(),
+                    loadShoppable()
                 ]);
             } catch (err) {
                 console.error("Error loading master data:", err);
@@ -845,6 +992,7 @@ db.channel('live-orders')
             document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
             document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
             document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
+            document.getElementById('setShoppableTimer').value = data.shoppable_timer || 5;
             
             // Contact Settings
             document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
@@ -888,6 +1036,7 @@ db.channel('live-orders')
             whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
             email_id: document.getElementById('setEmail').value.trim(),
             instagram_url: document.getElementById('setInstagram').value.trim(),
+            shoppable_timer: Number(document.getElementById('setShoppableTimer').value) || 5,
             
             // Announcement
             announcement_text: document.getElementById('setAnnouncement').value.trim(),
@@ -1748,7 +1897,7 @@ window.updateOrderStatus = async function(id, newStatus) {
     }
 };
 
-        // Generic Delete
+// Generic Delete
         window.deleteRecord = async function(table, id) {
             if(confirm(`Are you sure you want to delete this record from ${table}?`)) {
                 try {
@@ -1759,6 +1908,7 @@ window.updateOrderStatus = async function(id, newStatus) {
                     if(table==='categories') await loadCategories();
                     if(table==='coupons') await loadCoupons();
                     if(table==='reviews') await loadReviews();
+                    if(table==='shoppable_media') await loadShoppable();
                     
                     await loadDashboard();
                 } catch (err) {
