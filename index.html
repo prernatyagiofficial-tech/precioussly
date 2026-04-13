@@ -2941,11 +2941,16 @@ function quickAddToCart(event, btn, prodId) {
                 }
                 showToast("Added to Cart!");
             });
+            
+            // Return true if it successfully passes validation
+            return true;
         }
 
         function buyNow(btn, prodId) {
-            addToCart(btn, prodId);
-            setTimeout(() => renderCart(), 600); // Wait for optimized loading visual
+            // Check if addToCart returned true (validation passed)
+            if (addToCart(btn, prodId)) {
+                setTimeout(() => renderCart(), 600); // Wait for optimized loading visual
+            }
         }
 
         function modifyQty(prodId, variantStr, sizeStr, alphabetStr, delta) {
