@@ -1070,6 +1070,25 @@
 }
 .lightbox-close-btn:hover { background: #fff; color: #000; border-color: #fff; transform: scale(1.05); }
 .lightbox-close-btn:active { transform: scale(0.95); }
+/* Typography & Out-of-Stock States */
+.product-detail-title, .product-detail-price {
+    font-family: 'Roboto Slab', serif;
+    text-align: left;
+}
+.size-option-btn.out-of-stock {
+    opacity: 0.3;
+    background: var(--placeholder-bg);
+    text-decoration: line-through;
+    pointer-events: none;
+    border-color: var(--border-color);
+}
+.btn-disabled {
+    background: #e0e0e0 !important;
+    color: #888 !important;
+    border-color: #e0e0e0 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
     </style>
 </head>
 <body>
@@ -1428,14 +1447,22 @@ if (session && window.location.href.includes('code=')) {
         }
 
         function mapProduct(row) {
-            return {
-                id: row.id, name: row.name || 'Product', price: Number(row.price || 0), catId: row.cat_id || row.category_id,
-                desc: row.description || row.desc || '', isBestSeller: parseBool(row.is_best_seller || row.bestseller),
-                media: safeParseJSON(row.media, []), variants: safeParseJSON(row.variants, []), sizes: safeParseJSON(row.sizes, []),
-                // ADD variantLabel TO THIS LINE:
-                isAlphabet: parseBool(row.is_alphabet), variantLabel: row.variant_label || 'Color'
-            };
-        }
+    return {
+        id: row.id, 
+        name: row.name || 'Product', 
+        price: Number(row.price || 0), 
+        catId: row.cat_id || row.category_id,
+        desc: row.description || row.desc || '', 
+        stock: row.stock !== null && row.stock !== undefined ? Number(row.stock) : null,
+        isBestSeller: parseBool(row.is_best_seller || row.bestseller),
+        media: safeParseJSON(row.media, []), 
+        variants: safeParseJSON(row.variants, []), 
+        sizes: safeParseJSON(row.sizes, []),
+        variant_stock: safeParseJSON(row.variant_stock, {}),
+        isAlphabet: parseBool(row.is_alphabet), 
+        variantLabel: row.variant_label || 'Color'
+    };
+}
 
         function mapCoupon(row) {
             return { id: row.id, minThreshold: Number(row.min_threshold || row.threshold || 0), discountAmount: Number(row.discount_amount || row.discount || 0), active: parseBool(row.active ?? true) };
@@ -2213,7 +2240,53 @@ if (bannerConfig.imageUrl) {
                 window.scrollTo(0, 0);
             });
         }
+function updateStockUI(prod) {
+    let currentVariant = prod.variants && prod.variants.length > 0 ? prod.variants[selectedProductVariantIndex].name : "Default";
+    let stockKey = currentVariant;
+    if (selectedProductSize) stockKey += `_${selectedProductSize}`;
 
+    // Read granular stock, fallback to global integer stock
+    let availableStock = null;
+    if (prod.variant_stock && prod.variant_stock[stockKey] !== undefined && prod.variant_stock[stockKey] !== null) {
+        availableStock = prod.variant_stock[stockKey];
+    } else {
+        availableStock = prod.stock;
+    }
+
+    const btnCart = document.getElementById('btnAddToCart');
+    const btnBuy = document.getElementById('btnBuyNow');
+
+    if (btnCart && btnBuy) {
+        if (availableStock !== null && availableStock <= 0) {
+            btnCart.classList.add('btn-disabled');
+            btnBuy.classList.add('btn-disabled');
+            btnCart.querySelector('.btn-text').innerText = 'Out of Stock';
+            btnBuy.querySelector('.btn-text').innerText = 'Out of Stock';
+        } else {
+            btnCart.classList.remove('btn-disabled');
+            btnBuy.classList.remove('btn-disabled');
+            btnCart.querySelector('.btn-text').innerText = 'Add to Cart';
+            btnBuy.querySelector('.btn-text').innerText = 'Buy Now';
+        }
+    }
+
+    // Refresh size availability based on variant
+    if (prod.sizes && prod.sizes.length > 0) {
+        document.querySelectorAll('.size-option-btn').forEach(btn => {
+            const s = btn.innerText.trim();
+            const sKey = currentVariant === "Default" ? `Default_${s}` : `${currentVariant}_${s}`;
+            const sStock = (prod.variant_stock && prod.variant_stock[sKey] !== undefined && prod.variant_stock[sKey] !== null) 
+                            ? prod.variant_stock[sKey] 
+                            : prod.stock;
+
+            if (sStock !== null && sStock <= 0) {
+                btn.classList.add('out-of-stock');
+            } else {
+                btn.classList.remove('out-of-stock');
+            }
+        });
+    }
+}
 function switchPolicyTab(tabId) {
             document.querySelectorAll('.policy-nav-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.policy-content-section').forEach(el => el.classList.remove('active'));
@@ -2366,9 +2439,10 @@ function switchPolicyTab(tabId) {
                 html += `<div class="empty-state" style="grid-column: 1/-1;"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg><p>Your wishlist is empty.</p></div>`;
             } else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
-            requestAnimationFrame(() => { 
-                mainContent.innerHTML = html; 
-                window.scrollTo(0, 0); 
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+                updateStockUI(prod); // Checks stock immediately upon opening the page
             });
         }
 
@@ -2442,71 +2516,75 @@ function switchPolicyTab(tabId) {
         }
 
         function changeProductVariant(prodId, variantIndex) {
-            triggerHaptic('pop');
-            selectedProductVariantIndex = variantIndex;
-            
-            const prod = appData.products.find(p => String(p.id) === String(prodId));
-            if (!prod || !prod.variants) return;
-            
-            const variant = prod.variants[variantIndex];
-            const mediaArr = variant.media && variant.media.length > 0 ? variant.media : [""];
-            
-            totalSlides = mediaArr.length;
-            currentSlide = 0;
-            
-            let slidesHtml = '';
-            let indicatorsHtml = '';
-            
-            const buildSlide = (src) => {
-                const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
-                return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="Product Media">`;
-            };
+    triggerHaptic('pop');
+    selectedProductVariantIndex = variantIndex;
+    
+    const prod = appData.products.find(p => String(p.id) === String(prodId));
+    if (!prod || !prod.variants) return;
+    
+    const variant = prod.variants[variantIndex];
+    const mediaArr = variant.media && variant.media.length > 0 ? variant.media : [""];
+    
+    totalSlides = mediaArr.length;
+    currentSlide = 0;
+    
+    let slidesHtml = '';
+    let indicatorsHtml = '';
+    
+    const buildSlide = (src) => {
+        const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
+        return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="Product Media">`;
+    };
 
-            if(mediaArr.length === 1 && mediaArr[0] === "") {
-                slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
-            } else if (totalSlides === 1) {
-                slidesHtml = `<div class="carousel-slide">${buildSlide(mediaArr[0])}</div>`;
-            } else {
-                // Add clone at the start
-                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
-                mediaArr.forEach((src, i) => {
-                    slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
-                    indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
-                });
-                // Add clone at the end
-                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
-            }
-            
-            const track = document.getElementById('carouselTrack');
-            if (track) {
-                track.style.transition = 'none';
-                track.innerHTML = slidesHtml;
-                track.style.transform = totalSlides > 1 ? `translateX(-100%)` : `translateX(0%)`;
-                void track.offsetWidth; // Force a quick CSS refresh
-                track.style.transition = '';
-            }
-            
-            const indicatorsContainer = document.querySelector('.carousel-indicators');
-            if (indicatorsContainer) {
-                indicatorsContainer.innerHTML = indicatorsHtml;
-                indicatorsContainer.style.display = totalSlides > 1 ? 'flex' : 'none';
-            }
+    if(mediaArr.length === 1 && mediaArr[0] === "") {
+        slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
+    } else if (totalSlides === 1) {
+        slidesHtml = `<div class="carousel-slide">${buildSlide(mediaArr[0])}</div>`;
+    } else {
+        slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
+        mediaArr.forEach((src, i) => {
+            slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
+            indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
+        });
+        slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
+    }
+    
+    const track = document.getElementById('carouselTrack');
+    if (track) {
+        track.style.transition = 'none';
+        track.innerHTML = slidesHtml;
+        track.style.transform = totalSlides > 1 ? `translateX(-100%)` : `translateX(0%)`;
+        void track.offsetWidth; 
+        track.style.transition = '';
+    }
+    
+    const indicatorsContainer = document.querySelector('.carousel-indicators');
+    if (indicatorsContainer) {
+        indicatorsContainer.innerHTML = indicatorsHtml;
+        indicatorsContainer.style.display = totalSlides > 1 ? 'flex' : 'none';
+    }
 
-            document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
-                if (idx === variantIndex) btn.classList.add('selected');
-                else btn.classList.remove('selected');
-            });
-            
-            const colorNameEl = document.getElementById('selectedColorNameText');
-            if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
-        }
+    document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
+        if (idx === variantIndex) btn.classList.add('selected');
+        else btn.classList.remove('selected');
+    });
+    
+    const colorNameEl = document.getElementById('selectedColorNameText');
+    if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
 
-        function changeProductSize(size, btnElement) {
-            triggerHaptic('pop');
-            selectedProductSize = size;
-            document.querySelectorAll('.size-option-btn').forEach(btn => btn.classList.remove('selected'));
-            btnElement.classList.add('selected');
-        }
+    updateStockUI(prod);
+}
+
+function changeProductSize(size, btnElement) {
+    triggerHaptic('pop');
+    selectedProductSize = size;
+    document.querySelectorAll('.size-option-btn').forEach(btn => btn.classList.remove('selected'));
+    btnElement.classList.add('selected');
+
+    const currentProdId = new URLSearchParams(window.location.search).get('id') || history.state.id;
+    const currentProd = appData.products.find(p => String(p.id) === String(currentProdId));
+    if (currentProd) updateStockUI(currentProd);
+}
 
         function changeAlphabet(letter, btnElement) {
             triggerHaptic('pop');
@@ -2729,9 +2807,9 @@ function switchPolicyTab(tabId) {
                             <p class="product-detail-desc">${prod.desc}</p>
                         </div>
                         
-                        <div class="product-bottom-bar">
-                            <button class="btn-secondary" onclick="addToCart(this, '${prod.id}')"><span class="btn-text">Add to Cart</span></button>
-                            <button class="btn-primary" onclick="buyNow(this, '${prod.id}')"><span class="btn-text">Buy Now</span></button>
+<div class="product-bottom-bar">
+                            <button id="btnAddToCart" class="btn-secondary" onclick="addToCart(this, '${prod.id}')"><span class="btn-text">Add to Cart</span></button>
+                            <button id="btnBuyNow" class="btn-primary" onclick="buyNow(this, '${prod.id}')"><span class="btn-text">Buy Now</span></button>
                         </div>
                     </div>
                 </div>
@@ -3291,6 +3369,13 @@ function initiatePayment(btn, totalAmount) {
         async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
     
+    // Map items to include exact stock key for the database RPC
+    const itemsWithStockKeys = state.cart.map(item => {
+        let key = item.variant || "Default";
+        if (item.size) key += `_${item.size}`;
+        return { ...item, stockKey: key };
+    });
+
     const orderData = {
         id: Math.floor(100000 + Math.random() * 900000),
         total_amount: totalAmount,
@@ -3303,15 +3388,17 @@ function initiatePayment(btn, totalAmount) {
 
     if (error) {
         console.error("Order insertion failed:", error);
-        // This alert will instantly tell you exactly why Supabase rejected the order
         alert("Database Error: Failed to save order. " + error.message); 
         showToast("Error saving order.");
         return; 
     }
 
-    // ✅ NEW: Save the order to local storage so the user can see it in "Your Orders"
+    // Deduct stock via RPC
+    const { error: rpcError } = await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
+    if (rpcError) console.error("Inventory Sync Error:", rpcError);
+
     const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    localOrders.unshift(orderData); // Add newest order to the top
+    localOrders.unshift(orderData); 
     localStorage.setItem('shria_orders', JSON.stringify(localOrders));
 
     state.cart = [];
