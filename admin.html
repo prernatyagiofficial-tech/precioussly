@@ -1595,11 +1595,12 @@ window.viewOrderItems = async function(orderId) {
                 }
             }
 
-            // Extract Variants
+// Extract Variants dynamically
             let specs = [];
-            if (item.variant && item.variant !== "Default") specs.push(`Color: ${item.variant}`);
+            const variantLabel = item.variant_label || item.variantLabel || 'Variant';
+            if (item.variant && item.variant !== "Default") specs.push(`${variantLabel}: ${item.variant}`);
             if (item.size) specs.push(`Size: ${item.size}`);
-            if (item.alphabet) specs.push(`Letter: ${item.alphabet}`);
+            if (item.alphabet) specs.push(`Alphabet: ${item.alphabet}`);
             const variantDisplay = specs.length > 0 ? `<div style="font-size:11px; color:#555; margin-top:4px;">${specs.join(' | ')}</div>` : '';
 
             // Build Item Row (Mobile friendly flexbox)
