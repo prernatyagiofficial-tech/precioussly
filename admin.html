@@ -391,9 +391,9 @@
         <label>Minimum Amount for COD (₹)</label>
         <input type="number" id="setMinCod" placeholder="e.g. 500">
     </div>
-    <div class="form-group">
-        <label>COD Upfront/Advance Fee (₹)</label>
-        <input type="number" id="setCodFee" placeholder="e.g. 49">
+<div class="form-group">
+        <label>Partial Payment Percentage (%)</label>
+        <input type="number" id="setPartialPaymentPct" placeholder="e.g. 50">
     </div>
 </div>
                         
@@ -471,7 +471,16 @@
     
     <button type="button" class="outline" onclick="addVariantBox()">+ ADD NEW VARIANT</button>
 </div>
-
+<div class="form-group full-width" style="border: 1px solid #000; padding: 15px; background: #f9f9f9; margin-bottom: 15px;">
+                    <label class="checkbox-label" style="border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 10px;">
+                        <input type="checkbox" id="prodHasCustomQuestion" onchange="document.getElementById('customQuestionFields').style.display = this.checked ? 'block' : 'none'"> Enable Custom Product Question
+                    </label>
+                    <div id="customQuestionFields" style="display: none;">
+                        <div class="form-group"><label>Question Text</label><input type="text" id="prodQuestionText" placeholder="e.g., Do you want rose preservation?"></div>
+                        <div class="form-group"><label>Option A Text (Full Payment)</label><input type="text" id="prodOptionA" placeholder="e.g., Please use your flower"></div>
+                        <div class="form-group"><label>Option B Text (Offers Partial Payment)</label><input type="text" id="prodOptionB" placeholder="e.g., I will send my flower"></div>
+                    </div>
+                </div>
                 <div class="form-group">
 <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
 <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
@@ -813,6 +822,8 @@ db.channel('live-orders')
             document.getElementById('setMinCod').value = data.min_cod_amount || 0;
             document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
             document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
+            document.getElementById('setPartialPaymentPct').value = data.partial_payment_percentage || 50;
+            
             
             // Banner Config
             const banner = data.banner_config || {};
@@ -834,6 +845,7 @@ db.channel('live-orders')
             logo_offset_x: Number(document.getElementById('setLogoOffsetX').value) || 0,
             logo_offset_y: Number(document.getElementById('setLogoOffsetY').value) || 0,
             header_padding_y: Number(document.getElementById('setHeaderPaddingY').value) || 0,
+            partial_payment_percentage: Number(document.getElementById('setPartialPaymentPct').value) || 50,
             
             // Contact & Support
             whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
@@ -1285,6 +1297,11 @@ window.editProduct = function(id) {
         document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
+        document.getElementById('prodHasCustomQuestion').checked = !!p.has_custom_question;
+        document.getElementById('customQuestionFields').style.display = p.has_custom_question ? 'block' : 'none';
+        document.getElementById('prodQuestionText').value = p.custom_question_text || '';
+        document.getElementById('prodOptionA').value = p.option_a_text || '';
+        document.getElementById('prodOptionB').value = p.option_b_text || '';
         openModal('productModal');
     }
 };
@@ -1320,10 +1337,15 @@ window.editProduct = function(id) {
             sizes: sizesArr,
             variants: variantsObj,
             is_best_seller: document.getElementById('prodBestSeller').checked,
-            
             is_alphabet: document.getElementById('prodAlphabet').checked,
-            is_hidden: document.getElementById('prodHidden').checked, // Don't forget this comma!
-            variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
+            is_hidden: document.getElementById('prodHidden').checked, 
+            variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color',
+            
+            // NEW: The custom question fields are now sent to Supabase
+            has_custom_question: document.getElementById('prodHasCustomQuestion').checked,
+            custom_question_text: document.getElementById('prodQuestionText').value.trim(),
+            option_a_text: document.getElementById('prodOptionA').value.trim(),
+            option_b_text: document.getElementById('prodOptionB').value.trim()
         };
 
         if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
@@ -1601,6 +1623,11 @@ window.viewOrderItems = async function(orderId) {
             if (item.variant && item.variant !== "Default") specs.push(`${variantLabel}: ${item.variant}`);
             if (item.size) specs.push(`Size: ${item.size}`);
             if (item.alphabet) specs.push(`Alphabet: ${item.alphabet}`);
+            if (item.customOption) {
+                const optText = item.customOption === 'A' ? item.optAText : item.optBText;
+                specs.push(`Choice: ${optText}`);
+                if (item.paymentChoice === 'partial') specs.push(`Pay: Partial`);
+            }
             const variantDisplay = specs.length > 0 ? `<div style="font-size:11px; color:#555; margin-top:4px;">${specs.join(' | ')}</div>` : '';
 
             // Build Item Row (Mobile friendly flexbox)
