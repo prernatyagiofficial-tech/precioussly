@@ -1994,21 +1994,25 @@ if (appData.settings.instagramUrl) {
         }
 
         function toggleWishlist(event, prodId) {
-            if (event) event.stopPropagation();
-            triggerHaptic('pop');
-            
-            const index = state.wishlist.indexOf(prodId);
-            const isRemoving = index > -1;
+    if (event) event.stopPropagation();
+    triggerHaptic('pop');
 
-            if (isRemoving) {
-                state.wishlist.splice(index, 1);
-                showToast("Removed from Wishlist");
-            } else {
-                state.wishlist.push(prodId);
-                showToast("Added to Wishlist");
-            }
-            
-            persistUserData(); // Save to local storage
+    // FIX: Find index accounting for both string and number types
+    let index = state.wishlist.indexOf(String(prodId));
+    if (index === -1) index = state.wishlist.indexOf(Number(prodId));
+    
+    const isRemoving = index > -1;
+
+    if (isRemoving) {
+        state.wishlist.splice(index, 1);
+        showToast("Removed from Wishlist");
+    } else {
+        // FIX: Standardize by always saving to wishlist as a string
+        state.wishlist.push(String(prodId));
+        showToast("Added to Wishlist");
+    }
+
+    persistUserData(); // Save to local storage
             
             if (event && event.currentTarget) {
                 const btn = event.currentTarget;
@@ -2036,10 +2040,11 @@ if (appData.settings.instagramUrl) {
         }
 
         function getHeartSvg(prodId) {
-            const inWishlist = state.wishlist.includes(prodId);
-            const className = inWishlist ? 'filled-heart' : 'outline-heart';
-            return `<svg class="${className}" viewBox="0 0 24 24" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
-        }
+    // FIX: Check for both the string and number versions of the ID
+    const inWishlist = state.wishlist.includes(String(prodId)) || state.wishlist.includes(Number(prodId));
+    const className = inWishlist ? 'filled-heart' : 'outline-heart';
+    return `<svg class="${className}" viewBox="0 0 24 24" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+}
 
         function getProductCardHTML(prod) {
             let displayMediaStr = "";
