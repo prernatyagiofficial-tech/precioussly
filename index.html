@@ -1089,6 +1089,69 @@
     cursor: not-allowed !important;
     pointer-events: none;
 }
+/* --- Filter & Sort Overlay UI --- */
+.filter-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 2000;
+    opacity: 0; visibility: hidden; transition: opacity 0.3s ease;
+    backdrop-filter: blur(3px); touch-action: none;
+}
+.filter-modal-overlay.active { opacity: 1; visibility: visible; }
+
+.filter-modal {
+    position: absolute; bottom: -100%; left: 0; width: 100%;
+    height: 85vh; background: #fff; border-radius: 20px 20px 0 0;
+    transition: bottom 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.filter-modal-overlay.active .filter-modal { bottom: 0; }
+
+.filter-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--border-color); }
+.filter-title-area h3 { margin: 0; font-size: 18px; color: var(--text-dark); font-weight: 600; }
+.filter-title-area span { font-size: 13px; color: var(--text-gray); }
+
+.filter-content { flex: 1; overflow-y: auto; background: var(--secondary-bg); }
+.filter-view { display: none; background: #fff; height: 100%; }
+.filter-view.active { display: block; animation: fadeIn 0.3s ease; }
+
+.filter-menu-item {
+    padding: 20px; border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; font-size: 15px; font-weight: 500; color: var(--text-dark);
+}
+.filter-menu-item span.filter-val { font-size: 14px; color: var(--text-gray); font-weight: 400; }
+
+.filter-back-row {
+    display: flex; align-items: center; gap: 10px; padding: 20px;
+    border-bottom: 1px solid var(--border-color); font-weight: 600;
+    cursor: pointer; background: var(--secondary-bg); font-size: 15px;
+}
+
+.filter-option-row {
+    display: flex; justify-content: space-between; padding: 18px 20px;
+    border-bottom: 1px solid var(--border-color); align-items: center;
+    font-size: 15px; cursor: pointer;
+}
+.filter-option-row input[type="checkbox"], .filter-option-row input[type="radio"] {
+    width: 20px; height: 20px; accent-color: #5b0e14; cursor: pointer;
+}
+
+.price-inputs { display: flex; gap: 15px; padding: 20px; align-items: center; }
+.price-input-wrapper { flex: 1; position: relative; }
+.price-input-wrapper span { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-gray); }
+.price-input-wrapper input { 
+    width: 100%; padding: 12px 15px 12px 30px; border: 1px solid var(--border-color); 
+    border-radius: var(--radius-md); font-family: inherit; font-size: 15px; outline: none;
+}
+.price-input-wrapper input:focus { border-color: #5b0e14; }
+
+.filter-footer {
+    padding: 15px 20px; border-top: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center; background: #fff;
+}
+.btn-filter-clear { background: none; border: none; color: var(--text-gray); text-decoration: underline; font-weight: 500; cursor: pointer; font-size: 14px; }
+.btn-filter-apply { background: #5b0e14; color: #fff; border: none; padding: 14px 40px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 15px; transition: transform 0.2s; }
+.btn-filter-apply:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -1280,6 +1343,92 @@
         </div>
     </div>
 </div>
+<div class="filter-modal-overlay" id="filterModal">
+    <div class="filter-modal">
+        <div class="filter-header">
+            <div class="filter-title-area">
+                <h3>Filter and sort</h3>
+                <span id="filterTotalCount">0 products</span>
+            </div>
+            <button class="close-btn" onclick="closeFilterModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+
+        <div class="filter-content">
+            <div class="filter-view active" id="filter-view-main">
+                <div class="filter-menu-item" onclick="switchFilterView('availability')">
+                    Availability
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="filter-menu-item" onclick="switchFilterView('price')">
+                    Price
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+                <div class="filter-menu-item" onclick="switchFilterView('sort')">
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <span>Sort by</span>
+                        <span class="filter-val" id="currentSortLabel">Featured</span>
+                    </div>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+            </div>
+
+            <div class="filter-view" id="filter-view-availability">
+                <div class="filter-back-row" onclick="saveTempFilters()">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Availability
+                </div>
+                <label class="filter-option-row">
+                    <span id="lblInStock">In stock (0)</span>
+                    <input type="checkbox" id="chkInStock">
+                </label>
+                <label class="filter-option-row">
+                    <span id="lblOutOfStock">Out of stock (0)</span>
+                    <input type="checkbox" id="chkOutOfStock">
+                </label>
+            </div>
+
+            <div class="filter-view" id="filter-view-price">
+                <div class="filter-back-row" onclick="saveTempFilters()">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Price
+                </div>
+                <div style="padding: 20px 20px 0; color: var(--text-gray); font-size: 14px;" id="lblMaxPrice">The highest price is ₹0</div>
+                <div class="price-inputs">
+                    <div class="price-input-wrapper">
+                        <span>₹</span>
+                        <input type="number" id="inpMinPrice" placeholder="From">
+                    </div>
+                    <div class="price-input-wrapper">
+                        <span>₹</span>
+                        <input type="number" id="inpMaxPrice" placeholder="To">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-view" id="filter-view-sort">
+                <div class="filter-back-row" onclick="saveTempFilters()">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Sort by
+                </div>
+                <label class="filter-option-row">Featured <input type="radio" name="sortFilter" value="featured"></label>
+                <label class="filter-option-row">Best selling <input type="radio" name="sortFilter" value="best-selling"></label>
+                <label class="filter-option-row">Alphabetically, A-Z <input type="radio" name="sortFilter" value="a-z"></label>
+                <label class="filter-option-row">Alphabetically, Z-A <input type="radio" name="sortFilter" value="z-a"></label>
+                <label class="filter-option-row">Price, low to high <input type="radio" name="sortFilter" value="low-high"></label>
+                <label class="filter-option-row">Price, high to low <input type="radio" name="sortFilter" value="high-low"></label>
+                <label class="filter-option-row">Date, old to new <input type="radio" name="sortFilter" value="old-new"></label>
+                <label class="filter-option-row">Date, new to old <input type="radio" name="sortFilter" value="new-old"></label>
+            </div>
+        </div>
+
+        <div class="filter-footer">
+            <button class="btn-filter-clear" onclick="resetFilters(true)">Remove all</button>
+            <button class="btn-filter-apply" onclick="triggerFilterApply()">Apply</button>
+        </div>
+    </div>
+</div>
 <script>
         // --- INITIALIZE SUPABASE ---
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co'; 
@@ -1371,6 +1520,12 @@ if (session && window.location.href.includes('code=')) {
             menuLinks: [],
             reviews: []
         };
+        
+        // --- FILTER STATE ---
+let currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+let baseCategoryProducts = [];
+let currentCategoryName = '';
+let currentSubCategories = [];
 
         // --- UTILITY FUNCTIONS ---
         function safeParseJSON(val, defaultVal) {
@@ -1943,9 +2098,15 @@ if (appData.settings.instagramUrl) {
                 searchInput.value = query;
             }
             const q = query.toLowerCase();
-            const results = appData.products.filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
-            renderProductList("Search Results", results);
-        }
+    const results = appData.products.filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
+    
+    // NEW FILTER LOGIC INTEGRATION
+    baseCategoryProducts = results;
+    currentCategoryName = "Search Results";
+    currentSubCategories = [];
+    resetFilters(false);
+    applyFiltersAndSort();
+}
 
         function toggleMenu() {
             sideMenu.classList.toggle('active');
@@ -2219,11 +2380,16 @@ if (bannerConfig.imageUrl) {
                 catName = cat?.name || 'Products';
                 subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
                 const allValidCatIds = [String(catId), ...subCategories.map(c => String(c.id))];
-                filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
-            }
-            
-            renderProductList(catName, filteredProds, subCategories);
-        }
+        filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
+    }
+    
+    // NEW FILTER LOGIC INTEGRATION
+    baseCategoryProducts = filteredProds;
+    currentCategoryName = catName;
+    currentSubCategories = subCategories;
+    resetFilters(false);
+    applyFiltersAndSort();
+}
 
         function renderProductList(title, products, subCats = []) {
             let html = ``;
@@ -2242,11 +2408,24 @@ if (bannerConfig.imageUrl) {
                 });
                 
                 html += `</div><div class="section-title-wrapper" style="padding-top: 30px; border-top: 1px dashed var(--border-color);"><h3>All ${title} Products</h3></div>`;
-            } else {
-                html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
-            }
+} else {
+        html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
+    }
 
-            html += `<div class="grid-container">`;
+    // NEW: Inject Filter Button and Dynamic Count
+    if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+        html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 15px;">
+            <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filter and sort
+            </button>
+            <span id="productCountDisplay" style="font-size: 14px; color: #5b0e14; font-weight: 500;">${products.length} products</span>
+        </div>
+        `;
+    }
+
+    html += `<div class="grid-container">`;
             if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
@@ -3745,6 +3924,116 @@ function attachLightboxGestures() {
         if(lbScale === 1) { lbPanX = 0; lbPanY = 0; }
         media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
     }, { passive: false });
+}
+// --- FILTER & SORT ENGINE ---
+function openFilterModal() {
+    document.getElementById('filterModal').classList.add('active');
+    document.body.classList.add('no-scroll');
+    updateFilterUI();
+    switchFilterView('main');
+}
+
+function closeFilterModal() {
+    document.getElementById('filterModal').classList.remove('active');
+    document.body.classList.remove('no-scroll');
+}
+
+function switchFilterView(viewId) {
+    document.querySelectorAll('.filter-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('filter-view-' + viewId).classList.add('active');
+}
+
+function updateFilterUI() {
+    const inStockCount = baseCategoryProducts.filter(p => p.stock === null || p.stock > 0).length;
+    const outOfStockCount = baseCategoryProducts.filter(p => p.stock !== null && p.stock <= 0).length;
+    document.getElementById('lblInStock').innerText = `In stock (${inStockCount})`;
+    document.getElementById('lblOutOfStock').innerText = `Out of stock (${outOfStockCount})`;
+
+    const maxP = baseCategoryProducts.length > 0 ? Math.max(...baseCategoryProducts.map(p => p.price)) : 0;
+    document.getElementById('lblMaxPrice').innerText = `The highest price is ${formatPrice(maxP)}`;
+
+    document.getElementById('chkInStock').checked = currentFilters.inStock;
+    document.getElementById('chkOutOfStock').checked = currentFilters.outOfStock;
+    document.getElementById('inpMinPrice').value = currentFilters.minPrice || '';
+    document.getElementById('inpMaxPrice').value = currentFilters.maxPrice || '';
+
+    document.querySelectorAll('input[name="sortFilter"]').forEach(rad => {
+        rad.checked = (rad.value === currentFilters.sortBy);
+    });
+
+    const sortLabels = {
+        'featured': 'Featured', 'best-selling': 'Best selling', 'a-z': 'Alphabetically, A-Z',
+        'z-a': 'Alphabetically, Z-A', 'low-high': 'Price, low to high', 'high-low': 'Price, high to low',
+        'old-new': 'Date, old to new', 'new-old': 'Date, new to old'
+    };
+    document.getElementById('currentSortLabel').innerText = sortLabels[currentFilters.sortBy] || 'Featured';
+}
+
+function saveTempFilters() {
+    currentFilters.inStock = document.getElementById('chkInStock').checked;
+    currentFilters.outOfStock = document.getElementById('chkOutOfStock').checked;
+    currentFilters.minPrice = document.getElementById('inpMinPrice').value ? Number(document.getElementById('inpMinPrice').value) : null;
+    currentFilters.maxPrice = document.getElementById('inpMaxPrice').value ? Number(document.getElementById('inpMaxPrice').value) : null;
+    const checkedSort = document.querySelector('input[name="sortFilter"]:checked');
+    if(checkedSort) currentFilters.sortBy = checkedSort.value;
+
+    updateFilterUI();
+    switchFilterView('main');
+}
+
+function resetFilters(reapply = true) {
+    currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+    updateFilterUI();
+    if(reapply) {
+        closeFilterModal();
+        applyFiltersAndSort();
+    }
+}
+
+function triggerFilterApply() {
+    saveTempFilters();
+    closeFilterModal();
+    applyFiltersAndSort();
+}
+
+function applyFiltersAndSort() {
+    let filtered = [...baseCategoryProducts];
+
+    if (currentFilters.inStock || currentFilters.outOfStock) {
+        filtered = filtered.filter(p => {
+            const isOutOfStock = (p.stock !== null && p.stock <= 0);
+            if (currentFilters.inStock && currentFilters.outOfStock) return true;
+            if (currentFilters.inStock) return !isOutOfStock;
+            if (currentFilters.outOfStock) return isOutOfStock;
+            return true;
+        });
+    }
+
+    if (currentFilters.minPrice !== null) {
+        filtered = filtered.filter(p => p.price >= currentFilters.minPrice);
+    }
+    if (currentFilters.maxPrice !== null) {
+        filtered = filtered.filter(p => p.price <= currentFilters.maxPrice);
+    }
+
+    filtered.sort((a, b) => {
+        switch(currentFilters.sortBy) {
+            case 'best-selling': return (b.isBestSeller === a.isBestSeller) ? 0 : b.isBestSeller ? 1 : -1;
+            case 'a-z': return a.name.localeCompare(b.name);
+            case 'z-a': return b.name.localeCompare(a.name);
+            case 'low-high': return a.price - b.price;
+            case 'high-low': return b.price - a.price;
+            case 'old-new': return a.id - b.id; 
+            case 'new-old': return b.id - a.id;
+            case 'featured':
+            default: return 0; 
+        }
+    });
+
+    renderProductList(currentCategoryName, filtered, currentSubCategories);
+    
+    // Update the counter inside the modal for next time it opens
+    document.getElementById('filterTotalCount').innerText = `${filtered.length} products`;
 }
         // --- KICKOFF APP ---
         initApp();
