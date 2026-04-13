@@ -149,6 +149,13 @@
             .grid-form { grid-template-columns: 1fr; }
             .settings-grid { grid-template-columns: 1fr; }
         }
+        /* Minimalist Stock Grid */
+.stock-grid { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1px solid #000; box-shadow: 2px 2px 0px #000; }
+.stock-grid th, .stock-grid td { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 10px; text-align: left; }
+.stock-grid th:last-child, .stock-grid td:last-child { border-right: none; }
+.stock-grid th { background: #f0f0f0; font-weight: 700; text-transform: uppercase; font-size: 11px; }
+.stock-grid input { margin: 0; padding: 6px; border: 2px solid transparent; width: 100%; background: #f9f9f9; transition: border 0.2s; }
+.stock-grid input:focus { border: 2px solid #000; background: #fff; }
     </style>
 </head>
 <body>
@@ -440,50 +447,52 @@
     <input type="file" id="fileReviewImg" style="display:none;" onchange="handleDirectUpload(event, 'reviewImgUrl')">
     <input type="file" id="fileVariantMedia" style="display:none;" onchange="handleVariantMediaUpload(event)">
 
-    <div id="productModal" class="modal-overlay">
-        <div class="modal-box">
-            <h3><span id="prodModalTitle">Add Product</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('productModal')">X</button></h3>
-            <div class="grid-form">
-                <div class="form-group"><label>Product Name</label><input type="text" id="prodName" required></div>
-                <div class="form-group"><label>Price (₹)</label><input type="number" id="prodPrice" required></div>
-                <div class="form-group"><label>Stock (Optional)</label><input type="number" id="prodStock" placeholder="Leave empty for unlimited"></div>
-                <div class="form-group"><label>Category</label><select id="prodCat"></select></div>
-                <div class="form-group full-width"><label>Description</label><textarea id="prodDesc" rows="3"></textarea></div>
-                
-                <div class="form-group full-width">
-                    <label>Media URLs (Comma separated)</label>
-                    <div class="flex-row">
-                        <textarea id="prodMedia" rows="2" placeholder="https://img1.jpg, https://img2.mp4"></textarea>
-                        <button type="button" class="outline" onclick="document.getElementById('fileProdMedia').click()">UPLOAD</button>
-                    </div>
+<div id="productModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3><span id="prodModalTitle">Add Product</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('productModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group"><label>Product Name</label><input type="text" id="prodName" required></div>
+            <div class="form-group"><label>Price (₹)</label><input type="number" id="prodPrice" required></div>
+            <div class="form-group"><label>Global Stock (Fallback)</label><input type="number" id="prodStock" placeholder="Leave empty for unlimited"></div>
+            <div class="form-group"><label>Category</label><select id="prodCat"></select></div>
+            <div class="form-group full-width"><label>Description</label><textarea id="prodDesc" rows="3"></textarea></div>
+            
+            <div class="form-group full-width">
+                <label>Media URLs (Comma separated)</label>
+                <div class="flex-row">
+                    <textarea id="prodMedia" rows="2" placeholder="https://img1.jpg, https://img2.mp4"></textarea>
+                    <button type="button" class="outline" onclick="document.getElementById('fileProdMedia').click()">UPLOAD</button>
                 </div>
+            </div>
 
-                <div class="form-group full-width"><label>Sizes (Comma separated)</label><input type="text" id="prodSizes" placeholder="S, M, L, XL"></div>
-                
+            <div class="form-group full-width"><label>Sizes (Comma separated)</label><input type="text" id="prodSizes" placeholder="S, M, L, XL"></div>
+            
+            <div class="form-group full-width"><label>Variant Label (e.g., Color, Style, Material)</label><input type="text" id="prodVariantLabel" placeholder="Color"></div>
+            
+            <div class="form-group full-width">
+                <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Product Variants</label>
+                <div id="variantsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;"></div>
+                <button type="button" class="outline" onclick="addVariantBox()">+ ADD NEW VARIANT</button>
+            </div>
 
-<div class="form-group full-width"><label>Variant Label (e.g., Color, Style, Material)</label><input type="text" id="prodVariantLabel" placeholder="Color"></div>
-                
-<div class="form-group full-width">
-    <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Product Variants</label>
-                
-    
-    <div id="variantsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;"></div>
-    
-    <button type="button" class="outline" onclick="addVariantBox()">+ ADD NEW VARIANT</button>
-</div>
+            <div class="form-group full-width">
+                <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Inventory Management</label>
+                <button type="button" class="outline" onclick="generateStockGrid()" style="margin-bottom: 15px;">⟳ REFRESH VARIANT/SIZE GRID</button>
+                <div id="stockGridContainer"></div>
+            </div>
 
-                <div class="form-group">
-<label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
-<label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
-                    <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
-                </div>
-                
-                <div class="form-group full-width">
-                    <button type="button" id="saveProdBtn" onclick="saveProduct()">SAVE PRODUCT</button>
-                </div>
+            <div class="form-group">
+                <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
+                <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
+                <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
+            </div>
+            
+            <div class="form-group full-width">
+                <button type="button" id="saveProdBtn" onclick="saveProduct()">SAVE PRODUCT</button>
             </div>
         </div>
     </div>
+</div>
 
     <div id="categoryModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 400px;">
@@ -565,7 +574,47 @@ let productSearchTimeout;
             return str.replace(/[&<>'"]/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match]));
         };
         let variantCounter = 0;
+window._tempVariantStock = {}; // Holds data temporarily during edits
 
+window.generateStockGrid = function() {
+    const sizes = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const variants = [];
+    document.querySelectorAll('.var-name').forEach(input => {
+        if (input.value.trim()) variants.push(input.value.trim());
+    });
+
+    const container = document.getElementById('stockGridContainer');
+    
+    if (variants.length === 0 && sizes.length === 0) {
+        container.innerHTML = '<div style="margin-top: 10px; font-size: 12px; color: #666; font-weight: 600;">No variants or sizes detected. System will use the Global Stock field above.</div>';
+        return;
+    }
+
+    let html = '<table class="stock-grid"><thead><tr>';
+    if (variants.length > 0) html += '<th>Variant</th>';
+    if (sizes.length > 0) html += '<th>Size</th>';
+    html += '<th>Qty</th></tr></thead><tbody>';
+
+    const rows = [];
+    if (variants.length > 0 && sizes.length > 0) {
+        variants.forEach(v => sizes.forEach(s => rows.push({ v, s, key: `${v}_${s}` })));
+    } else if (variants.length > 0) {
+        variants.forEach(v => rows.push({ v, s: null, key: v }));
+    } else if (sizes.length > 0) {
+        sizes.forEach(s => rows.push({ v: null, s, key: `Default_${s}` }));
+    }
+
+    rows.forEach(row => {
+        const val = window._tempVariantStock[row.key] !== undefined && window._tempVariantStock[row.key] !== null ? window._tempVariantStock[row.key] : '';
+        html += `<tr>`;
+        if (row.v) html += `<td>${escapeHTML(row.v)}</td>`;
+        if (row.s) html += `<td>${escapeHTML(row.s)}</td>`;
+        html += `<td><input type="number" class="stock-input" data-key="${escapeHTML(row.key)}" placeholder="0" value="${val}"></td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+};
         function addVariantBox(name = '', mediaStr = '') {
             const container = document.getElementById('variantsContainer');
             const varId = 'var_' + variantCounter++;
@@ -1285,6 +1334,8 @@ window.editProduct = function(id) {
         document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
+        window._tempVariantStock = p.variant_stock || {};
+setTimeout(() => generateStockGrid(), 50); // Ensure DOM is ready before generating
         openModal('productModal');
     }
 };
@@ -1310,6 +1361,14 @@ window.editProduct = function(id) {
                 variantsObj.push({ name: vName, media: vMediaArr });
             }
         });
+
+        // --- NEW: Compile the Variant/Size Stock Data ---
+        let compiledVariantStock = {};
+        document.querySelectorAll('.stock-input').forEach(input => {
+            compiledVariantStock[input.dataset.key] = input.value.trim() === '' ? null : Number(input.value);
+        });
+        // ------------------------------------------------
+
         const payload = {
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
@@ -1319,10 +1378,10 @@ window.editProduct = function(id) {
             media: mediaArr,
             sizes: sizesArr,
             variants: variantsObj,
+            variant_stock: compiledVariantStock, // <-- Added new stock object here
             is_best_seller: document.getElementById('prodBestSeller').checked,
-            
             is_alphabet: document.getElementById('prodAlphabet').checked,
-            is_hidden: document.getElementById('prodHidden').checked, // Don't forget this comma!
+            is_hidden: document.getElementById('prodHidden').checked, 
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
         };
 
