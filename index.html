@@ -1089,6 +1089,73 @@
     cursor: not-allowed !important;
     pointer-events: none;
 }
+/* --- Shoppable Media Carousel --- */
+.shoppable-scroll-wrapper {
+    display: flex; overflow-x: auto; gap: 12px; padding: 10px 20px 20px; scrollbar-width: none; scroll-behavior: smooth;
+}
+.shoppable-scroll-wrapper::-webkit-scrollbar { display: none; }
+.shoppable-card {
+    min-width: 140px; width: 140px; height: 220px; border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; position: relative; cursor: pointer; transition: transform var(--transition); border: 1px solid var(--border-color);
+}
+.shoppable-card:hover { transform: translateY(-3px); }
+.shoppable-card video, .shoppable-card img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+/* --- Shoppable Fullscreen Modal --- */
+.shop-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10, 10, 10, 0.92); z-index: 9999; display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.shop-modal-overlay.active { opacity: 1; visibility: visible; }
+
+.shop-modal-content {
+    position: relative; width: 100%; max-width: 450px; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.shop-modal-media {
+    width: 100%; height: 100%; object-fit: cover; /* Mobile edge-to-edge */
+}
+@media (min-width: 768px) {
+    .shop-modal-content { height: 85vh; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.1); }
+    .shop-modal-media { border-radius: var(--radius-md); }
+}
+
+/* Modal UI Controls */
+.shop-close-btn {
+    position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.4); color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;
+    transition: all 0.2s ease;
+}
+.shop-close-btn:active { transform: scale(0.9); }
+
+.shop-side-controls {
+    position: absolute; bottom: 100px; right: 20px; display: flex; flex-direction: column; gap: 15px; z-index: 10;
+}
+.shop-icon-btn {
+    width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.4);
+    color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;
+}
+.shop-icon-btn:active { transform: scale(0.9); }
+.shop-icon-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+/* Bottom Nav & Buy Bar */
+.shop-bottom-bar {
+    position: absolute; bottom: 30px; left: 0; width: 100%; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; z-index: 10; gap: 15px;
+}
+.shop-nav-btn {
+    width: 44px; height: 44px; border-radius: var(--radius-md); background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.4);
+    color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.shop-nav-btn:active { background: rgba(255,255,255,0.2); }
+
+.shop-buy-btn {
+    flex: 1; height: 44px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.8);
+    border-radius: var(--radius-md); color: #fff; font-family: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; transition: background 0.2s;
+}
+.shop-buy-btn:active { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -1213,7 +1280,28 @@
         <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
     </a>
 </div>
+<div class="shop-modal-overlay" id="shoppableOverlay">
+    <div class="shop-modal-content">
+        <button class="shop-close-btn" onclick="closeShoppableModal()"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        
+        <div id="shopModalMediaContainer" style="width:100%; height:100%;"></div>
 
+        <div class="shop-side-controls">
+            <a href="#" id="shopInstaBtn" target="_blank" class="shop-icon-btn" style="display:none;">
+                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+            <button class="shop-icon-btn" id="shopVolBtn" onclick="toggleShopVolume()">
+                <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+        </div>
+
+        <div class="shop-bottom-bar">
+            <button class="shop-nav-btn" onclick="navShoppable(-1)"><svg viewBox="0 0 24 24" width="20" stroke="currentColor" stroke-width="2" fill="none"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+            <button id="shopBuyBtn" class="shop-buy-btn" style="display:none;" onclick="goToShopProduct()">Buy Now</button>
+            <button class="shop-nav-btn" onclick="navShoppable(1)"><svg viewBox="0 0 24 24" width="20" stroke="currentColor" stroke-width="2" fill="none"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+        </div>
+    </div>
+</div>
 <div class="toast" id="toastMsg">Action successful</div>
 
 <div class="modal-overlay" id="confirmModal">
@@ -1369,7 +1457,8 @@ if (session && window.location.href.includes('code=')) {
             products: [],
             coupons: [],
             menuLinks: [],
-            reviews: []
+            reviews: [],
+            shoppable: []
         };
 
         // --- UTILITY FUNCTIONS ---
@@ -1438,6 +1527,9 @@ if (session && window.location.href.includes('code=')) {
         shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
         freeShippingThreshold: row.free_shipping_threshold !== undefined ? Number(row.free_shipping_threshold) : 499,
         
+        // Shoppable Media Auto-Scroll Timer
+        shoppableTimer: row.shoppable_timer !== undefined ? Number(row.shoppable_timer) : 5,
+
         bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' })
     };
 }
@@ -1499,7 +1591,101 @@ if (session && window.location.href.includes('code=')) {
             }
             return cachedData ? JSON.parse(cachedData) : null;
         }
+let shopCurrentIdx = 0;
+let shopAutoScrollInterval;
 
+function initShoppableAutoScroll() {
+    clearInterval(shopAutoScrollInterval);
+    const container = document.getElementById('shoppableScrollContainer');
+    if (!container || !appData.shoppable || appData.shoppable.length === 0) return;
+    
+    const scrollAmount = 152; // Card width + gap
+    const intervalMs = (appData.settings.shoppableTimer || 5) * 1000;
+    
+    shopAutoScrollInterval = setInterval(() => {
+        if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 10) {
+            container.scrollTo({ left: 0, behavior: 'smooth' }); // Reset to start
+        } else {
+            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+    }, intervalMs);
+}
+
+// Ensure autoscroll starts when returning to home
+const originalRenderHome = renderHome;
+renderHome = function() {
+    originalRenderHome();
+    setTimeout(initShoppableAutoScroll, 100);
+};
+
+window.openShoppableModal = function(index) {
+    shopCurrentIdx = index;
+    const overlay = document.getElementById('shoppableOverlay');
+    overlay.classList.add('active');
+    document.body.classList.add('no-scroll');
+    history.pushState({ modal: 'shoppable' }, ""); // Hook for back button
+    renderShoppableSlide();
+};
+
+window.closeShoppableModal = function() {
+    const overlay = document.getElementById('shoppableOverlay');
+    overlay.classList.remove('active');
+    document.body.classList.remove('no-scroll');
+    document.getElementById('shopModalMediaContainer').innerHTML = ''; // Kill media
+    if (history.state && history.state.modal === 'shoppable') history.back();
+};
+
+window.navShoppable = function(direction) {
+    shopCurrentIdx += direction;
+    if (shopCurrentIdx < 0) shopCurrentIdx = appData.shoppable.length - 1;
+    if (shopCurrentIdx >= appData.shoppable.length) shopCurrentIdx = 0;
+    renderShoppableSlide();
+};
+
+function renderShoppableSlide() {
+    const item = appData.shoppable[shopCurrentIdx];
+    const container = document.getElementById('shopModalMediaContainer');
+    
+    const isVideo = item.media.toLowerCase().endsWith('.mp4');
+    container.innerHTML = isVideo ? `<video src="${item.media}" class="shop-modal-media" autoplay loop playsinline></video>` : `<img src="${item.media}" class="shop-modal-media">`;
+    
+    const volBtn = document.getElementById('shopVolBtn');
+    volBtn.style.display = isVideo ? 'flex' : 'none';
+    if(isVideo) setShopVolumeIcon(false); // Default to muted state visually
+
+    const instaBtn = document.getElementById('shopInstaBtn');
+    if(item.insta) { instaBtn.href = item.insta; instaBtn.style.display = 'flex'; }
+    else { instaBtn.style.display = 'none'; }
+    
+    const buyBtn = document.getElementById('shopBuyBtn');
+    if(item.productId) { buyBtn.style.display = 'flex'; buyBtn.dataset.pid = item.productId; }
+    else { buyBtn.style.display = 'none'; }
+}
+
+window.toggleShopVolume = function() {
+    const video = document.querySelector('.shop-modal-media');
+    if(video && video.tagName === 'VIDEO') {
+        video.muted = !video.muted;
+        setShopVolumeIcon(!video.muted);
+    }
+};
+
+function setShopVolumeIcon(isUnmuted) {
+    const btn = document.getElementById('shopVolBtn');
+    if (isUnmuted) {
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+    } else {
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+    }
+}
+
+window.goToShopProduct = function() {
+    const pid = document.getElementById('shopBuyBtn').dataset.pid;
+    if(pid) {
+        closeShoppableModal();
+        renderProduct(pid);
+    }
+};
         async function getSettings(force = false) {
             return fetchWithCache('settings', async () => {
                 const { data } = await db.from('settings').select('*').limit(1);
@@ -1544,7 +1730,12 @@ if (session && window.location.href.includes('code=')) {
                 return data || [];
             }, mapCoupon, 600000, force).then(c => c.filter(x => x.active).sort((a, b) => b.minThreshold - a.minThreshold));
         }
-
+async function getShoppable(force = false) {
+    return fetchWithCache('shoppable', async () => {
+        const { data } = await db.from('shoppable_media').select('*').eq('is_active', true).order('sort_order', { ascending: true });
+        return data || [];
+    }, row => ({ id: row.id, media: row.media_url, insta: row.instagram_url, productId: row.product_id }), 300000, force);
+}
         async function getReviews(force = false) {
             return fetchWithCache('reviews', async () => {
                 const { data } = await db.from('reviews').select('*');
@@ -1668,47 +1859,56 @@ if (session && window.location.href.includes('code=')) {
         }
 
         window.addEventListener('popstate', (e) => {
-            isPopState = true;
+    isPopState = true;
 
-            // Sign Out modal ko back button se close karne ke liye
-            if (signOutModal.classList.contains('active')) {
-                signOutModal.classList.remove('active');
-                document.body.classList.remove('no-scroll');
-                return; 
-            }
-            // Add this Lightbox check here:
-            const lbOverlay = document.getElementById('lightboxOverlay');
-            if (lbOverlay && lbOverlay.classList.contains('active')) {
-                lbOverlay.classList.remove('active');
-                document.body.classList.remove('no-scroll');
-                return; 
-            }
+    // Sign Out modal ko back button se close karne ke liye
+    if (signOutModal.classList.contains('active')) {
+        signOutModal.classList.remove('active');
+        document.body.classList.remove('no-scroll');
+        return; 
+    }
+    
+    // Lightbox check
+    const lbOverlay = document.getElementById('lightboxOverlay');
+    if (lbOverlay && lbOverlay.classList.contains('active')) {
+        lbOverlay.classList.remove('active');
+        document.body.classList.remove('no-scroll');
+        return; 
+    }
 
-            if(sideMenu.classList.contains('active')) toggleMenu();
-            if(confirmModal.classList.contains('active')) closeModal();
-            if(sizeChartModal.classList.contains('active')) closeSizeChartModal();
-            
-            
-            if (e.state) {
-                const s = e.state;
-                updateFabVisibility(s.view);
-                if (s.view === 'home') renderHome();
-                else if (s.view === 'category') renderCategory(s.id);
-                else if (s.view === 'product') renderProduct(s.id);
-                else if (s.view === 'cart') renderCart();
-                else if (s.view === 'wishlist') renderWishlist();
-                else if (s.view === 'policies') renderPolicies();
-                else if (s.view === 'checkout') renderCheckout();
-                else if (s.view === 'orders') renderOrders();
-                else if (s.view === 'thankyou') renderThankYou(s.id);
-                else if (s.view === 'search') executeSearch(s.query);
-                else if (s.view === 'track') renderTrackOrder();
-                else if (s.view === 'login') renderLogin();
-            } else {
-                updateFabVisibility('home');
-                renderHome();
-            }
-        });
+    // NEW: Shoppable Media Modal check
+    const shopOverlay = document.getElementById('shoppableOverlay');
+    if (shopOverlay && shopOverlay.classList.contains('active')) {
+        shopOverlay.classList.remove('active');
+        document.body.classList.remove('no-scroll');
+        document.getElementById('shopModalMediaContainer').innerHTML = ''; // Kill media to stop audio
+        return; 
+    }
+
+    if(sideMenu.classList.contains('active')) toggleMenu();
+    if(confirmModal.classList.contains('active')) closeModal();
+    if(sizeChartModal.classList.contains('active')) closeSizeChartModal();
+    
+    if (e.state) {
+        const s = e.state;
+        updateFabVisibility(s.view);
+        if (s.view === 'home') renderHome();
+        else if (s.view === 'category') renderCategory(s.id);
+        else if (s.view === 'product') renderProduct(s.id);
+        else if (s.view === 'cart') renderCart();
+        else if (s.view === 'wishlist') renderWishlist();
+        else if (s.view === 'policies') renderPolicies();
+        else if (s.view === 'checkout') renderCheckout();
+        else if (s.view === 'orders') renderOrders();
+        else if (s.view === 'thankyou') renderThankYou(s.id);
+        else if (s.view === 'search') executeSearch(s.query);
+        else if (s.view === 'track') renderTrackOrder();
+        else if (s.view === 'login') renderLogin();
+    } else {
+        updateFabVisibility('home');
+        renderHome();
+    }
+});
 
         // OPTIMIZED REAL-TIME FETCHING
         db.channel('public-changes')
@@ -1848,10 +2048,17 @@ if (appData.settings.instagramUrl) {
         // --- APP INITIALIZATION ---
         async function initApp() {
             try {
-                // Fetch in parallel for speed
-                const [settings, categories, products, coupons, reviews] = await Promise.all([
-                    getSettings(), getCategories(), getProducts(), getCoupons(), getReviews()
+// Fetch in parallel for speed
+                const [settings, categories, products, coupons, reviews, shoppable] = await Promise.all([
+                    getSettings(), getCategories(), getProducts(), getCoupons(), getReviews(), getShoppable()
                 ]);
+
+                appData.settings = settings;
+                appData.categories = categories;
+                appData.products = products;
+                appData.coupons = coupons;
+                appData.reviews = reviews;
+                appData.shoppable = shoppable;
 
                 appData.settings = settings;
                 appData.categories = categories;
@@ -2129,73 +2336,84 @@ if (appData.settings.instagramUrl) {
 
         // --- VIEWS ---
         function renderHome() {
-            navigate({view: 'home'});
-            searchContainer.style.display = 'none';
-            
-            const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
-let bannerContent = `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
-
-if (bannerConfig.imageUrl) {
-    // Check if the URL contains .mp4 to identify it as a video
-    const isVideo = bannerConfig.imageUrl.toLowerCase().includes('.mp4');
+    navigate({view: 'home'});
+    searchContainer.style.display = 'none';
     
-    if (isVideo) {
-        // Use video tag for mp4 links (muted is required for autoplay to work on mobile)
-        bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
-    } else {
-        // Use standard image tag for everything else
-        bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
-    }
-}
+    const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
+    let bannerContent = `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
 
-            let bannerClickAction = `renderCategory('all')`;
-            if (bannerConfig.target === 'bestsellers') {
-                bannerClickAction = `renderCategory('bestsellers')`;
-            } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
-                const catId = bannerConfig.target.split('_')[1];
-                bannerClickAction = `renderCategory('${catId}')`;
-            }
-
-            let html = `
-                <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
-                <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
-                <div class="grid-container">
-            `;
-
-            const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
-            mainCategories.forEach(cat => {
-                const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
-                html += `
-                    <div class="category-card" onclick="renderCategory('${cat.id}')">
-                        <div class="category-img-box">${imgContent}</div>
-                        <span>${cat.name}</span>
-                    </div>`;
-            });
-            html += `</div>`;
-
-            const bestSellers = appData.products.filter(p => p.isBestSeller);
-            if (bestSellers.length > 0) {
-                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
-                bestSellers.forEach(prod => {
-                     html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
-                });
-                html += `</div>`;
-            }
-
-            if (appData.reviews && appData.reviews.length > 0) {
-                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
-                appData.reviews.forEach(review => {
-                    let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-                    html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
-                });
-                html += `</div>`;
-            }
-
-            requestAnimationFrame(() => {
-                mainContent.innerHTML = html;
-                window.scrollTo(0, 0);
-            });
+    if (bannerConfig.imageUrl) {
+        // Check if the URL contains .mp4 to identify it as a video
+        const isVideo = bannerConfig.imageUrl.toLowerCase().includes('.mp4');
+        
+        if (isVideo) {
+            // Use video tag for mp4 links (muted is required for autoplay to work on mobile)
+            bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
+        } else {
+            // Use standard image tag for everything else
+            bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
         }
+    }
+
+    let bannerClickAction = `renderCategory('all')`;
+    if (bannerConfig.target === 'bestsellers') {
+        bannerClickAction = `renderCategory('bestsellers')`;
+    } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
+        const catId = bannerConfig.target.split('_')[1];
+        bannerClickAction = `renderCategory('${catId}')`;
+    }
+
+    let html = `
+        <div class="banner" onclick="${bannerClickAction}" style="cursor:pointer;">${bannerContent}</div>
+        <div class="section-title-wrapper"><h3>Explore Collections</h3></div>
+        <div class="grid-container">
+    `;
+
+    const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
+    mainCategories.forEach(cat => {
+        const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
+        html += `
+            <div class="category-card" onclick="renderCategory('${cat.id}')">
+                <div class="category-img-box">${imgContent}</div>
+                <span>${cat.name}</span>
+            </div>`;
+    });
+    html += `</div>`;
+
+    const bestSellers = appData.products.filter(p => p.isBestSeller);
+    if (bestSellers.length > 0) {
+        html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Best Sellers</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
+        bestSellers.forEach(prod => {
+             html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
+        });
+        html += `</div>`;
+    }
+
+    if (appData.reviews && appData.reviews.length > 0) {
+        html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
+        appData.reviews.forEach(review => {
+            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
+            html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
+        });
+        html += `</div>`;
+    }
+
+    // --- NEW: Shoppable Media Block ---
+    if (appData.shoppable && appData.shoppable.length > 0) {
+        html += `<div class="shoppable-scroll-wrapper" id="shoppableScrollContainer">`;
+        appData.shoppable.forEach((item, idx) => {
+            const isVideo = item.media.toLowerCase().endsWith('.mp4');
+            const mediaHtml = isVideo ? `<video src="${item.media}" autoplay loop muted playsinline></video>` : `<img src="${item.media}" loading="lazy">`;
+            html += `<div class="shoppable-card" onclick="openShoppableModal(${idx})">${mediaHtml}</div>`;
+        });
+        html += `</div>`;
+    }
+
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
+        window.scrollTo(0, 0);
+    });
+}
 
         function renderCategory(catId) {
             if (catId === 'refresh') return; 
