@@ -364,6 +364,7 @@
                             <h3>Contact & Support</h3>
                             <div class="form-group"><label>WhatsApp Number</label><input type="text" id="setWhatsapp"></div>
                             <div class="form-group"><label>Support Email ID</label><input type="email" id="setEmail"></div>
+                            <div class="form-group"><label>Instagram URL</label><input type="url" id="setInstagram" placeholder="https://instagram.com/yourbrand"></div>
                         </div>
 
                         <div class="settings-card">
@@ -795,6 +796,7 @@ db.channel('live-orders')
             // Contact Settings
             document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
             document.getElementById('setEmail').value = data.email_id || '';
+            document.getElementById('setInstagram').value = data.instagram_url || '';
             
             // Announcement Settings
             document.getElementById('setAnnouncement').value = data.announcement_text || '';
@@ -831,6 +833,7 @@ db.channel('live-orders')
             // Contact & Support
             whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
             email_id: document.getElementById('setEmail').value.trim(),
+            instagram_url: document.getElementById('setInstagram').value.trim(),
             
             // Announcement
             announcement_text: document.getElementById('setAnnouncement').value.trim(),
