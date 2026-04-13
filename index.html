@@ -2093,6 +2093,24 @@ if (appData.settings.instagramUrl) {
                 }
             }
 
+            // NEW: Check stock and generate the appropriate button HTML
+            let actionButtonHtml = '';
+            if (prod.stock !== null && prod.stock <= 0) {
+                // Out of Stock: Sold Out text, disabled styling, no onclick event
+                actionButtonHtml = `
+                    <button class="btn-secondary btn-disabled" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation();">
+                        <span class="btn-text">Sold Out</span>
+                    </button>
+                `;
+            } else {
+                // In Stock: Normal Add to Cart button
+                actionButtonHtml = `
+                    <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
+                        <span class="btn-text">Add to Cart</span>
+                    </button>
+                `;
+            }
+
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
                     <div class="img-wrapper" style="width: 100%; aspect-ratio: 1 / 1;">
@@ -2103,9 +2121,7 @@ if (appData.settings.instagramUrl) {
                             <div class="product-title">${prod.name}</div>
                             <div class="product-price">${formatPrice(prod.price)}</div>
                         </div>
-                        <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
-                            <span class="btn-text">Add to Cart</span>
-                        </button>
+                        ${actionButtonHtml}
                     </div>
                 </div>
             `;
@@ -2254,21 +2270,33 @@ function updateStockUI(prod) {
     }
 
     const btnCart = document.getElementById('btnAddToCart');
-    const btnBuy = document.getElementById('btnBuyNow');
+            const btnBuy = document.getElementById('btnBuyNow');
 
-    if (btnCart && btnBuy) {
-        if (availableStock !== null && availableStock <= 0) {
-            btnCart.classList.add('btn-disabled');
-            btnBuy.classList.add('btn-disabled');
-            btnCart.querySelector('.btn-text').innerText = 'Out of Stock';
-            btnBuy.querySelector('.btn-text').innerText = 'Out of Stock';
-        } else {
-            btnCart.classList.remove('btn-disabled');
-            btnBuy.classList.remove('btn-disabled');
-            btnCart.querySelector('.btn-text').innerText = 'Add to Cart';
-            btnBuy.querySelector('.btn-text').innerText = 'Buy Now';
-        }
-    }
+            if (btnCart && btnBuy) {
+                if (availableStock !== null && availableStock <= 0) {
+                    // Update Cart Button: Disable clicks via pointerEvents and dim it, but keep the standard look and "Add to Cart" text
+                    btnCart.style.pointerEvents = 'none';
+                    btnCart.style.opacity = '0.6';
+                    btnCart.classList.remove('btn-disabled'); 
+                    btnCart.querySelector('.btn-text').innerText = 'Add to Cart';
+
+                    // Update Buy Button: Apply disabled styles and change text to "Sold Out"
+                    btnBuy.classList.add('btn-disabled');
+                    btnBuy.style.pointerEvents = 'none'; // Ensure clicks are fully blocked
+                    btnBuy.querySelector('.btn-text').innerText = 'Sold Out';
+                } else {
+                    // Reset Cart Button to active state
+                    btnCart.style.pointerEvents = 'auto';
+                    btnCart.style.opacity = '1';
+                    btnCart.classList.remove('btn-disabled');
+                    btnCart.querySelector('.btn-text').innerText = 'Add to Cart';
+
+                    // Reset Buy Button to active state
+                    btnBuy.classList.remove('btn-disabled');
+                    btnBuy.style.pointerEvents = 'auto';
+                    btnBuy.querySelector('.btn-text').innerText = 'Buy Now';
+                }
+            }
 
     // Refresh size availability based on variant
     if (prod.sizes && prod.sizes.length > 0) {
@@ -2814,11 +2842,14 @@ function changeProductSize(size, btnElement) {
                     </div>
                 </div>
 
-                ${relatedProductsHtml}
+${relatedProductsHtml}
             `;
             requestAnimationFrame(() => {
                 mainContent.innerHTML = html;
                 window.scrollTo(0, 0);
+                
+                // NEW: Check stock immediately when the product page loads to disable buttons if needed
+                updateStockUI(prod); 
             });
         }
 
