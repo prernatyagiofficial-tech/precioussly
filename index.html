@@ -1070,6 +1070,13 @@
 }
 .lightbox-close-btn:hover { background: #fff; color: #000; border-color: #fff; transform: scale(1.05); }
 .lightbox-close-btn:active { transform: scale(0.95); }
+.custom-q-box { margin-top: 20px; margin-bottom: 20px; padding: 20px; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+        .custom-q-title { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 12px; }
+        .matte-radio { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; font-size: 14px; font-weight: 500; margin-bottom: 10px; transition: all 0.2s ease; background: #fff; }
+        .matte-radio:hover { border-color: var(--text-dark); }
+        .matte-radio.selected { border-color: var(--text-dark); background: var(--text-dark); color: #fff; }
+        .matte-radio input[type="radio"] { display: none; }
+        .partial-pay-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color); display: none; }
     </style>
 </head>
 <body>
@@ -1395,8 +1402,8 @@ if (session && window.location.href.includes('code=')) {
             else if (type === 'light') navigator.vibrate(20);
         }
 
-        // --- DATA MAPPING ---
-        function mapSettings(row) {
+// --- DATA MAPPING ---
+function mapSettings(row) {
     if (!row) row = {};
     return {
         brandName: row.brand_name || 'My Store',
@@ -1414,6 +1421,7 @@ if (session && window.location.href.includes('code=')) {
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
+        partialPaymentPercentage: Number(row.partial_payment_percentage) || 50,
         
         // Dynamic Shipping Settings
         shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
@@ -1427,15 +1435,28 @@ if (session && window.location.href.includes('code=')) {
             return { id: row.id, name: row.name || 'Category', img: row.img || row.image_url || '', parentId: row.parent_id || null };
         }
 
-        function mapProduct(row) {
-            return {
-                id: row.id, name: row.name || 'Product', price: Number(row.price || 0), catId: row.cat_id || row.category_id,
-                desc: row.description || row.desc || '', isBestSeller: parseBool(row.is_best_seller || row.bestseller),
-                media: safeParseJSON(row.media, []), variants: safeParseJSON(row.variants, []), sizes: safeParseJSON(row.sizes, []),
-                // ADD variantLabel TO THIS LINE:
-                isAlphabet: parseBool(row.is_alphabet), variantLabel: row.variant_label || 'Color'
-            };
-        }
+        // --- DATA MAPPING ---
+function mapProduct(row) {
+    return {
+        id: row.id, 
+        name: row.name || 'Product', 
+        price: Number(row.price || 0), 
+        catId: row.cat_id || row.category_id,
+        desc: row.description || row.desc || '', 
+        isBestSeller: parseBool(row.is_best_seller || row.bestseller),
+        media: safeParseJSON(row.media, []), 
+        variants: safeParseJSON(row.variants, []), 
+        sizes: safeParseJSON(row.sizes, []),
+        isAlphabet: parseBool(row.is_alphabet), 
+        variantLabel: row.variant_label || 'Color',
+        
+        // Custom Question & Partial Payment Fields
+        hasCustomQuestion: parseBool(row.has_custom_question),
+        customQuestionText: row.custom_question_text || '',
+        optionAText: row.option_a_text || '',
+        optionBText: row.option_b_text || ''
+    };
+}
 
         function mapCoupon(row) {
             return { id: row.id, minThreshold: Number(row.min_threshold || row.threshold || 0), discountAmount: Number(row.discount_amount || row.discount || 0), active: parseBool(row.active ?? true) };
@@ -1564,6 +1585,8 @@ if (session && window.location.href.includes('code=')) {
         let selectedProductVariantIndex = 0;
         let selectedProductSize = null;
         let selectedAlphabet = null;
+        let selectedCustomOption = null;
+        let selectedPaymentChoice = null;
 
         const mainContent = document.getElementById('main-content');
         const searchContainer = document.getElementById('searchContainer');
@@ -2531,6 +2554,30 @@ function switchPolicyTab(tabId) {
         window.openSizeChartModal = openSizeChartModal;
         window.closeSizeChartModal = closeSizeChartModal;
         window.quickAddToCart = quickAddToCart;
+        window.selectCustomOption = function(opt) {
+            selectedCustomOption = opt;
+            document.getElementById('lblOptionA').classList.remove('selected');
+            document.getElementById('lblOptionB').classList.remove('selected');
+            document.getElementById('lblOption' + opt).classList.add('selected');
+            
+            const payBox = document.getElementById('partialPayBox');
+            if(opt === 'B') {
+                payBox.style.display = 'block';
+            } else {
+                payBox.style.display = 'none';
+                selectedPaymentChoice = null; // Reset
+                if(document.getElementById('lblPayPartial')) document.getElementById('lblPayPartial').classList.remove('selected');
+                if(document.getElementById('lblPayFull')) document.getElementById('lblPayFull').classList.remove('selected');
+            }
+        }
+
+        window.selectPaymentChoice = function(choice) {
+            selectedPaymentChoice = choice;
+            document.getElementById('lblPayPartial').classList.remove('selected');
+            document.getElementById('lblPayFull').classList.remove('selected');
+            if(choice === 'partial') document.getElementById('lblPayPartial').classList.add('selected');
+            if(choice === 'full') document.getElementById('lblPayFull').classList.add('selected');
+        }
         
         
         function shareProduct(prodId) {
@@ -2562,29 +2609,92 @@ function switchPolicyTab(tabId) {
         
         window.shareProduct = shareProduct; // Expose it to the HTML
 
+        window.updateCarousel = updateCarousel;
+        window.handleTouchStart = handleTouchStart;
+        window.handleTouchEnd = handleTouchEnd;
+        window.changeProductVariant = changeProductVariant;
+        window.changeProductSize = changeProductSize;
+        window.changeAlphabet = changeAlphabet;
+        window.openSizeChartModal = openSizeChartModal;
+        window.closeSizeChartModal = closeSizeChartModal;
+
+        window.selectCustomOption = function(opt) {
+            selectedCustomOption = opt;
+            document.getElementById('lblOptionA').classList.remove('selected');
+            document.getElementById('lblOptionB').classList.remove('selected');
+            document.getElementById('lblOption' + opt).classList.add('selected');
+            
+            const payBox = document.getElementById('partialPayBox');
+            if(opt === 'B') {
+                payBox.style.display = 'block';
+            } else {
+                payBox.style.display = 'none';
+                selectedPaymentChoice = null; // Reset
+                if(document.getElementById('lblPayPartial')) document.getElementById('lblPayPartial').classList.remove('selected');
+                if(document.getElementById('lblPayFull')) document.getElementById('lblPayFull').classList.remove('selected');
+            }
+        };
+
+        window.selectPaymentChoice = function(choice) {
+            selectedPaymentChoice = choice;
+            document.getElementById('lblPayPartial').classList.remove('selected');
+            document.getElementById('lblPayFull').classList.remove('selected');
+            if(choice === 'partial') document.getElementById('lblPayPartial').classList.add('selected');
+            if(choice === 'full') document.getElementById('lblPayFull').classList.add('selected');
+        };
+
+        window.quickAddToCart = quickAddToCart;
+        window.shareProduct = shareProduct;
+
+        function shareProduct(prodId) {
+            triggerHaptic('pop');
+            const prod = appData.products.find(p => String(p.id) === String(prodId));
+            if (!prod) return;
+
+            const slug = createSlug(prod.name);
+            const shareUrl = window.location.origin + window.location.pathname + '?product=' + slug;
+            
+            const shareData = {
+                title: prod.name,
+                text: 'Check out this awesome product!',
+                url: shareUrl
+            };
+
+            if (navigator.share) {
+                navigator.share(shareData).catch(err => console.log('Error sharing:', err));
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('Product link copied to clipboard!');
+                }).catch(err => {
+                    showToast('Failed to copy link.');
+                });
+            }
+        }
+
         function renderProduct(prodId, initVariant = null, initSize = null, initAlphabet = null) {
             navigate({view: 'product', id: prodId});
             searchContainer.style.display = 'none';
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             if(!prod) return;
 
-            // 1. Auto-Select Variant if passed
+            // Reset choices on load
             selectedProductVariantIndex = 0;
+            selectedProductSize = null;
+            selectedAlphabet = null;
+            selectedCustomOption = null;
+            selectedPaymentChoice = null;
+
             if (initVariant && prod.variants) {
                 const vIndex = prod.variants.findIndex(v => v.name === initVariant);
                 if (vIndex > -1) selectedProductVariantIndex = vIndex;
             }
 
-            // 2. Auto-Select Size if passed
-            selectedProductSize = null;
             if (prod.sizes && prod.sizes.length > 0) {
                 selectedProductSize = (initSize && prod.sizes.includes(initSize)) ? initSize : prod.sizes[0];
             }
 
-            // 3. Auto-Select Alphabet if passed
-            selectedAlphabet = prod.isAlphabet ? 'A' : null;
-            if (prod.isAlphabet && initAlphabet) {
-                selectedAlphabet = initAlphabet;
+            if (prod.isAlphabet) {
+                selectedAlphabet = initAlphabet || 'A';
             }
 
             let hasVariants = prod.variants && prod.variants.length > 0;
@@ -2637,11 +2747,9 @@ function switchPolicyTab(tabId) {
                             hasVideoClass = 'has-video';
                         } else thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}" loading="lazy">`;
                     }
-                    // FIX: Uses the dynamically selected index
                     const selectedClass = idx === selectedProductVariantIndex ? 'selected' : '';
                     optionsHtml += `<button class="color-option-btn ${selectedClass} ${hasVideoClass}" onclick="changeProductVariant('${prod.id}', ${idx})" title="${v.name || ''}">${thumbContent}</button>`;
                 });
-                // FIX: Pulls the correct name text
                 const activeVariantName = prod.variants[selectedProductVariantIndex].name || '';
                 variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${activeVariantName}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
@@ -2649,16 +2757,9 @@ function switchPolicyTab(tabId) {
             let sizeHtml = '';
             if (prod.sizes && prod.sizes.length > 0) {
                 let guideLink = `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
-                let titleLabel = 'Select Size';
-
-                // FIX: Only default to the first size if a size wasn't already selected via the cart
-                if (!selectedProductSize) {
-                    selectedProductSize = prod.sizes[0];
-                }
                 let sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
-
-    sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
-}
+                sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">Select Size</span>${guideLink}</div>${sizeOptions}</div>`;
+            }
 
             let alphabetHtml = '';
             if (prod.isAlphabet) {
@@ -2667,27 +2768,46 @@ function switchPolicyTab(tabId) {
                 alphabetHtml = `<div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper"><div class="alphabet-selection-header"><span class="alphabet-selection-title">Select Alphabet</span></div><div class="alphabet-options">${optionsHtml}</div></div>`;
             }
 
-      // --- NEW: Generate Related Products ---
-            // Find up to 8 products in the same category, excluding the currently viewed product
-            const relatedProducts = appData.products
-                .filter(p => String(p.catId) === String(prod.catId) && String(p.id) !== String(prod.id))
-                .slice(0, 8);
-                
-            let relatedProductsHtml = '';
-        if (relatedProducts.length > 0) {
-            // Formatting updated to use the standard vertical grid layout
-            relatedProductsHtml = `
-                <div style="max-width: 1100px; margin: 20px auto 40px;">
-                    <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600; padding: 0 20px;">You May Also Like</h3>
-                    <div class="grid-container">
-                        ${relatedProducts.map(p => getProductCardHTML(p)).join('')}
+            let customQuestionHtml = '';
+            if (prod.hasCustomQuestion) {
+                const pct = appData.settings.partialPaymentPercentage || 50;
+                customQuestionHtml = `
+                    <div class="custom-q-box" id="customQuestionContainer">
+                        <div class="custom-q-title">${prod.customQuestionText}</div>
+                        <label class="matte-radio" id="lblOptionA" onclick="selectCustomOption('A')">
+                            <input type="radio" name="customOption" value="A"> ${prod.optionAText}
+                        </label>
+                        <label class="matte-radio" id="lblOptionB" onclick="selectCustomOption('B')">
+                            <input type="radio" name="customOption" value="B"> ${prod.optionBText}
+                        </label>
+                        
+                        <div class="partial-pay-box" id="partialPayBox">
+                            <div class="custom-q-title" style="font-size: 13px; margin-bottom: 10px;">Payment Preference</div>
+                            <label class="matte-radio" id="lblPayPartial" onclick="selectPaymentChoice('partial')">
+                                <input type="radio" name="payChoice" value="partial"> Pay ${pct}% now and ${100-pct}% on delivery
+                            </label>
+                            <label class="matte-radio" id="lblPayFull" onclick="selectPaymentChoice('full')">
+                                <input type="radio" name="payChoice" value="full"> I will pay full amount now
+                            </label>
+                        </div>
                     </div>
-                </div>
-            `;
-        }
-            // ---------------------------------------
+                `;
+            }
 
-          let html = `
+            const relatedProducts = appData.products.filter(p => String(p.catId) === String(prod.catId) && String(p.id) !== String(prod.id)).slice(0, 8);
+            let relatedProductsHtml = '';
+            if (relatedProducts.length > 0) {
+                relatedProductsHtml = `
+                    <div style="max-width: 1100px; margin: 20px auto 40px;">
+                        <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600; padding: 0 20px;">You May Also Like</h3>
+                        <div class="grid-container">
+                            ${relatedProducts.map(p => getProductCardHTML(p)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let html = `
                 <div class="product-layout-wrapper">
                     <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
                         <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
@@ -2699,17 +2819,17 @@ function switchPolicyTab(tabId) {
                     <div class="product-body">
                         ${prod.isBestSeller ? '<span class="product-badge">Best Seller</span>' : ''}
                         <div class="product-title-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
-    <h2 class="product-detail-title" style="margin-bottom: 0;">${prod.name}</h2>
-    <button class="share-btn" onclick="shareProduct('${prod.id}')" title="Share Product">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18" cy="5" r="3"></circle>
-            <circle cx="6" cy="12" r="3"></circle>
-            <circle cx="18" cy="19" r="3"></circle>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-        </svg>
-    </button>
-</div>
+                            <h2 class="product-detail-title" style="margin-bottom: 0;">${prod.name}</h2>
+                            <button class="share-btn" onclick="shareProduct('${prod.id}')" title="Share Product">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="18" cy="5" r="3"></circle>
+                                    <circle cx="6" cy="12" r="3"></circle>
+                                    <circle cx="18" cy="19" r="3"></circle>
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="product-detail-price-box">
                             <span class="product-detail-price">${formatPrice(prod.price)}</span>
                             <span class="tax-info">MRP incl. of all taxes</span>
@@ -2717,6 +2837,7 @@ function switchPolicyTab(tabId) {
                         ${variantsHtml}
                         ${sizeHtml}
                         ${alphabetHtml}
+                        ${customQuestionHtml}
 
                         <div class="trust-badges">
                             <div class="trust-badge-item"><div class="trust-badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg></div><div class="trust-badge-text">Delivery all over India</div></div>
@@ -2735,7 +2856,6 @@ function switchPolicyTab(tabId) {
                         </div>
                     </div>
                 </div>
-
                 ${relatedProductsHtml}
             `;
             requestAnimationFrame(() => {
@@ -2758,24 +2878,33 @@ function switchPolicyTab(tabId) {
             }, delay); // Uses custom delay, defaults to 500ms
         }
 function quickAddToCart(event, btn, prodId) {
-            // Stop the click from opening the product details page
             event.stopPropagation(); 
-            
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             if (!prod) return;
 
-            // Reset selections to defaults so it doesn't accidentally add the wrong size/variant from a previous product
             selectedProductVariantIndex = 0;
             selectedProductSize = prod.sizes && prod.sizes.length > 0 ? prod.sizes[0] : null;
             selectedAlphabet = prod.isAlphabet ? 'A' : null; 
+            selectedCustomOption = null;
+            selectedPaymentChoice = null;
             
-            // Trigger the exact same Add to Cart function you already have
             addToCart(btn, prodId);
         }
+
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
-            
+            if (prod.hasCustomQuestion) {
+                if (!selectedCustomOption) {
+                    triggerHaptic('pop'); showToast("Please answer the product question.");
+                    document.getElementById('customQuestionContainer').style.border = '1px solid var(--error-color)';
+                    return;
+                }
+                if (selectedCustomOption === 'B' && !selectedPaymentChoice) {
+                    triggerHaptic('pop'); showToast("Please select a payment preference.");
+                    return;
+                }
+            }
 
             if (prod.isAlphabet && !selectedAlphabet) {
                 triggerHaptic('pop');
@@ -2790,7 +2919,7 @@ function quickAddToCart(event, btn, prodId) {
                 let selectedVariantStr = "Default";
                 if(prod.variants && prod.variants.length > 0) selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
 
-                const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
+                const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet && i.customOption === selectedCustomOption && i.paymentChoice === selectedPaymentChoice);
                 
                 if(existing) {
                     existing.qty++; 
@@ -2799,11 +2928,11 @@ function quickAddToCart(event, btn, prodId) {
                     if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media && prod.variants[selectedProductVariantIndex].media.length > 0) {
                         cartMedia = prod.variants[selectedProductVariantIndex].media;
                     }
-                    state.cart.push({ ...prod, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
+                    state.cart.push({ ...prod, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia, customOption: selectedCustomOption, paymentChoice: selectedPaymentChoice, optAText: prod.optionAText, optBText: prod.optionBText });
                 }
                 
                 updateBadges();
-                persistUserData(); // Sync local storage
+                persistUserData();
                 
                 const badge = document.getElementById('cartCount');
                 if(badge) {
@@ -2864,125 +2993,129 @@ function quickAddToCart(event, btn, prodId) {
         });
 
         function renderCart(preserveScroll = false) {
-    const currentScrollY = window.scrollY; // Save the exact scroll position
-    navigate({view: 'cart'});
-    searchContainer.style.display = 'none';
-    let html = `
-        <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
-        <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
-    `;
+            const currentScrollY = window.scrollY;
+            navigate({view: 'cart'});
+            searchContainer.style.display = 'none';
+            let html = `
+                <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
+                <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
+            `;
 
-    if(state.cart.length === 0) {
-        html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Your cart is empty.</p></div>`;
-    } else {
-        let subtotal = 0;
-        html += `<div class="cart-layout"><div class="cart-items-wrapper"><div class="cart-container">`;
-        state.cart.forEach((item, index) => {
-            subtotal += (item.price * item.qty);
-            const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
-            const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
-            let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
-            
-            if (firstMedia) {
-                if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
-            }
+            if(state.cart.length === 0) {
+                html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Your cart is empty.</p></div>`;
+            } else {
+                let subtotal = 0;
+                html += `<div class="cart-layout"><div class="cart-items-wrapper"><div class="cart-container">`;
+                state.cart.forEach((item, index) => {
+                    subtotal += (item.price * item.qty);
+                    const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
+                    const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
+                    let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
+                    
+                    if (firstMedia) {
+                        if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
+                        else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+                    }
 
-            let displaySpecs = [];
-            if (item.variant && item.variant !== "Default") displaySpecs.push(`Color: ${item.variant}`);
-            if (item.size) displaySpecs.push(`Size: ${item.size}`);
-            if (item.alphabet) displaySpecs.push(`Letter: ${item.alphabet}`);
-            const variantDisplay = displaySpecs.length > 0 ? `<div class="cart-item-variant">${displaySpecs.join(' | ')}</div>` : '';
+                    let displaySpecs = [];
+                    if (item.variant && item.variant !== "Default") displaySpecs.push(`Color: ${item.variant}`);
+                    if (item.size) displaySpecs.push(`Size: ${item.size}`);
+                    if (item.alphabet) displaySpecs.push(`Letter: ${item.alphabet}`);
+                    if (item.customOption) {
+                        const optText = item.customOption === 'A' ? item.optAText : item.optBText;
+                        displaySpecs.push(`Choice: ${optText}`);
+                        if (item.paymentChoice === 'partial') displaySpecs.push(`Pay: Partial`);
+                    }
 
-            html += `
-                <div class="cart-item">
-                    <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-<div class="cart-item-img" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${imgContent}</div>
-<div class="cart-item-info">
-    <div class="cart-item-title" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${item.name}</div>
-                        ${variantDisplay}
-                        <div class="cart-item-price">${formatPrice(item.price)}</div>
-                        <div class="qty-controls">
-                            <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-                            <span class="qty-value">${item.qty}</span>
-                            <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                    const variantDisplay = displaySpecs.length > 0 ? `<div class="cart-item-variant">${displaySpecs.join(' | ')}</div>` : '';
+
+                    html += `
+                        <div class="cart-item">
+                            <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                            <div class="cart-item-img" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${imgContent}</div>
+                            <div class="cart-item-info">
+                                <div class="cart-item-title" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${item.name}</div>
+                                ${variantDisplay}
+                                <div class="cart-item-price">${formatPrice(item.price)}</div>
+                                <div class="qty-controls">
+                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                                    <span class="qty-value">${item.qty}</span>
+                                    <button class="qty-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', 1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div></div><div class="cart-summary-wrapper">`;
+
+                let discount = 0;
+                let appliedThreshold = 0;
+                for (let rule of appData.coupons) {
+                    if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
+                }
+
+                let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
+                const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
+                displayDiscounts.forEach(rule => {
+                    const isApplied = (rule.minThreshold === appliedThreshold);
+                    couponsHtml += `
+                        <div class="coupon-card" style="${isApplied ? 'border-color: var(--dark-green); background: var(--light-green);' : ''}">
+                            <div class="coupon-text">GET ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
+                            ${isApplied ? `<div class="coupon-applied-badge">Applied</div>` : ''}
+                        </div>
+                    `;
+                });
+                couponsHtml += `</div></div>`;
+
+                const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+                const total = subtotal + shipping - discount;
+                const isMinOrderMet = total >= appData.settings.minOrderAmount;
+
+                const amountForFreeShipping = appData.settings.freeShippingThreshold - subtotal;
+                let freeShippingMessage = "";
+                if (amountForFreeShipping > 0) {
+                    freeShippingMessage = `<div class="savings-message" style="background: #fff5e6; color: #e67e22; border-color: #e67e22;">Add <strong>${formatPrice(amountForFreeShipping)}</strong> more to get <strong>FREE Shipping</strong>! </div>`;
+                } else {
+                    freeShippingMessage = `<div class="savings-message">You've unlocked <strong>FREE Shipping</strong>! </div>`;
+                }
+
+                html += `
+                    ${couponsHtml}
+                    <div class="cart-summary">
+                        ${freeShippingMessage}
+                        ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
+                        <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
+                        <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
+                        ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
+                        <div class="summary-total">
+                            <span>Total</span> 
+                            <div style="text-align: right;">
+                                ${discount > 0 ? `<div style="font-size:13px; color:var(--text-gray); text-decoration:line-through; font-weight:500;">${formatPrice(subtotal + shipping)}</div>` : ''}
+                                <span>${formatPrice(total)}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-        });
-        html += `</div></div><div class="cart-summary-wrapper">`;
-
-        let discount = 0;
-        let appliedThreshold = 0;
-        for (let rule of appData.coupons) {
-            if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
-        }
-
-        let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
-        const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
-        displayDiscounts.forEach(rule => {
-            const isApplied = (rule.minThreshold === appliedThreshold);
-            couponsHtml += `
-                <div class="coupon-card" style="${isApplied ? 'border-color: var(--dark-green); background: var(--light-green);' : ''}">
-                    <div class="coupon-text">GET ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
-                    ${isApplied ? `<div class="coupon-applied-badge">Applied</div>` : ''}
-                </div>
-            `;
-        });
-        couponsHtml += `</div></div>`;
-
-        const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
-        const total = subtotal + shipping - discount;
-        const isMinOrderMet = total >= appData.settings.minOrderAmount;
-
-        // --- NEW: Calculate Free Shipping Progress ---
-        const amountForFreeShipping = appData.settings.freeShippingThreshold - subtotal;
-        let freeShippingMessage = "";
-        if (amountForFreeShipping > 0) {
-            freeShippingMessage = `<div class="savings-message" style="background: #fff5e6; color: #e67e22; border-color: #e67e22;">Add <strong>${formatPrice(amountForFreeShipping)}</strong> more to get <strong>FREE Shipping</strong>! </div>`;
-        } else {
-            freeShippingMessage = `<div class="savings-message">You've unlocked <strong>FREE Shipping</strong>! </div>`;
-        }
-        // ---------------------------------------------
-
-        html += `
-            ${couponsHtml}
-            <div class="cart-summary">
-                ${freeShippingMessage}
-                ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
-                <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
-                <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
-                ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
-                <div class="summary-total">
-                    <span>Total</span> 
-                    <div style="text-align: right;">
-                        ${discount > 0 ? `<div style="font-size:13px; color:var(--text-gray); text-decoration:line-through; font-weight:500;">${formatPrice(subtotal + shipping)}</div>` : ''}
-                        <span>${formatPrice(total)}</span>
+                    <div class="cart-checkout-wrapper">
+                        ${isMinOrderMet ? 
+                        `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
+                        `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
+                        <button class="btn-primary" disabled>Proceed to Checkout</button>`
+                        }
                     </div>
-                </div>
-            </div>
-            <div class="cart-checkout-wrapper">
-                ${isMinOrderMet ? 
-    `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
-                    `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
-                     <button class="btn-primary" disabled>Proceed to Checkout</button>`
+                `;
+                html += `</div></div>`;
+            }
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                if (preserveScroll) {
+                    window.scrollTo(0, currentScrollY);
+                } else {
+                    window.scrollTo(0, 0); 
                 }
-            </div>
-        `;
-        html += `</div></div>`;
-    }
-    requestAnimationFrame(() => {
-        mainContent.innerHTML = html;
-        if (preserveScroll) {
-            window.scrollTo(0, currentScrollY); // Stay in the same spot
-        } else {
-            window.scrollTo(0, 0); // Scroll to top on fresh load
+            });
         }
-    });
-}
 
 function createSlug(text) {
             return text.toString().toLowerCase()
@@ -3026,27 +3159,42 @@ function handleCheckoutClick(btn) {
     }, 1200);
 }
         function renderCheckout() {
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let subtotal = 0;
+            let partialUpfrontTotal = 0;
+            let partialDueTotal = 0;
+            let hasPartialItem = false;
+
+            state.cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                subtotal += itemTotal;
+                if (item.customOption === 'B' && item.paymentChoice === 'partial') {
+                    hasPartialItem = true;
+                    const pct = appData.settings.partialPaymentPercentage || 50;
+                    const upfront = (itemTotal * pct) / 100;
+                    partialUpfrontTotal += upfront;
+                    partialDueTotal += (itemTotal - upfront);
+                } else {
+                    partialUpfrontTotal += itemTotal;
+                }
+            });
+
             const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
             let discount = 0;
             for (let rule of appData.coupons) {
                 if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; }
             }
             const totalAmount = subtotal + shipping - discount;
+            const totalUpfrontIfOnline = partialUpfrontTotal + shipping - discount;
 
             navigate({view: 'checkout', amount: totalAmount});
             const isCODAvailable = totalAmount >= appData.settings.minCODAmount;
             
-            // --- NEW: Grab user details if they are logged in ---
             let prefillName = '';
             let prefillEmail = '';
-            
             if (state.user) {
                 prefillEmail = state.user.email || '';
-                // Google usually stores the user's name inside the user_metadata object
                 prefillName = state.user.user_metadata?.full_name || state.user.user_metadata?.name || '';
             }
-            // ----------------------------------------------------
 
             let html = `
                 <div class="back-nav" onclick="renderCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Cart</div>
@@ -3099,15 +3247,22 @@ function handleCheckoutClick(btn) {
                             <label class="radio-label">
                                 <input type="radio" name="payment" value="online" onchange="handlePaymentSelection(this, ${totalAmount})" checked> Online Payment (UPI/Cards)
                             </label>
+                            ${!hasPartialItem ? `
                             <label class="radio-label ${!isCODAvailable ? 'disabled' : ''}">
                                 <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this, ${totalAmount})" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
                             </label>
                             ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${appData.settings.minCODAmount}</span>` : ''}
-                            <div id="codInfoText" style="display: none; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);"></div>
+                            ` : `<span class="cod-warning" style="margin-left:0; margin-top:5px; margin-bottom:12px;">Standard COD is disabled because your cart contains partial payment items.</span>`}
+                            
+                            <div id="codInfoText" style="display: ${hasPartialItem ? 'block' : 'none'}; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);">
+                                ${hasPartialItem ? `Advance payment of <strong>${formatPrice(totalUpfrontIfOnline)}</strong> required. Remaining <strong>${formatPrice(partialDueTotal)}</strong> to be paid on delivery.` : ''}
+                            </div>
                         </div>
                         
                         <div style="margin-top: 40px; margin-bottom: 20px;">
-                            <button class="btn-primary" id="placeOrderBtn" onclick="initiatePayment(this, ${totalAmount})"><span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
+                            <button class="btn-primary" id="placeOrderBtn" onclick="initiatePayment(this, ${totalAmount}, ${hasPartialItem}, ${totalUpfrontIfOnline}, ${partialDueTotal})">
+                                <span class="btn-text">${hasPartialItem ? `Pay Advance ${formatPrice(totalUpfrontIfOnline)} & Place Order` : `Confirm & Pay ${formatPrice(totalAmount)}`}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -3150,143 +3305,126 @@ function handleCheckoutClick(btn) {
             return isValid;
         }
 
-function initiatePayment(btn, totalAmount) {
-    if (!validateCheckoutForm()) {
-        triggerHaptic('pop');
-        showToast("Please check the errors in the form");
-        return;
-    }
-
-    const name = document.getElementById('chkName').value;
-    const email = document.getElementById('chkEmail').value;
-    const phone = document.getElementById('chkPhone').value;
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-
-    // --- NEW: Calculate exact financial breakdown ---
-    const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
-    let discount = 0;
-    let appliedCouponStr = "None";
-    
-    // Check which coupon was applied
-    for (let rule of appData.coupons) {
-        if (subtotal >= rule.minThreshold) { 
-            discount = rule.discountAmount; 
-            appliedCouponStr = `₹${rule.discountAmount} off (Min ₹${rule.minThreshold})`;
-            break; 
-        }
-    }
-    // ------------------------------------------------
-
-    let amountToCharge = totalAmount;
-    let amountDueOnDelivery = 0;
-
-    // Logic for Cash on Delivery (COD) advance fee
-    if (paymentMethod === 'cod') {
-        amountToCharge = appData.settings.codUpfrontFee;
-        amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
-    }
-
-    // --- UPDATED: Add the new fields to orderDetails ---
-    const orderDetails = {
-        name: name,
-        email: email,
-        phone: phone,
-        address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
-        paymentMethod: paymentMethod,
-        amountPaid: amountToCharge,
-        amountDue: amountDueOnDelivery,
-        subtotal: subtotal,          // New!
-        shippingFee: shipping,       // New!
-        discount: discount,          // New!
-        couponApplied: appliedCouponStr // New!
-    };
-
-    if (amountToCharge > 0) {
-        // Notice the 'async' here!
-        withLoading(btn, async () => {
-            try {
-                // 1. Ask Backend to securely create a Razorpay Order
-                const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
-                    body: { amount: amountToCharge }
-                });
-
-                if (orderError || !orderData || !orderData.id) {
-                    console.error("Backend Order Creation Error:", orderError);
-                    showToast("Failed to initialize secure payment.");
-                    return;
-                }
-
-                // 2. Open Razorpay Modal with the secure Order ID
-                const options = {
-                    "key": "rzp_live_Sc7Dz1pFcekdz3", // Public Key ID STAYS here
-                    "amount": orderData.amount,       // Secured amount from backend
-                    "currency": "INR",
-                    "order_id": orderData.id,         // Secured Order ID from backend
-                    "name": appData.settings.brandName,
-                    "description": "Payment for Order",
-                    "image": appData.settings.logoUrl,
-                    "handler": async function (response) { 
-                        showToast("Verifying payment...");
-                        
-                        try {
-                            const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
-                                body: {
-                                    razorpay_order_id: response.razorpay_order_id,
-                                    razorpay_payment_id: response.razorpay_payment_id,
-                                    razorpay_signature: response.razorpay_signature
-                                }
-                            });
-
-                            if (verifyError) throw verifyError;
-
-                            // Added 'await' here to ensure the flow waits for the database insertion
-                            if (verifyData && verifyData.success) {
-                                await processOrderPlacement(totalAmount, orderDetails); 
-                            } else {
-                                console.error("Verification Error:", verifyData);
-                                alert("Payment verification failed! Order not placed.");
-                            }
-                        } catch (err) {
-                            console.error("Verification Exception:", err);
-                            alert("Error verifying payment with server: " + err.message);
-                        }
-                    },
-                    "prefill": { 
-                        "name": name, 
-                        "email": email, 
-                        "contact": phone 
-                    },
-                    "theme": { "color": "#1a1a1a" },
-                    "modal": { 
-                        "ondismiss": function() { 
-                            showToast("Payment cancelled"); 
-                        } 
-                    }
-                };
-                
-                // NEW UPDATED CODE TO ADD:
-                const rzp = new Razorpay(options);
-
-                // Catch the error gracefully instead of showing the ugly browser alert
-                rzp.on('payment.failed', function (response) {
-                    console.error("Payment Failed:", response.error);
-                    // Use your existing toast notification for a smooth user experience
-                    showToast("Payment Failed: " + response.error.description);
-                });
-
-                rzp.open();
-                
-            } catch (e) {
-                console.error("Payment Gateway Error:", e);
-                showToast("Payment Gateway Error. Please try again.");
+function initiatePayment(btn, totalAmount, hasPartialItem = false, totalUpfrontIfOnline = 0, partialDueTotal = 0) {
+            if (!validateCheckoutForm()) {
+                triggerHaptic('pop');
+                showToast("Please check the errors in the form");
+                return;
             }
-        }, 1200); // 1.2 second loading delay
-    } else {
-        // If amount is 0 (Free order or full discount), place order directly
-        withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); 
-    }
-}
+
+            const name = document.getElementById('chkName').value;
+            const email = document.getElementById('chkEmail').value;
+            const phone = document.getElementById('chkPhone').value;
+            const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+            let discount = 0;
+            let appliedCouponStr = "None";
+            
+            for (let rule of appData.coupons) {
+                if (subtotal >= rule.minThreshold) { 
+                    discount = rule.discountAmount; 
+                    appliedCouponStr = `₹${rule.discountAmount} off (Min ₹${rule.minThreshold})`;
+                    break; 
+                }
+            }
+
+            let amountToCharge = totalAmount;
+            let amountDueOnDelivery = 0;
+
+            if (hasPartialItem) {
+                amountToCharge = totalUpfrontIfOnline;
+                amountDueOnDelivery = partialDueTotal;
+            } else if (paymentMethod === 'cod') {
+                amountToCharge = appData.settings.codUpfrontFee;
+                amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
+            }
+
+            const orderDetails = {
+                name: name,
+                email: email,
+                phone: phone,
+                address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
+                paymentMethod: paymentMethod,
+                amountPaid: amountToCharge,
+                amountDue: amountDueOnDelivery,
+                subtotal: subtotal,
+                shippingFee: shipping,
+                discount: discount,
+                couponApplied: appliedCouponStr
+            };
+
+            if (amountToCharge > 0) {
+                withLoading(btn, async () => {
+                    try {
+                        const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
+                            body: { amount: amountToCharge }
+                        });
+
+                        if (orderError || !orderData || !orderData.id) {
+                            console.error("Backend Order Creation Error:", orderError);
+                            showToast("Failed to initialize secure payment.");
+                            return;
+                        }
+
+                        const options = {
+                            "key": "rzp_live_Sc7Dz1pFcekdz3",
+                            "amount": orderData.amount,
+                            "currency": "INR",
+                            "order_id": orderData.id,
+                            "name": appData.settings.brandName,
+                            "description": "Payment for Order",
+                            "image": appData.settings.logoUrl,
+                            "handler": async function (response) { 
+                                showToast("Verifying payment...");
+                                try {
+                                    const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
+                                        body: {
+                                            razorpay_order_id: response.razorpay_order_id,
+                                            razorpay_payment_id: response.razorpay_payment_id,
+                                            razorpay_signature: response.razorpay_signature
+                                        }
+                                    });
+
+                                    if (verifyError) throw verifyError;
+
+                                    if (verifyData && verifyData.success) {
+                                        await processOrderPlacement(totalAmount, orderDetails); 
+                                    } else {
+                                        console.error("Verification Error:", verifyData);
+                                        alert("Payment verification failed! Order not placed.");
+                                    }
+                                } catch (err) {
+                                    console.error("Verification Exception:", err);
+                                    alert("Error verifying payment with server: " + err.message);
+                                }
+                            },
+                            "prefill": { "name": name, "email": email, "contact": phone },
+                            "theme": { "color": "#1a1a1a" },
+                            "modal": { 
+                                "ondismiss": function() { 
+                                    showToast("Payment cancelled"); 
+                                } 
+                            }
+                        };
+                        
+                        const rzp = new Razorpay(options);
+                        rzp.on('payment.failed', function (response) {
+                            console.error("Payment Failed:", response.error);
+                            showToast("Payment Failed: " + response.error.description);
+                        });
+                        rzp.open();
+                        
+                    } catch (e) {
+                        console.error("Payment Gateway Error:", e);
+                        showToast("Payment Gateway Error. Please try again.");
+                    }
+                }, 1200);
+            } else {
+                withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); 
+            }
+        }
 
         async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
