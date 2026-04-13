@@ -2557,20 +2557,39 @@ function switchPolicyTab(tabId) {
         
         window.shareProduct = shareProduct; // Expose it to the HTML
 
-        function renderProduct(prodId) {
+        function renderProduct(prodId, initVariant = null, initSize = null, initAlphabet = null) {
             navigate({view: 'product', id: prodId});
             searchContainer.style.display = 'none';
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             if(!prod) return;
 
+            // 1. Auto-Select Variant if passed
             selectedProductVariantIndex = 0;
+            if (initVariant && prod.variants) {
+                const vIndex = prod.variants.findIndex(v => v.name === initVariant);
+                if (vIndex > -1) selectedProductVariantIndex = vIndex;
+            }
+
+            // 2. Auto-Select Size if passed
             selectedProductSize = null;
-            selectedAlphabet = selectedAlphabet = prod.isAlphabet ? 'A' : null; 
+            if (prod.sizes && prod.sizes.length > 0) {
+                selectedProductSize = (initSize && prod.sizes.includes(initSize)) ? initSize : prod.sizes[0];
+            }
+
+            // 3. Auto-Select Alphabet if passed
+            selectedAlphabet = prod.isAlphabet ? 'A' : null;
+            if (prod.isAlphabet && initAlphabet) {
+                selectedAlphabet = initAlphabet;
+            }
 
             let hasVariants = prod.variants && prod.variants.length > 0;
             let initialMediaArr = [""];
-            if (hasVariants) initialMediaArr = prod.variants[0].media && prod.variants[0].media.length > 0 ? prod.variants[0].media : [""];
-            else if (prod.media && prod.media.length > 0) initialMediaArr = prod.media;
+            if (hasVariants) {
+                const activeVariant = prod.variants[selectedProductVariantIndex];
+                initialMediaArr = activeVariant.media && activeVariant.media.length > 0 ? activeVariant.media : [""];
+            } else if (prod.media && prod.media.length > 0) {
+                initialMediaArr = prod.media;
+            }
 
             totalSlides = initialMediaArr.length;
             currentSlide = 0;
@@ -2613,19 +2632,25 @@ function switchPolicyTab(tabId) {
                             hasVideoClass = 'has-video';
                         } else thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}" loading="lazy">`;
                     }
-                    const selectedClass = idx === 0 ? 'selected' : '';
+                    // FIX: Uses the dynamically selected index
+                    const selectedClass = idx === selectedProductVariantIndex ? 'selected' : '';
                     optionsHtml += `<button class="color-option-btn ${selectedClass} ${hasVideoClass}" onclick="changeProductVariant('${prod.id}', ${idx})" title="${v.name || ''}">${thumbContent}</button>`;
                 });
-                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${prod.variants[0].name || ''}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
+                // FIX: Pulls the correct name text
+                const activeVariantName = prod.variants[selectedProductVariantIndex].name || '';
+                variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${activeVariantName}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
             let sizeHtml = '';
-if (prod.sizes && prod.sizes.length > 0) {
-    let guideLink = `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
-    let titleLabel = 'Select Size';
+            if (prod.sizes && prod.sizes.length > 0) {
+                let guideLink = `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
+                let titleLabel = 'Select Size';
 
-    selectedProductSize = prod.sizes[0];
-    let sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
+                // FIX: Only default to the first size if a size wasn't already selected via the cart
+                if (!selectedProductSize) {
+                    selectedProductSize = prod.sizes[0];
+                }
+                let sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
 
     sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
 }
@@ -2869,9 +2894,9 @@ function quickAddToCart(event, btn, prodId) {
                     <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
-                    <div class="cart-item-img" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${imgContent}</div>
-                    <div class="cart-item-info">
-                        <div class="cart-item-title" onclick="renderProduct('${item.id}')" style="cursor:pointer;">${item.name}</div>
+<div class="cart-item-img" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${imgContent}</div>
+<div class="cart-item-info">
+    <div class="cart-item-title" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${item.name}</div>
                         ${variantDisplay}
                         <div class="cart-item-price">${formatPrice(item.price)}</div>
                         <div class="qty-controls">
@@ -3350,9 +3375,10 @@ async function renderOrders() {
                 }
 
                 let displaySpecs = [];
-                if (item.variant && item.variant !== "Default") displaySpecs.push(item.variant);
-                if (item.size) displaySpecs.push(item.size);
-                if (item.alphabet) displaySpecs.push(item.alphabet);
+                const variantLabel = item.variant_label || item.variantLabel || 'Variant';
+                if (item.variant && item.variant !== "Default") displaySpecs.push(`${variantLabel}: ${item.variant}`);
+                if (item.size) displaySpecs.push(`Size: ${item.size}`);
+                if (item.alphabet) displaySpecs.push(`Alphabet: ${item.alphabet}`);
                 const variantDisplay = displaySpecs.length > 0 ? displaySpecs.join(' | ') : '';
 
                 itemsHtml += `
