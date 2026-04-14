@@ -284,7 +284,7 @@
                             <option value="online">Online</option>
                         </select>
                     </div>
-                    <div class="flex-row" style="margin-bottom: 20px; background: #fff; padding: 10px; border: 1px solid #000; box-shadow: 2px 2px 0px #000;">
+<div class="flex-row" style="margin-bottom: 20px; background: #fff; padding: 10px; border: 1px solid #000; box-shadow: 2px 2px 0px #000;">
                         <select id="sortValueFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
                             <option value="newest">Sort: Newest First</option>
                             <option value="high_low">Value: High to Low</option>
@@ -292,7 +292,8 @@
                         </select>
                         <select id="stateFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
                             <option value="All">All States</option>
-                            </select>
+                        </select>
+                        <button class="outline" onclick="exportOrdersCSV()" style="width: auto; margin-bottom: 0; padding: 7px 15px;">EXPORT CSV</button>
                     </div>
 <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" onclick="filterOrders('All', this)">ALL <span id="count-all"></span></button>
@@ -1887,12 +1888,14 @@ function renderOrdersTable(filterStatus) {
         });
     }
 
-    // 5. Value Sorting
+// 5. Value Sorting
     filteredOrders.sort((a, b) => {
         if (sortFilter === 'high_low') return b.total_amount - a.total_amount;
         if (sortFilter === 'low_high') return a.total_amount - b.total_amount;
         return new Date(b.created_at) - new Date(a.created_at); // Fallback to newest
     });
+
+    window.currentFilteredOrders = filteredOrders; // Save globally for CSV Export
 
     // Render Rows
     if (filteredOrders && filteredOrders.length > 0) {
@@ -1946,9 +1949,12 @@ function renderOrdersTable(filterStatus) {
                         <strong>₹${o.total_amount.toLocaleString()}</strong>
                         ${itemThumbsHtml}
                     </td>
-                    <td data-label="Status">
-                        <span class="badge ${badgeClass}">${escapeHTML(o.status)}</span><br>
-                        <span class="awb-badge">AWB: Pending</span>
+<td data-label="Status">
+                        <span class="badge ${badgeClass}" style="margin-bottom: 4px;">${escapeHTML(o.status)}</span><br>
+                        ${o.awb_number 
+                            ? `<span class="awb-badge" style="cursor:pointer; border-color:#2ecc71; color:#2ecc71;" onclick="updateAWB('${o.id}', '${o.awb_number}')">AWB: ${o.awb_number} ✎</span>` 
+                            : `<span class="awb-badge" style="cursor:pointer;" onclick="updateAWB('${o.id}', '')">+ Add AWB</span>`
+                        }
                     </td>
                     <td data-label="Action">
                         <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
@@ -2089,6 +2095,61 @@ window.updateOrderStatus = async function(id, newStatus) {
     }
 };
 
+window.updateAWB = async function(id, currentAWB) {
+    const newAWB = prompt("Enter AWB Tracking Number:", currentAWB);
+    if (newAWB === null) return; // User cancelled
+    
+    try {
+        const { error } = await db.from('orders').update({ awb_number: newAWB.trim() }).eq('id', id);
+        if (error) throw error;
+        
+        await loadOrders(); 
+        alert("AWB Updated Successfully!");
+    } catch (err) {
+        alert("Failed to update AWB: " + err.message);
+    }
+};
+
+window.exportOrdersCSV = function() {
+    if (!window.currentFilteredOrders || window.currentFilteredOrders.length === 0) {
+        return alert("No orders available to export based on current filters.");
+    }
+    
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Order ID,Date,Customer Name,Phone,Email,State,City,Pincode,Amount,Payment Method,Status,AWB Number\n";
+    
+    window.currentFilteredOrders.forEach(o => {
+        const dateObj = new Date(o.created_at);
+        const formattedDate = `"${dateObj.toLocaleDateString('en-IN')} ${dateObj.toLocaleTimeString('en-US')}"`;
+        
+        // Safely extract customer details
+        const c = o.customer_details || {};
+        const cName = `"${c.name || ''}"`;
+        const phone = `"${c.phone || ''}"`;
+        const email = `"${c.email || ''}"`;
+        
+        // Extract State, City, Pincode from the address string (best effort based on formatting)
+        const fullAddr = c.address || '';
+        const addrParts = fullAddr.split(',');
+        const stateStr = `"${addrParts.length > 2 ? addrParts[addrParts.length-1].split('-')[0]?.trim() : ''}"`;
+        const cityStr = `"${addrParts.length > 1 ? addrParts[addrParts.length-2]?.trim() : ''}"`;
+        
+        const amount = o.total_amount;
+        const pMethod = `"${c.paymentMethod === 'cod' ? 'COD' : 'Online'}"`;
+        const status = `"${o.status}"`;
+        const awb = `"${o.awb_number || ''}"`;
+        
+        csvContent += `${o.id},${formattedDate},${cName},${phone},${email},${stateStr},${cityStr},"",${amount},${pMethod},${status},${awb}\n`;
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
         // Generic Delete
         window.deleteRecord = async function(table, id) {
             if(confirm(`Are you sure you want to delete this record from ${table}?`)) {
