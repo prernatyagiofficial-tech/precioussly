@@ -772,7 +772,7 @@ window.generateStockGrid = function() {
     html += '</tbody></table>';
     container.innerHTML = html;
 };
-        function addVariantBox(name = '', mediaStr = '') {
+        function addVariantBox(name = '', mediaStr = '', price = '') {
             const container = document.getElementById('variantsContainer');
             const varId = 'var_' + variantCounter++;
             
@@ -781,9 +781,15 @@ window.generateStockGrid = function() {
             
             box.innerHTML = `
                 <button type="button" class="danger" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 4px 8px; font-size: 10px;" onclick="this.parentElement.remove()">REMOVE</button>
-                <div class="form-group">
-                    <label>Variant Name (e.g., Red, Blue)</label>
-                    <input type="text" class="var-name" value="${escapeHTML(name)}" placeholder="Enter variant name" required>
+                <div class="grid-form">
+                    <div class="form-group">
+                        <label>Variant Name (e.g., Red, Blue)</label>
+                        <input type="text" class="var-name" value="${escapeHTML(name)}" placeholder="Enter variant name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Variant Price (₹)</label>
+                        <input type="number" class="var-price" value="${escapeHTML(String(price))}" placeholder="Leave empty to use base price">
+                    </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Media URLs (Comma separated)</label>
@@ -1651,14 +1657,15 @@ window.editProduct = function(id) {
         if (p.variants && Array.isArray(p.variants)) {
             p.variants.forEach(v => {
                 const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
-                addVariantBox(v.name, mediaStr);
+                const priceVal = (v.price !== undefined && v.price !== null) ? v.price : '';
+                addVariantBox(v.name, mediaStr, priceVal);
             });
         }
         document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
         window._tempVariantStock = p.variant_stock || {};
-setTimeout(() => generateStockGrid(), 50); // Ensure DOM is ready before generating
+        setTimeout(() => generateStockGrid(), 50); 
         openModal('productModal');
     }
 };
@@ -1678,19 +1685,25 @@ setTimeout(() => generateStockGrid(), 50); // Ensure DOM is ready before generat
         variantBoxes.forEach(box => {
             const vName = box.querySelector('.var-name').value.trim();
             const vMediaStr = box.querySelector('.var-media').value.trim();
+            const vPriceStr = box.querySelector('.var-price').value.trim();
             
             if (vName || vMediaStr) {
                 const vMediaArr = vMediaStr.split(',').map(s => s.trim()).filter(Boolean);
-                variantsObj.push({ name: vName, media: vMediaArr });
+                const variantData = { name: vName, media: vMediaArr };
+                
+                // Attach the price if it was provided
+                if (vPriceStr !== '') {
+                    variantData.price = Number(vPriceStr);
+                }
+                
+                variantsObj.push(variantData);
             }
         });
 
-        // --- NEW: Compile the Variant/Size Stock Data ---
         let compiledVariantStock = {};
         document.querySelectorAll('.stock-input').forEach(input => {
             compiledVariantStock[input.dataset.key] = input.value.trim() === '' ? null : Number(input.value);
         });
-        // ------------------------------------------------
 
         const payload = {
             name: document.getElementById('prodName').value.trim(),
@@ -1701,7 +1714,7 @@ setTimeout(() => generateStockGrid(), 50); // Ensure DOM is ready before generat
             media: mediaArr,
             sizes: sizesArr,
             variants: variantsObj,
-            variant_stock: compiledVariantStock, // <-- Added new stock object here
+            variant_stock: compiledVariantStock,
             is_best_seller: document.getElementById('prodBestSeller').checked,
             is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
