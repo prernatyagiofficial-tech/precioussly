@@ -2254,17 +2254,43 @@ if (appData.settings.instagramUrl) {
                 }
             }
 
-            // NEW: Check stock and generate the appropriate button HTML
+            // 1. "Sold Out" Logic (Total Inventory Check)
+            let isSoldOut = false;
+            if (prod.variant_stock && Object.keys(prod.variant_stock).length > 0) {
+                let totalVariantStock = 0;
+                for (let key in prod.variant_stock) {
+                    totalVariantStock += (prod.variant_stock[key] || 0);
+                }
+                if (totalVariantStock <= 0) isSoldOut = true;
+            } else if (prod.stock !== null && prod.stock <= 0) {
+                // Fallback to simple stock if no variant stock object exists
+                isSoldOut = true;
+            }
+
+            // 2. Determine if the product has any variants
+            const hasVariants = (prod.variants && prod.variants.length > 0) || 
+                                (prod.sizes && prod.sizes.length > 0) || 
+                                (prod.isAlphabet === true);
+
+            // 3. Generate the appropriate action button HTML
             let actionButtonHtml = '';
-            if (prod.stock !== null && prod.stock <= 0) {
-                // Out of Stock: Sold Out text, disabled styling, no onclick event
+            
+            if (isSoldOut) {
+                // Completely Out of Stock
                 actionButtonHtml = `
                     <button class="btn-secondary btn-disabled" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation();">
                         <span class="btn-text">Sold Out</span>
                     </button>
                 `;
+            } else if (hasVariants) {
+                // In Stock WITH variants -> Route to Product Details Page
+                actionButtonHtml = `
+                    <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation(); renderProduct('${prod.id}');">
+                        <span class="btn-text">Select Options</span>
+                    </button>
+                `;
             } else {
-                // In Stock: Normal Add to Cart button
+                // In Stock, Simple Product -> Quick Add to Cart
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
                         <span class="btn-text">Add to Cart</span>
