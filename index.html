@@ -1920,6 +1920,15 @@ let currentSubCategories = [];
                 document.body.classList.remove('no-scroll');
                 return; 
             }
+            
+            // NEW: Offers modal ko back button se close karne ke liye
+            const offersModal = document.getElementById('offersModal');
+            if (offersModal && offersModal.classList.contains('active')) {
+                offersModal.classList.remove('active');
+                document.body.classList.remove('no-scroll');
+                return;
+            }
+
             // Add this Lightbox check here:
             const lbOverlay = document.getElementById('lightboxOverlay');
             if (lbOverlay && lbOverlay.classList.contains('active')) {
@@ -4208,11 +4217,19 @@ function openOffersDrawer() {
 
     document.getElementById('offersModal').classList.add('active');
     document.body.classList.add('no-scroll');
+    
+    // NEW: Push state for back button support
+    history.pushState({ modal: 'offers' }, "");
 }
 
 function closeOffersDrawer() {
     document.getElementById('offersModal').classList.remove('active');
     document.body.classList.remove('no-scroll');
+    
+    // NEW: Clean up history if closed via the "X" button
+    if (history.state && history.state.modal === 'offers') {
+        history.back();
+    }
 }
 
 function handleCouponAction(btn, isApplied) {
