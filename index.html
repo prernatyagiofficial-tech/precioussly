@@ -3739,6 +3739,44 @@ async function renderOrders() {
                 statusTextColor = '#c62828'; // Red
             } // Delivered uses the default green
 
+            // --- NEW: PRICE BREAKDOWN LOGIC ---
+            let priceBreakdownHtml = '';
+            // Only render the breakdown if the subtotal data exists (prevents older orders from breaking)
+            if (order.customer_details && order.customer_details.subtotal !== undefined) {
+                const subtotal = order.customer_details.subtotal;
+                const shipping = order.customer_details.shippingFee || 0;
+                const discount = order.customer_details.discount || 0;
+                const coupon = order.customer_details.couponApplied || '';
+
+                priceBreakdownHtml += `
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-gray); margin-bottom: 6px;">
+                        <span>Subtotal</span>
+                        <span style="color: var(--text-dark);">${formatPrice(subtotal)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-gray); margin-bottom: 6px;">
+                        <span>Shipping</span>
+                        <span style="color: var(--text-dark);">${shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
+                    </div>
+                `;
+
+                // Only render discount row if discount is applied
+                if (discount > 0) {
+                    priceBreakdownHtml += `
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-gray); margin-bottom: 10px; align-items: center;">
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            Discount 
+                            <span style="font-size: 11px; background: var(--light-green); color: var(--dark-green); padding: 3px 8px; border-radius: 6px; font-weight: 700; text-transform: uppercase;">${coupon}</span>
+                        </span>
+                        <span style="color: #00b894; font-weight: 600;">-${formatPrice(discount)}</span>
+                    </div>
+                    `;
+                }
+                
+                // Add a dashed separator right before the final total
+                priceBreakdownHtml += `<div style="border-top: 1px dashed var(--border-color); margin: 10px 0 12px 0;"></div>`;
+            }
+            // --- END PRICE BREAKDOWN LOGIC ---
+
             html += `
                 <div class="order-card">
                     <div class="order-header">
@@ -3759,8 +3797,11 @@ async function renderOrders() {
                     </div>
                     ` : ''}
                     <div class="order-footer" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                        
+                        ${priceBreakdownHtml}
+                        
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <span class="order-total-label">Order Total</span>
+                            <span class="order-total-label" style="font-size: 15px; font-weight: 600; color: var(--text-dark);">Order Total</span>
                             <span class="order-total-amount">${formatPrice(order.total_amount)}</span>
                         </div>
                         ${order.customer_details && order.customer_details.paymentMethod === 'cod' ? `
