@@ -437,37 +437,57 @@
                 </div>
                 
 <div id="view-users" class="view-section">
-                    <div class="section-header">
-                        <h1>Registered Users</h1>
-                    </div>
-                    
-                    <div class="toolbar-flex">
-                        <input type="text" id="userSearchFilter" placeholder="Search by Name or Email..." oninput="debounceUserSearch()">
-                    </div>
+    <div class="section-header">
+        <h1>Registered Users</h1>
+    </div>
+    
+<div class="toolbar-flex" style="flex-direction: column; align-items: stretch; gap: 10px;">
+        <input type="text" id="userSearchFilter" placeholder="Search by Name or Email..." oninput="debounceUserSearch()" style="width: 100%; margin-bottom: 0;">
+        
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; width: 100%;">
+            
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
+                <label style="font-weight: 600; font-size: 11px; text-transform: uppercase; white-space: nowrap; margin-bottom: 0;">Sort By:</label>
+                <select id="userSortFilter" style="flex: 1; min-width: 0; margin-bottom: 0; text-overflow: ellipsis;" onchange="loadUsers(1)">
+                    <option value="date_desc">Joined Date (Newest First)</option>
+                    <option value="orders_desc">Orders (High to Low)</option>
+                    <option value="orders_asc">Orders (Low to High)</option>
+                    <option value="orders_activity">Recent Orders First</option>
+                    <option value="wishlist_desc">Wishlist Count (High to Low)</option>
+                    <option value="wishlist_asc">Wishlist Count (Low to High)</option>
+                    <option value="wishlist_activity">Wishlist Updated (Recently First)</option>
+                </select>
+            </div>
+            
+            <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; white-space: nowrap;" id="totalUsersCountDisp">Total Users: 0</div>
+            
+        </div>
+    </div>
 
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Total Orders</th>
-                                    <th>Joined Date</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody">
-                                <tr><td colspan="5" style="text-align:center; padding: 20px;">Loading users...</td></tr>
-                            </tbody>
-                        </table>
-                        
-                        <div class="pagination-controls">
-                            <button class="outline" id="btnPrevUserPage" onclick="loadUsers(usersCurrentPage - 1)">PREV</button>
-                            <span class="page-info" id="usersPageInfo">Page 1 of 1</span>
-                            <button class="outline" id="btnNextUserPage" onclick="loadUsers(usersCurrentPage + 1)">NEXT</button>
-                        </div>
-                    </div>
-                </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Total Orders</th>
+                    <th>Wishlist Items</th>
+                    <th>Joined Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody">
+                <tr><td colspan="6" style="text-align:center; padding: 20px;">Loading users...</td></tr>
+            </tbody>
+        </table>
+        
+        <div class="pagination-controls">
+            <button class="outline" id="btnPrevUserPage" onclick="loadUsers(usersCurrentPage - 1)">PREV</button>
+            <span class="page-info" id="usersPageInfo">Page 1 of 1</span>
+            <button class="outline" id="btnNextUserPage" onclick="loadUsers(usersCurrentPage + 1)">NEXT</button>
+        </div>
+    </div>
+</div>
 
     <input type="file" id="fileLogo" style="display:none;" onchange="handleDirectUpload(event, 'setLogoUrl')">
     <input type="file" id="fileBanner" style="display:none;" onchange="handleDirectUpload(event, 'setBannerUrl')">
@@ -837,67 +857,117 @@ db.channel('live-orders')
             }
         }
 
-        // --- UPGRADED USERS LOGIC ---
+// --- UPGRADED USERS LOGIC ---
         let usersCurrentPage = 1;
         const USERS_PAGE_SIZE = 50;
         let userSearchTimeout;
-        let loadedUsersList = []; // Holds the current page's user data for the modal
+        let loadedUsersList = []; // Holds the full list for the modal and sorting
+        let paginatedUsersList = []; // Holds the current page's sliced data
 
         async function loadUsers(page = 1) {
             usersCurrentPage = page;
             const searchQ = document.getElementById('userSearchFilter') ? document.getElementById('userSearchFilter').value.trim() : '';
+            const sortVal = document.getElementById('userSortFilter') ? document.getElementById('userSortFilter').value : 'date_desc';
 
             try {
-                // Request exact count for accurate pagination
+                // 1. Fetch data from Supabase (omitting .range() to allow in-memory sorting)
                 let query = db.from('profiles').select('*', { count: 'exact' });
 
                 if (searchQ) {
                     query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
                 }
 
-                const from = (page - 1) * USERS_PAGE_SIZE;
-                const to = from + USERS_PAGE_SIZE - 1;
-
-                const { data, count, error } = await query
-                    .order('created_at', { ascending: false })
-                    .range(from, to);
-
+                const { data, count, error } = await query;
                 if (error) throw error;
 
-                loadedUsersList = data || [];
-                const totalPages = Math.ceil(count / USERS_PAGE_SIZE) || 1;
+                let usersData = data || [];
 
-                // Update Pagination UI
+                // 2. Attach frontend calculated data for accurate sorting
+                usersData = usersData.map(u => {
+                    const userEmail = (u.email || '').toLowerCase();
+                    const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
+                    
+                    let wishlistArr = [];
+                    if (u.wishlist) {
+                        try { wishlistArr = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist); } 
+                        catch(e) { wishlistArr = []; }
+                    }
+
+                    // Calculate activity timestamps
+                    let latestOrderTime = 0;
+                    if (userOrders.length > 0) {
+                        latestOrderTime = Math.max(...userOrders.map(o => new Date(o.created_at).getTime()));
+                    }
+
+                    return {
+                        ...u,
+                        _orderCount: userOrders.length,
+                        _latestOrderTime: latestOrderTime,
+                        _wishlistCount: wishlistArr.length,
+                        _wishlistUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
+                        _joinedTime: new Date(u.created_at).getTime()
+                    };
+                });
+
+                // 3. Apply In-Memory Sorting based on dropdown selection
+                usersData.sort((a, b) => {
+                    switch (sortVal) {
+                        case 'orders_desc': return b._orderCount - a._orderCount;
+                        case 'orders_asc': return a._orderCount - b._orderCount;
+                        case 'orders_activity': return b._latestOrderTime - a._latestOrderTime;
+                        case 'wishlist_desc': return b._wishlistCount - a._wishlistCount;
+                        case 'wishlist_asc': return a._wishlistCount - b._wishlistCount;
+                        case 'wishlist_activity': return b._wishlistUpdated - a._wishlistUpdated;
+                        case 'date_desc': 
+                        default: return b._joinedTime - a._joinedTime;
+                    }
+                });
+
+                loadedUsersList = usersData; // Cache the sorted full list
+
+                // 4. Apply In-Memory Pagination
+                const totalItems = usersData.length;
+                const totalPages = Math.ceil(totalItems / USERS_PAGE_SIZE) || 1;
+                
+                if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
+                if (usersCurrentPage < 1) usersCurrentPage = 1;
+
+                const startIndex = (usersCurrentPage - 1) * USERS_PAGE_SIZE;
+                paginatedUsersList = usersData.slice(startIndex, startIndex + USERS_PAGE_SIZE);
+
+                // 5. Update DOM elements (Counts & Pagination)
+                const countDisp = document.getElementById('totalUsersCountDisp');
+                if (countDisp) countDisp.innerText = `Total Users: ${count}`;
+
                 const pageInfo = document.getElementById('usersPageInfo');
                 const btnPrev = document.getElementById('btnPrevUserPage');
                 const btnNext = document.getElementById('btnNextUserPage');
 
-                if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages} (${count} Total)`;
+                if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages}`;
                 if (btnPrev) btnPrev.disabled = usersCurrentPage <= 1;
                 if (btnNext) btnNext.disabled = usersCurrentPage >= totalPages;
 
+                // 6. Render Table HTML
                 let html = '';
-                if (loadedUsersList.length > 0) {
-                    loadedUsersList.forEach(u => {
-                        // Dynamically calculate total orders from the global State.orders array
-                        const userEmail = (u.email || '').toLowerCase();
-                        const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
-                        
+                if (paginatedUsersList.length > 0) {
+                    paginatedUsersList.forEach(u => {
                         html += `
                         <tr>
                             <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
                             <td>${escapeHTML(u.email)}</td>
-                            <td><span class="badge">${userOrders.length}</span></td>
+                            <td><span class="badge">${u._orderCount}</span></td>
+                            <td><span class="badge" style="background: #34495e;">${u._wishlistCount}</span></td>
                             <td>${new Date(u.created_at).toLocaleDateString()}</td>
                             <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
                         </tr>`;
                     });
                 }
                 
-                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
+                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
 
             } catch (err) {
                 console.error("Error loading users:", err);
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
             }
         }
 
