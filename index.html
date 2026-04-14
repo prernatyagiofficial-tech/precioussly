@@ -3653,7 +3653,8 @@ async function syncLocalOrdersWithSupabase() {
     // 1. Convert IDs to strings to prevent Supabase query errors
     const orderIds = localOrders.map(o => String(o.id)); 
     
-    const { data, error } = await db.from('orders').select('id, status').in('id', orderIds);
+    // FETCH UPDATE: Now requesting awb_number and created_at as well
+    const { data, error } = await db.from('orders').select('id, status, awb_number, created_at').in('id', orderIds);
 
     if (!error && data && data.length > 0) {
         const updatedOrders = localOrders.map(localOrder => {
@@ -3661,8 +3662,16 @@ async function syncLocalOrdersWithSupabase() {
             const liveOrder = data.find(d => String(d.id) === String(localOrder.id));
             
             if (liveOrder) {
-                // 3. FIX: Only update the status so we don't break the local UI data
+                // 3. UPDATE: Sync status, awb_number, and preserve the original creation date
                 localOrder.status = liveOrder.status;
+                
+                if (liveOrder.awb_number) {
+                    localOrder.awb_number = liveOrder.awb_number;
+                }
+                
+                if (liveOrder.created_at) {
+                    localOrder.created_at = liveOrder.created_at;
+                }
             }
             return localOrder;
         });
