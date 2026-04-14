@@ -845,9 +845,21 @@ db.channel('live-orders')
                 const { data: { session }, error } = await db.auth.getSession();
                 if (error) throw error;
                 
-                if (session) {
+if (session) {
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('adminContainer').style.display = 'block';
+                    
+                    // --- NEW: Read URL hash and restore the view ---
+                    const hash = window.location.hash.replace('#', '');
+                    const validViews = ['dashboard', 'orders', 'products', 'categories', 'coupons', 'reviews', 'settings', 'users'];
+                    
+                    if (validViews.includes(hash)) {
+                        switchView(hash); // Load the view from the URL
+                    } else {
+                        switchView('dashboard'); // Default fallback
+                    }
+                    // ------------------------------------------------
+
                     await loadAllData();
                 } else {
                     document.getElementById('loginContainer').style.display = 'block';
@@ -896,9 +908,22 @@ db.channel('live-orders')
         function switchView(viewId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
+            
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
-            if(window.innerWidth <= 768) toggleSidebar();
+            
+            // Find the correct sidebar link even if the page was just refreshed
+            const activeLink = element || document.querySelector(`.nav-link[onclick*="'${viewId}'"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+
+// Update the URL hash quietly without reloading the page
+            window.history.replaceState(null, null, `#${viewId}`);
+
+            // Force close the sidebar on mobile, instead of toggling it
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
         }
 
         // Modal Helpers
