@@ -2142,7 +2142,7 @@ if (appData.settings.instagramUrl) {
                         renderHome();
                     }
                 } 
-               // 2. Fallback for old URL styles just in case
+// 2. Standard View Routing for all pages
         else if (viewParam === 'product' && idParam) {
             history.replaceState({view: 'product', id: idParam}, "", window.location.search);
             isPopState = true;
@@ -2153,6 +2153,36 @@ if (appData.settings.instagramUrl) {
             isPopState = true;
             updateFabVisibility('category');
             renderCategory(idParam);
+        } else if (viewParam === 'cart') {
+            history.replaceState({view: 'cart'}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('cart');
+            renderCart();
+        } else if (viewParam === 'wishlist') {
+            history.replaceState({view: 'wishlist'}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('wishlist');
+            renderWishlist();
+        } else if (viewParam === 'orders') {
+            history.replaceState({view: 'orders'}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('orders');
+            renderOrders();
+        } else if (viewParam === 'track') {
+            history.replaceState({view: 'track'}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('track');
+            renderTrackOrder();
+        } else if (viewParam === 'checkout') {
+            history.replaceState({view: 'checkout'}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('checkout');
+            renderCheckout();
+        } else if (viewParam === 'policies') {
+            history.replaceState({view: 'policies', id: idParam}, "", window.location.search);
+            isPopState = true;
+            updateFabVisibility('policies');
+            renderPolicies(idParam || 'about');
         } else if (viewParam === 'login') {
             // NEW: Explicitly handle returning to the login page after Google Auth
             const newUrl = isAuthRedirect ? window.location.href : window.location.pathname + '?view=login';
