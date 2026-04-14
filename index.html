@@ -1152,6 +1152,75 @@
 .btn-filter-clear { background: none; border: none; color: var(--text-gray); text-decoration: underline; font-weight: 500; cursor: pointer; font-size: 14px; }
 .btn-filter-apply { background: #5b0e14; color: #fff; border: none; padding: 14px 40px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 15px; transition: transform 0.2s; }
 .btn-filter-apply:active { transform: scale(0.95); }
+/* --- NEW OFFERS UI --- */
+.offers-row { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 12px 20px; 
+    margin: 0 -20px; /* Stretches the row edge-to-edge into the parent's padding */
+    border-top: 1px solid var(--border-color); 
+    border-bottom: 1px solid var(--border-color);
+    border-left: none;
+    border-right: none;
+    border-radius: 0; 
+    background: #fff; 
+    cursor: pointer; 
+    transition: background 0.3s ease; 
+}
+.offers-row:hover { background: var(--secondary-bg); }
+
+.offers-row.applied { 
+    background: var(--light-green); 
+    border-top: 1px dashed var(--dark-green); 
+    border-bottom: 1px dashed var(--dark-green);
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    margin: 0 -20px;
+}
+
+.offers-icon { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 36px; 
+    height: 36px; 
+    background: transparent; 
+    border-radius: 50%; 
+    color: var(--text-dark); 
+    margin-right: 12px; 
+}
+.offers-row.applied .offers-icon { 
+    background: transparent; 
+    color: var(--dark-green); 
+}
+.offers-icon svg { width: 22px; height: 22px; stroke-width: 1.5; }
+
+.offers-text { flex: 1; }
+.offers-main-text { font-size: 14px; font-weight: 500; color: var(--text-dark); margin-bottom: 2px; }
+.offers-row.applied .offers-main-text { color: var(--dark-green); font-weight: 600; }
+.offers-sub-text { font-size: 12px; color: var(--text-gray); }
+
+.offers-chevron { color: var(--text-gray); display: flex; align-items: center; }
+.offers-chevron svg { width: 18px; height: 18px; }
+
+.offers-input-wrapper { display: flex; position: relative; margin-bottom: 25px; }
+.offers-input-wrapper input { width: 100%; padding: 14px 100px 14px 18px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; outline: none; background: var(--secondary-bg); text-transform: uppercase; }
+.offers-input-wrapper input:focus { border-color: var(--text-dark); background: #fff; }
+.offers-input-wrapper button { position: absolute; right: 6px; top: 6px; bottom: 6px; background: transparent; border: none; color: var(--brand-color); font-weight: 600; font-size: 14px; padding: 0 15px; cursor: pointer; font-family: inherit; transition: color 0.2s; }
+.offers-input-wrapper button:hover { color: var(--text-dark); }
+.merchant-offers-title { font-size: 12px; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 15px; }
+
+.drawer-coupon-card { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 15px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+.drawer-coupon-card.applied { background: var(--light-green); border: 1px dashed var(--dark-green); }
+.drawer-coupon-info { flex: 1; padding-right: 15px; }
+.drawer-coupon-code { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 5px; text-transform: uppercase; }
+.drawer-coupon-card.applied .drawer-coupon-code { color: var(--dark-green); }
+.drawer-coupon-desc { font-size: 13px; color: var(--text-gray); line-height: 1.4; }
+.drawer-coupon-action { font-size: 13px; font-weight: 600; cursor: pointer; background: none; border: none; font-family: inherit; }
+.drawer-coupon-action.apply { color: #1976d2; }
+.drawer-coupon-action.remove { color: var(--error-color); }
     </style>
 </head>
 <body>
@@ -1426,6 +1495,26 @@
         <div class="filter-footer">
             <button class="btn-filter-clear" onclick="resetFilters(true)">Remove all</button>
             <button class="btn-filter-apply" onclick="triggerFilterApply()">Apply</button>
+        </div>
+    </div>
+</div>
+<div class="filter-modal-overlay" id="offersModal">
+    <div class="filter-modal" style="height: 70vh;">
+        <div class="filter-header">
+            <div class="filter-title-area">
+                <h3>Offers For You</h3>
+            </div>
+            <button class="close-btn" onclick="closeOffersDrawer()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="filter-content" style="padding: 20px; background: #fff;">
+            <div class="offers-input-wrapper">
+                <input type="text" id="manualCouponInput" placeholder="Enter coupon code">
+                <button onclick="applyManualCoupon()">APPLY</button>
+            </div>
+            <div class="merchant-offers-title">MERCHANT OFFERS</div>
+            <div id="offersDrawerList"></div>
         </div>
     </div>
 </div>
@@ -3210,6 +3299,8 @@ function quickAddToCart(event, btn, prodId) {
             closeModal();
         });
 
+        
+
         function renderCart(preserveScroll = false) {
     const currentScrollY = window.scrollY; // Save the exact scroll position
     navigate({view: 'cart'});
@@ -3246,9 +3337,9 @@ function quickAddToCart(event, btn, prodId) {
                     <button class="remove-icon-btn" onclick="modifyQty('${item.id}', '${item.variant}', '${item.size || ''}', '${item.alphabet || ''}', -999)" title="Remove item">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
-<div class="cart-item-img" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${imgContent}</div>
-<div class="cart-item-info">
-    <div class="cart-item-title" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${item.name}</div>
+                    <div class="cart-item-img" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${imgContent}</div>
+                    <div class="cart-item-info">
+                        <div class="cart-item-title" onclick="renderProduct('${item.id}', '${item.variant || ''}', '${item.size || ''}', '${item.alphabet || ''}')" style="cursor:pointer;">${item.name}</div>
                         ${variantDisplay}
                         <div class="cart-item-price">${formatPrice(item.price)}</div>
                         <div class="qty-controls">
@@ -3262,30 +3353,61 @@ function quickAddToCart(event, btn, prodId) {
         });
         html += `</div></div><div class="cart-summary-wrapper">`;
 
+        // --- CORRECTED OFFERS LOGIC ---
         let discount = 0;
         let appliedThreshold = 0;
+        let appliedCouponCode = ""; 
         for (let rule of appData.coupons) {
-            if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; appliedThreshold = rule.minThreshold; break; }
+            if (subtotal >= rule.minThreshold) { 
+                discount = rule.discountAmount; 
+                appliedThreshold = rule.minThreshold; 
+                appliedCouponCode = rule.code || `SAVE${rule.discountAmount}`; 
+                break; 
+            }
         }
 
-        let couponsHtml = `<div class="coupon-section"><h4>Available Offers</h4><div class="coupon-scroll">`;
-        const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
-        displayDiscounts.forEach(rule => {
-            const isApplied = (rule.minThreshold === appliedThreshold);
-            couponsHtml += `
-                <div class="coupon-card" style="${isApplied ? 'border-color: var(--dark-green); background: var(--light-green);' : ''}">
-                    <div class="coupon-text">GET ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
-                    ${isApplied ? `<div class="coupon-applied-badge">Applied</div>` : ''}
+        let offersRowHtml = `
+            <div style="padding: 0 20px; margin-bottom: 25px;">
+                <div style="font-size: 12px; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Offers</div>
+        `;
+
+        // Minimalist Discount % Badge SVG
+        const discountIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 3.09L19.5 5.5l-.41 4.41L22 13l-2.91 3.09.41 4.41-4.41-.41L12 22l-3.09-3.09L4.5 18.5l.41-4.41L2 11l2.91-3.09-.41-4.41 4.41.41L12 2z"></path><path d="M9 15l6-6"></path><circle cx="9" cy="9" r="0.5" fill="currentColor"></circle><circle cx="15" cy="15" r="0.5" fill="currentColor"></circle></svg>`;
+
+        if (discount > 0) {
+            offersRowHtml += `
+                <div class="offers-row applied" onclick="openOffersDrawer()">
+                    <div class="offers-icon">${discountIconSvg}</div>
+                    <div class="offers-text">
+                        <div class="offers-main-text">'${appliedCouponCode}' Applied</div>
+                        <div class="offers-sub-text">You saved ${formatPrice(discount)} using coupons</div>
+                    </div>
+                    <div class="offers-chevron">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
                 </div>
             `;
-        });
-        couponsHtml += `</div></div>`;
+        } else {
+            offersRowHtml += `
+                <div class="offers-row" onclick="openOffersDrawer()">
+                    <div class="offers-icon">${discountIconSvg}</div>
+                    <div class="offers-text">
+                        <div class="offers-main-text">Apply Coupon Code</div>
+                        <div class="offers-sub-text">You can apply coupons</div>
+                    </div>
+                    <div class="offers-chevron">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </div>
+                </div>
+            `;
+        }
+        offersRowHtml += `</div>`;
+        // --- END OF OFFERS LOGIC ---
 
         const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
         const total = subtotal + shipping - discount;
         const isMinOrderMet = total >= appData.settings.minOrderAmount;
 
-        // --- NEW: Calculate Free Shipping Progress ---
         const amountForFreeShipping = appData.settings.freeShippingThreshold - subtotal;
         let freeShippingMessage = "";
         if (amountForFreeShipping > 0) {
@@ -3293,13 +3415,11 @@ function quickAddToCart(event, btn, prodId) {
         } else {
             freeShippingMessage = `<div class="savings-message">You've unlocked <strong>FREE Shipping</strong>! </div>`;
         }
-        // ---------------------------------------------
 
         html += `
-            ${couponsHtml}
+            ${offersRowHtml}
             <div class="cart-summary">
                 ${freeShippingMessage}
-                ${discount > 0 ? `<div class="savings-message">🎉 You saved ${formatPrice(discount)} on this order!</div>` : ''}
                 <div class="summary-row"><span>Subtotal</span> <span>${formatPrice(subtotal)}</span></div>
                 <div class="summary-row"><span>Shipping</span> <span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
                 ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span> <span>-${formatPrice(discount)}</span></div>` : ''}
@@ -3313,7 +3433,7 @@ function quickAddToCart(event, btn, prodId) {
             </div>
             <div class="cart-checkout-wrapper">
                 ${isMinOrderMet ? 
-    `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
+                    `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
                     `<div style="color: #ff4757; font-size: 14px; font-weight: 500; margin-bottom: 15px; text-align: center;">Minimum order amount is ₹${appData.settings.minOrderAmount}. Add items worth ₹${appData.settings.minOrderAmount - total} more.</div>
                      <button class="btn-primary" disabled>Proceed to Checkout</button>`
                 }
@@ -3324,9 +3444,9 @@ function quickAddToCart(event, btn, prodId) {
     requestAnimationFrame(() => {
         mainContent.innerHTML = html;
         if (preserveScroll) {
-            window.scrollTo(0, currentScrollY); // Stay in the same spot
+            window.scrollTo(0, currentScrollY); 
         } else {
-            window.scrollTo(0, 0); // Scroll to top on fresh load
+            window.scrollTo(0, 0); 
         }
     });
 }
@@ -4047,6 +4167,69 @@ function attachLightboxGestures() {
         if(lbScale === 1) { lbPanX = 0; lbPanY = 0; }
         media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
     }, { passive: false });
+}
+
+// --- OFFERS DRAWER LOGIC ---
+function openOffersDrawer() {
+    const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    let appliedThreshold = 0;
+    for (let rule of appData.coupons) {
+        if (subtotal >= rule.minThreshold) { appliedThreshold = rule.minThreshold; break; }
+    }
+
+    const listContainer = document.getElementById('offersDrawerList');
+    let listHtml = '';
+    
+    const displayDiscounts = [...appData.coupons].sort((a,b) => a.minThreshold - b.minThreshold);
+    
+    if(displayDiscounts.length === 0) {
+        listHtml = '<div style="font-size: 14px; color: var(--text-gray);">No offers available right now.</div>';
+    } else {
+        displayDiscounts.forEach(rule => {
+            const isApplied = (rule.minThreshold === appliedThreshold);
+            const code = rule.code || `SAVE${rule.discountAmount}`;
+            const meetsThreshold = subtotal >= rule.minThreshold;
+            
+            listHtml += `
+                <div class="drawer-coupon-card ${isApplied ? 'applied' : ''}">
+                    <div class="drawer-coupon-info">
+                        <div class="drawer-coupon-code">${code}</div>
+                        <div class="drawer-coupon-desc">Get ₹${rule.discountAmount} off on orders above ₹${rule.minThreshold}</div>
+                        ${!meetsThreshold ? `<div style="font-size: 11px; color: var(--error-color); margin-top: 5px;">Add ₹${rule.minThreshold - subtotal} more to unlock</div>` : ''}
+                    </div>
+                    <button class="drawer-coupon-action ${isApplied ? 'remove' : 'apply'}" onclick="handleCouponAction(this, ${isApplied})" ${!meetsThreshold && !isApplied ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                        ${isApplied ? 'REMOVE' : 'APPLY'}
+                    </button>
+                </div>
+            `;
+        });
+    }
+    listContainer.innerHTML = listHtml;
+
+    document.getElementById('offersModal').classList.add('active');
+    document.body.classList.add('no-scroll');
+}
+
+function closeOffersDrawer() {
+    document.getElementById('offersModal').classList.remove('active');
+    document.body.classList.remove('no-scroll');
+}
+
+function handleCouponAction(btn, isApplied) {
+    if (isApplied) {
+        showToast("Coupon removed (Auto-apply active)");
+    } else {
+        showToast("Coupon applied successfully!");
+    }
+    closeOffersDrawer();
+    renderCart(true); 
+}
+
+function applyManualCoupon() {
+    const input = document.getElementById('manualCouponInput');
+    if(input.value.trim() === '') return showToast('Please enter a coupon code');
+    showToast('Invalid or expired coupon code');
+    input.value = '';
 }
 // --- FILTER & SORT ENGINE ---
 function openFilterModal() {
