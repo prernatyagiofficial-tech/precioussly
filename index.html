@@ -2254,14 +2254,19 @@ if (appData.settings.instagramUrl) {
                 }
             }
 
-            // 1. "Sold Out" Logic (Total Inventory Check)
+// 1. "Sold Out" Logic (Total Inventory Check)
             let isSoldOut = false;
             if (prod.variant_stock && Object.keys(prod.variant_stock).length > 0) {
-                let totalVariantStock = 0;
+                let allVariantsSoldOut = true;
                 for (let key in prod.variant_stock) {
-                    totalVariantStock += (prod.variant_stock[key] || 0);
+                    const stockVal = prod.variant_stock[key];
+                    // Treat null, undefined, or empty string as infinite stock. Also check if > 0.
+                    if (stockVal === null || stockVal === undefined || stockVal === "" || Number(stockVal) > 0) {
+                        allVariantsSoldOut = false;
+                        break; // Found available stock, no need to keep looping
+                    }
                 }
-                if (totalVariantStock <= 0) isSoldOut = true;
+                isSoldOut = allVariantsSoldOut;
             } else if (prod.stock !== null && prod.stock <= 0) {
                 // Fallback to simple stock if no variant stock object exists
                 isSoldOut = true;
