@@ -167,6 +167,52 @@
         .wishlist-item-media { width: 70px; height: 70px; object-fit: cover; border: 1px solid #000; margin-bottom: 10px; }
         .wishlist-item-title { font-size: 11px; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .wishlist-item-price { font-size: 12px; font-weight: 600; color: #5b0e14; }
+        /* --- New Orders UI Upgrades --- */
+        .order-item-thumb { width: 25px; height: 25px; object-fit: cover; border: 1px solid #000; border-radius: 2px; background: #fff; }
+        .order-items-row { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+        .awb-badge { background: #fff; color: #5b0e14; border: 1px dashed #5b0e14; font-size: 9px; padding: 2px 5px; margin-top: 6px; display: inline-block; font-weight: bold; text-transform: uppercase; }
+        
+        /* Mobile Order Cards */
+        @media (max-width: 768px) {
+            #view-orders table, #view-orders thead, #view-orders tbody, #view-orders th, #view-orders td, #view-orders tr {
+                display: block;
+            }
+            #view-orders thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            #view-orders tr { 
+                border: 2px solid #000; 
+                margin-bottom: 15px; 
+                background: #fff; 
+                box-shadow: 4px 4px 0px #000; 
+            }
+            #view-orders td {
+                border: none;
+                border-bottom: 1px dashed #ccc;
+                position: relative;
+                padding: 10px 10px 10px 40%;
+                text-align: right;
+                min-height: 40px;
+            }
+            #view-orders td:before {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                width: 35%;
+                padding-right: 10px;
+                white-space: nowrap;
+                font-weight: 700;
+                text-align: left;
+                content: attr(data-label);
+                text-transform: uppercase;
+                font-size: 11px;
+            }
+            #view-orders td:last-child { border-bottom: 0; }
+            .order-items-row { justify-content: flex-end; }
+            .mobile-action-flex { display: flex; justify-content: flex-end; gap: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -230,13 +276,23 @@
 <div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
                     
-                    <div class="flex-row" style="margin-bottom: 20px;">
+<div class="flex-row" style="margin-bottom: 10px;">
                         <input type="text" id="orderSearch" placeholder="Search by Order ID, Name, or Phone..." style="flex: 1; margin-bottom: 0;" oninput="applyOrderFilters()">
                         <select id="paymentFilter" style="width: auto; margin-bottom: 0;" onchange="applyOrderFilters()">
                             <option value="All">All Payments</option>
                             <option value="cod">COD</option>
                             <option value="online">Online</option>
                         </select>
+                    </div>
+                    <div class="flex-row" style="margin-bottom: 20px; background: #fff; padding: 10px; border: 1px solid #000; box-shadow: 2px 2px 0px #000;">
+                        <select id="sortValueFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
+                            <option value="newest">Sort: Newest First</option>
+                            <option value="high_low">Value: High to Low</option>
+                            <option value="low_high">Value: Low to High</option>
+                        </select>
+                        <select id="stateFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
+                            <option value="All">All States</option>
+                            </select>
                     </div>
 <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" onclick="filterOrders('All', this)">ALL <span id="count-all"></span></button>
@@ -248,7 +304,7 @@
 
                     <div class="table-responsive">
                         <table>
-                            <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                            <thead><tr><th>S.No</th><th>ID</th><th>Date</th><th>Customer</th><th>Total & Items</th><th>Status</th><th>Action</th></tr></thead>
                             <tbody id="ordersTableBody"><tr><td colspan="6" style="text-align:center; padding: 20px;">Loading orders...</td></tr></tbody>
                         </table>
                     </div>
@@ -1748,94 +1804,154 @@ setTimeout(() => generateStockGrid(), 50); // Ensure DOM is ready before generat
             renderOrdersTable(currentOrderFilter);
         };
 
+
+
 async function loadOrders() {
     try {
         const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
         if (error) throw error;
 
-        State.orders = data || []; // Cache the data globally
+        State.orders = data || []; 
         
-        // NEW: Update the counts on the tabs based on the freshly loaded data
         updateTabCounts(); 
-        
-        // Render using the currently selected tab
+        populateStateDropdown(); // New state parsing logic
         renderOrdersTable(currentOrderFilter);
     } catch (err) {
         console.error("Orders load error:", err);
-        document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
+        document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
     }
+}
+
+function populateStateDropdown() {
+    const stateSelect = document.getElementById('stateFilter');
+    if(!stateSelect) return;
+    const states = new Set();
+    
+    // Rough heuristic to parse state from freeform Indian addresses (grabs text before 6-digit pin)
+    State.orders.forEach(o => {
+        const addr = o.customer_details?.address || '';
+        const match = addr.match(/([a-zA-Z\s]+)(?:,\s*|-)?\d{6}/);
+        if(match && match[1]) states.add(match[1].trim());
+    });
+    
+    let html = '<option value="All">All States</option>';
+    Array.from(states).sort().forEach(s => {
+        if(s.length > 2) html += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+    });
+    stateSelect.innerHTML = html;
 }
 
 function renderOrdersTable(filterStatus) {
     let html = '';
     
-    // 1. Get the values from the new search and filter inputs
     const searchInput = document.getElementById('orderSearch');
     const paymentInput = document.getElementById('paymentFilter');
+    const sortInput = document.getElementById('sortValueFilter');
+    const stateInput = document.getElementById('stateFilter');
     
     const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const paymentFilter = paymentInput ? paymentInput.value : 'All';
+    const sortFilter = sortInput ? sortInput.value : 'newest';
+    const stateFilter = stateInput ? stateInput.value : 'All';
 
-    // 2. Filter by Status (The tabs)
+    // 1. Status Filter
     let filteredOrders = filterStatus === 'All' 
         ? State.orders 
         : State.orders.filter(o => o.status === filterStatus);
 
-    // 3. Filter by Search Query (ID, Name, Phone)
+    // 2. Text Search
     if (searchQuery) {
         filteredOrders = filteredOrders.filter(o => {
             const orderId = String(o.id).toLowerCase();
             const custName = (o.customer_details?.name || '').toLowerCase();
             const custPhone = String(o.customer_details?.phone || '').toLowerCase();
-            
             return orderId.includes(searchQuery) || custName.includes(searchQuery) || custPhone.includes(searchQuery);
         });
     }
 
-    // 4. Filter by Payment Method
+    // 3. Payment Filter
     if (paymentFilter !== 'All') {
         filteredOrders = filteredOrders.filter(o => {
             const pMethod = o.customer_details?.paymentMethod || '';
-            
-            if (paymentFilter === 'cod') {
-                return pMethod === 'cod';
-            } else if (paymentFilter === 'online') {
-                return pMethod !== 'cod'; // Anything that isn't explicitly COD is considered online
-            }
+            if (paymentFilter === 'cod') return pMethod === 'cod';
+            if (paymentFilter === 'online') return pMethod !== 'cod';
             return true;
         });
     }
 
-    // 5. Build the HTML Rows
+    // 4. State Filter
+    if (stateFilter !== 'All') {
+        filteredOrders = filteredOrders.filter(o => {
+            const addr = (o.customer_details?.address || '').toLowerCase();
+            return addr.includes(stateFilter.toLowerCase());
+        });
+    }
+
+    // 5. Value Sorting
+    filteredOrders.sort((a, b) => {
+        if (sortFilter === 'high_low') return b.total_amount - a.total_amount;
+        if (sortFilter === 'low_high') return a.total_amount - b.total_amount;
+        return new Date(b.created_at) - new Date(a.created_at); // Fallback to newest
+    });
+
+    // Render Rows
     if (filteredOrders && filteredOrders.length > 0) {
+        let sNo = 1; // Sequential Counter
+        
         filteredOrders.forEach(o => {
             const customerName = escapeHTML(o.customer_details?.name || 'Guest');
             const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
             const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
             const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
             
-            const date = new Date(o.created_at).toLocaleDateString();
+            // Format Exact Date & 12-hour Time
+            const dateObj = new Date(o.created_at);
+            const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
             
             let badgeClass = '';
             if (o.status === 'In Progress') badgeClass = 'warning';
             else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
             else if (o.status === 'Cancelled') badgeClass = 'danger';
 
+            // Generate Item Thumbnails
+            let itemThumbsHtml = '<div class="order-items-row">';
+            if(o.items && o.items.length > 0) {
+                const maxThumbs = 4;
+                o.items.slice(0, maxThumbs).forEach(item => {
+                    const imgSrc = (item.media && item.media.length > 0) ? item.media[0] : '';
+                    if(imgSrc && !imgSrc.endsWith('.mp4')) {
+                        itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}">`;
+                    } else {
+                        itemThumbsHtml += `<div class="order-item-thumb" style="background:#eee; font-size:7px; display:flex; align-items:center; justify-content:center; color:#999;">PIC</div>`;
+                    }
+                });
+                if(o.items.length > maxThumbs) {
+                    itemThumbsHtml += `<div style="font-size: 10px; font-weight: bold; align-self: center; margin-left: 4px;">+${o.items.length - maxThumbs}</div>`;
+                }
+            }
+            itemThumbsHtml += '</div>';
+
+            // Note the data-label attributes, these are required for the CSS mobile cards
             html += `
                 <tr>
-                    <td><strong>${o.id}</strong><br><span style="font-size:10px; color:#666;">${date}</span></td>
-                    <td>
+                    <td data-label="S.No."><strong>${sNo++}</strong></td>
+                    <td data-label="Order ID"><strong>${o.id}</strong></td>
+                    <td data-label="Date/Time"><span style="font-size:11px; color:#333;">${formattedDate}</span></td>
+                    <td data-label="Customer">
                         <strong>${customerName}</strong><br>
                         <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
-                        <span style="font-size:11px; color:#666;">✉️ ${customerEmail}</span>
+                        <div style="max-width:200px; font-size:10px; line-height:1.2; color:#666; margin-top:4px;">${fullAddress}</div>
                     </td>
-                    <td>
-                        <div style="max-width:200px; font-size:11px; line-height:1.2;">${fullAddress}</div>
+                    <td data-label="Total & Items">
+                        <strong>₹${o.total_amount.toLocaleString()}</strong>
+                        ${itemThumbsHtml}
                     </td>
-                    <td><strong>₹${o.total_amount.toLocaleString()}</strong></td>
-                    <td><span class="badge ${badgeClass}">${escapeHTML(o.status)}</span></td>
-                    <td>
-                        <div class="flex-row" style="margin-bottom:0; gap:5px;">
+                    <td data-label="Status">
+                        <span class="badge ${badgeClass}">${escapeHTML(o.status)}</span><br>
+                        <span class="awb-badge">AWB: Pending</span>
+                    </td>
+                    <td data-label="Action">
+                        <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
                             <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
                                 <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
                                 <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
@@ -1849,7 +1965,7 @@ function renderOrdersTable(filterStatus) {
         });
     }
     
-    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found matching your filters</td></tr>`;
+    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:20px;">No orders found matching your filters</td></tr>`;
 }
 
 window.viewOrderItems = async function(orderId) {
