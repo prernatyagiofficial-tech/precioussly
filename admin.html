@@ -213,6 +213,46 @@
             .order-items-row { justify-content: flex-end; }
             .mobile-action-flex { display: flex; justify-content: flex-end; gap: 8px; }
         }
+        /* --- Universal Fullscreen Lightbox & Zoom --- */
+        .lightbox-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+        .lightbox-overlay.active {
+            opacity: 1; visibility: visible;
+        }
+        .lightbox-close {
+            position: absolute; top: 20px; right: 30px;
+            color: #fff; font-size: 36px; font-weight: bold; cursor: pointer;
+            z-index: 10000; user-select: none; transition: transform 0.2s;
+        }
+        .lightbox-close:hover {
+            transform: scale(1.1);
+        }
+        .lightbox-media {
+            max-width: 90%; max-height: 90vh;
+            object-fit: contain; display: none;
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: zoom-in; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .lightbox-media.is-zoomed {
+            cursor: grab;
+        }
+        .lightbox-media.is-zoomed:active {
+            cursor: grabbing;
+        }
+        /* Make thumbnails obviously clickable */
+        .order-item-thumb, .prod-img-thumb, .wishlist-item-media {
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .order-item-thumb:hover, .prod-img-thumb:hover, .wishlist-item-media:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -285,11 +325,12 @@
                         </select>
                     </div>
 <div class="flex-row" style="margin-bottom: 20px; background: #fff; padding: 10px; border: 1px solid #000; box-shadow: 2px 2px 0px #000;">
-                        <select id="sortValueFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
-                            <option value="newest">Sort: Newest First</option>
-                            <option value="high_low">Value: High to Low</option>
-                            <option value="low_high">Value: Low to High</option>
-                        </select>
+<select id="sortValueFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
+    <option value="newest">Sort: Newest First</option>
+    <option value="oldest">Sort: Oldest First</option>
+    <option value="high_low">Value: High to Low</option>
+    <option value="low_high">Value: Low to High</option>
+</select>
                         <select id="stateFilter" style="flex: 1; margin-bottom: 0;" onchange="applyOrderFilters()">
                             <option value="All">All States</option>
                         </select>
@@ -1888,18 +1929,26 @@ function renderOrdersTable(filterStatus) {
         });
     }
 
-// 5. Value Sorting
+    // 5. Value & Robust Timestamp Sorting
     filteredOrders.sort((a, b) => {
         if (sortFilter === 'high_low') return b.total_amount - a.total_amount;
         if (sortFilter === 'low_high') return a.total_amount - b.total_amount;
-        return new Date(b.created_at) - new Date(a.created_at); // Fallback to newest
+        
+        // Parse dates safely using .getTime()
+        const timeA = new Date(a.created_at).getTime();
+        const timeB = new Date(b.created_at).getTime();
+        
+        if (sortFilter === 'oldest') return timeA - timeB; // Ascending
+        return timeB - timeA; // Default: Newest First (Descending)
     });
 
     window.currentFilteredOrders = filteredOrders; // Save globally for CSV Export
 
     // Render Rows
     if (filteredOrders && filteredOrders.length > 0) {
-        let sNo = 1; // Sequential Counter
+        let sNo = 1; // Sequential Counter naturally increments top-to-bottom
+        const currentTime = Date.now();
+        const twentyFourHoursMs = 24 * 60 * 60 * 1000;
         
         filteredOrders.forEach(o => {
             const customerName = escapeHTML(o.customer_details?.name || 'Guest');
@@ -1911,6 +1960,10 @@ function renderOrdersTable(filterStatus) {
             const dateObj = new Date(o.created_at);
             const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
             
+            // 24-Hour "NEW" Badge Logic
+            const isNew = (currentTime - dateObj.getTime()) < twentyFourHoursMs;
+            const newBadgeHtml = isNew ? `<span class="badge" style="margin-left: 6px; font-size: 9px; vertical-align: middle; padding: 2px 4px;">NEW</span>` : '';
+
             let badgeClass = '';
             if (o.status === 'In Progress') badgeClass = 'warning';
             else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
@@ -1938,7 +1991,7 @@ function renderOrdersTable(filterStatus) {
             html += `
                 <tr>
                     <td data-label="S.No."><strong>${sNo++}</strong></td>
-                    <td data-label="Order ID"><strong>${o.id}</strong></td>
+                    <td data-label="Order ID" style="white-space: nowrap;"><strong>${o.id}</strong>${newBadgeHtml}</td>
                     <td data-label="Date/Time"><span style="font-size:11px; color:#333;">${formattedDate}</span></td>
                     <td data-label="Customer">
                         <strong>${customerName}</strong><br>
@@ -1949,7 +2002,7 @@ function renderOrdersTable(filterStatus) {
                         <strong>₹${o.total_amount.toLocaleString()}</strong>
                         ${itemThumbsHtml}
                     </td>
-<td data-label="Status">
+                    <td data-label="Status">
                         <span class="badge ${badgeClass}" style="margin-bottom: 4px;">${escapeHTML(o.status)}</span><br>
                         ${o.awb_number 
                             ? `<span class="awb-badge" style="cursor:pointer; border-color:#2ecc71; color:#2ecc71;" onclick="updateAWB('${o.id}', '${o.awb_number}')">AWB: ${o.awb_number} ✎</span>` 
@@ -1995,9 +2048,9 @@ window.viewOrderItems = async function(orderId) {
             let mediaTag = `<div style="width:60px; height:60px; background:#f0f0f0; border:1px solid #000; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; text-transform:uppercase; flex-shrink: 0;">No Pic</div>`;
             if (imgSrc) {
                 if (isVideo) {
-                    mediaTag = `<video src="${imgSrc}" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;" muted></video>`;
+                    mediaTag = `<video src="${imgSrc}" class="order-item-thumb" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;" muted></video>`;
                 } else {
-                    mediaTag = `<img src="${imgSrc}" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;">`;
+                    mediaTag = `<img src="${imgSrc}" class="order-item-thumb" style="width:60px; height:60px; object-fit:cover; border:1px solid #000; flex-shrink: 0;">`;
                 }
             }
 
@@ -2336,9 +2389,130 @@ window.exportOrdersCSV = function() {
             }
         };
 
+// --- Universal Lightbox Logic (Zoom & Pan) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const lightbox = document.getElementById('universal-lightbox');
+            const lbImg = document.getElementById('lightbox-img');
+            const lbVid = document.getElementById('lightbox-vid');
+            const closeBtn = document.querySelector('.lightbox-close');
+
+            let scale = 1;
+            let isDragging = false;
+            let startX, startY, translateX = 0, translateY = 0;
+            let currentMedia = null;
+
+            function resetLightbox() {
+                scale = 1; translateX = 0; translateY = 0;
+                if (currentMedia) {
+                    currentMedia.style.transform = `translate(0px, 0px) scale(1)`;
+                    currentMedia.classList.remove('is-zoomed');
+                }
+            }
+
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                lbVid.pause(); 
+                // Reset sources after transition finishes
+                setTimeout(() => {
+                    lbVid.src = '';
+                    lbImg.src = '';
+                    resetLightbox();
+                }, 300);
+            }
+
+            // 1. Event Delegation for Opening the Lightbox
+            document.addEventListener('click', (e) => {
+                const target = e.target.closest('.order-item-thumb, .prod-img-thumb, .wishlist-item-media');
+                if (!target) return;
+
+                const src = target.src || target.getAttribute('src');
+                if (!src) return;
+
+                // Determine if the source is a video file or if the element clicked was a <video> tag
+                const isVideo = src.toLowerCase().endsWith('.mp4') || target.tagName.toLowerCase() === 'video';
+
+                // Display correct element
+                lbImg.style.display = isVideo ? 'none' : 'block';
+                lbVid.style.display = isVideo ? 'block' : 'none';
+                currentMedia = isVideo ? lbVid : lbImg;
+
+                if (isVideo) {
+                    lbVid.src = src;
+                } else {
+                    lbImg.src = src;
+                }
+
+                resetLightbox();
+                lightbox.classList.add('active');
+            });
+
+            // 2. Closing the Lightbox
+            closeBtn.addEventListener('click', closeLightbox);
+            
+            lightbox.addEventListener('click', (e) => {
+                // Only close if clicking the dark background, not the image itself
+                if (e.target === lightbox) closeLightbox();
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && lightbox.classList.contains('active')) closeLightbox();
+            });
+
+            // 3. Zoom via Mouse Wheel
+            lightbox.addEventListener('wheel', (e) => {
+                if(!currentMedia) return;
+                e.preventDefault(); // Prevent page scrolling in background
+                
+                const zoomIntensity = 0.15;
+                const delta = e.deltaY < 0 ? 1 : -1;
+                
+                scale += delta * zoomIntensity;
+                scale = Math.min(Math.max(1, scale), 4); // Clamp zoom between 1x and 4x
+
+                if (scale === 1) {
+                    translateX = 0; translateY = 0;
+                    currentMedia.classList.remove('is-zoomed');
+                } else {
+                    currentMedia.classList.add('is-zoomed');
+                }
+                
+                currentMedia.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            }, { passive: false });
+
+            // 4. Panning (Dragging) when Zoomed In
+            lightbox.addEventListener('mousedown', (e) => {
+                if (scale > 1 && e.target === currentMedia) {
+                    isDragging = true;
+                    // Calculate starting offset based on current translate position
+                    startX = e.clientX - translateX;
+                    startY = e.clientY - translateY;
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                currentMedia.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            });
+
+            window.addEventListener('mouseup', () => { 
+                isDragging = false; 
+            });
+        });
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
     </script>
+    <div id="universal-lightbox" class="lightbox-overlay">
+
+        <span class="lightbox-close">&times;</span>
+
+        <img id="lightbox-img" class="lightbox-media" src="" alt="Enlarged view">
+
+        <video id="lightbox-vid" class="lightbox-media" src="" controls autoplay loop muted playsinline></video>
+
+    </div>
 </body>
 </html>
