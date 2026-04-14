@@ -2433,25 +2433,33 @@ if (bannerConfig.imageUrl) {
                         </div>`;
                 });
                 
-                html += `</div><div class="section-title-wrapper" style="padding-top: 30px; border-top: 1px dashed var(--border-color);"><h3>All ${title} Products</h3></div>`;
-} else {
-        html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
-    }
+                html += `</div>`;
+                
+                // Stop rendering here if there are subcategories
+                requestAnimationFrame(() => {
+                    mainContent.innerHTML = html;
+                    window.scrollTo(0, 0);
+                });
+                return; 
+            } 
 
-    // NEW: Inject Filter Button and Dynamic Count
-    if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
-        html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 15px;">
-            <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                Filter and sort
-            </button>
-            <span id="productCountDisplay" style="font-size: 14px; color: #5b0e14; font-weight: 500;">${products.length} products</span>
-        </div>
-        `;
-    }
+            // Renders standard product grid if no subcategories exist
+            html += `<div class="section-title-wrapper" style="padding-top: 0;"><h3>${title}</h3></div>`;
 
-    html += `<div class="grid-container">`;
+            // Inject Filter Button and Dynamic Count
+            if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+                html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 15px;">
+                    <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                        Filter and sort
+                    </button>
+                    <span id="productCountDisplay" style="font-size: 14px; color: #5b0e14; font-weight: 500;">${products.length} products</span>
+                </div>
+                `;
+            }
+
+            html += `<div class="grid-container">`;
             if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
@@ -2749,64 +2757,72 @@ function switchPolicyTab(tabId) {
         }
 
         function changeProductVariant(prodId, variantIndex) {
-    triggerHaptic('pop');
-    selectedProductVariantIndex = variantIndex;
-    
-    const prod = appData.products.find(p => String(p.id) === String(prodId));
-    if (!prod || !prod.variants) return;
-    
-    const variant = prod.variants[variantIndex];
-    const mediaArr = variant.media && variant.media.length > 0 ? variant.media : [""];
-    
-    totalSlides = mediaArr.length;
-    currentSlide = 0;
-    
-    let slidesHtml = '';
-    let indicatorsHtml = '';
-    
-    const buildSlide = (src) => {
-        const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
-        return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="Product Media">`;
-    };
+            triggerHaptic('pop');
+            selectedProductVariantIndex = variantIndex;
+            
+            const prod = appData.products.find(p => String(p.id) === String(prodId));
+            if (!prod || !prod.variants) return;
+            
+            const variant = prod.variants[variantIndex];
+            const mediaArr = variant.media && variant.media.length > 0 ? variant.media : [""];
+            
+            totalSlides = mediaArr.length;
+            currentSlide = 0;
+            
+            let slidesHtml = '';
+            let indicatorsHtml = '';
+            
+            const buildSlide = (src) => {
+                const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
+                return isVideo ? `<video src="${src}" autoplay loop muted playsinline></video>` : `<img src="${src}" alt="Product Media">`;
+            };
 
-    if(mediaArr.length === 1 && mediaArr[0] === "") {
-        slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
-    } else if (totalSlides === 1) {
-        slidesHtml = `<div class="carousel-slide">${buildSlide(mediaArr[0])}</div>`;
-    } else {
-        slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
-        mediaArr.forEach((src, i) => {
-            slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
-            indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
-        });
-        slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
-    }
-    
-    const track = document.getElementById('carouselTrack');
-    if (track) {
-        track.style.transition = 'none';
-        track.innerHTML = slidesHtml;
-        track.style.transform = totalSlides > 1 ? `translateX(-100%)` : `translateX(0%)`;
-        void track.offsetWidth; 
-        track.style.transition = '';
-    }
-    
-    const indicatorsContainer = document.querySelector('.carousel-indicators');
-    if (indicatorsContainer) {
-        indicatorsContainer.innerHTML = indicatorsHtml;
-        indicatorsContainer.style.display = totalSlides > 1 ? 'flex' : 'none';
-    }
+            if(mediaArr.length === 1 && mediaArr[0] === "") {
+                slidesHtml = `<div class="carousel-slide"><div class="img-placeholder">${imageSvg}</div></div>`;
+            } else if (totalSlides === 1) {
+                slidesHtml = `<div class="carousel-slide">${buildSlide(mediaArr[0])}</div>`;
+            } else {
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
+                mediaArr.forEach((src, i) => {
+                    slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
+                    indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
+                });
+                slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
+            }
+            
+            const track = document.getElementById('carouselTrack');
+            if (track) {
+                track.style.transition = 'none';
+                track.innerHTML = slidesHtml;
+                track.style.transform = totalSlides > 1 ? `translateX(-100%)` : `translateX(0%)`;
+                void track.offsetWidth; 
+                track.style.transition = '';
+            }
+            
+            const indicatorsContainer = document.querySelector('.carousel-indicators');
+            if (indicatorsContainer) {
+                indicatorsContainer.innerHTML = indicatorsHtml;
+                indicatorsContainer.style.display = totalSlides > 1 ? 'flex' : 'none';
+            }
 
-    document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
-        if (idx === variantIndex) btn.classList.add('selected');
-        else btn.classList.remove('selected');
-    });
-    
-    const colorNameEl = document.getElementById('selectedColorNameText');
-    if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
+            document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
+                if (idx === variantIndex) btn.classList.add('selected');
+                else btn.classList.remove('selected');
+            });
+            
+            const colorNameEl = document.getElementById('selectedColorNameText');
+            if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
 
-    updateStockUI(prod);
-}
+            // --- NEW: Update the main product price ---
+            const priceDisplayEl = document.querySelector('.product-detail-price');
+            if (priceDisplayEl) {
+                const displayPrice = (variant.price !== undefined && variant.price !== null && variant.price !== '') ? variant.price : prod.price;
+                priceDisplayEl.innerText = formatPrice(displayPrice);
+            }
+            // ------------------------------------------
+
+            updateStockUI(prod);
+        }
 
 function changeProductSize(size, btnElement) {
     triggerHaptic('pop');
@@ -3089,8 +3105,6 @@ function quickAddToCart(event, btn, prodId) {
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
-            
-
             if (prod.isAlphabet && !selectedAlphabet) {
                 triggerHaptic('pop');
                 showToast("Please select an alphabet before proceeding.");
@@ -3102,7 +3116,16 @@ function quickAddToCart(event, btn, prodId) {
             triggerHaptic('success');
             withLoading(btn, () => {
                 let selectedVariantStr = "Default";
-                if(prod.variants && prod.variants.length > 0) selectedVariantStr = prod.variants[selectedProductVariantIndex].name || "Default";
+                let activeVariantPrice = prod.price; // Default to base price
+
+                if(prod.variants && prod.variants.length > 0) {
+                    const activeVar = prod.variants[selectedProductVariantIndex];
+                    selectedVariantStr = activeVar.name || "Default";
+                    // --- NEW: Overwrite the cart price if the variant has a custom price ---
+                    if (activeVar.price !== undefined && activeVar.price !== null && activeVar.price !== '') {
+                        activeVariantPrice = Number(activeVar.price);
+                    }
+                }
 
                 const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
                 
@@ -3113,11 +3136,12 @@ function quickAddToCart(event, btn, prodId) {
                     if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media && prod.variants[selectedProductVariantIndex].media.length > 0) {
                         cartMedia = prod.variants[selectedProductVariantIndex].media;
                     }
-                    state.cart.push({ ...prod, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
+                    // Pass the overridden `activeVariantPrice` here
+                    state.cart.push({ ...prod, price: activeVariantPrice, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
                 }
                 
                 updateBadges();
-                persistUserData(); // Sync local storage
+                persistUserData(); 
                 
                 const badge = document.getElementById('cartCount');
                 if(badge) {
