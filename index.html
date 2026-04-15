@@ -3872,38 +3872,57 @@ function initiatePayment(btn, totalAmount) {
     renderThankYou(orderData.id);
 }
 
-// --- NEW FUNCTION: Sync local storage with live DB status ---
+// --- NEW FUNCTION: Sync local storage with live DB status & Sort ---
 async function syncLocalOrdersWithSupabase() {
-    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    if (localOrders.length === 0) return;
+    let allOrders = [];
+    let localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
 
-    // 1. Convert IDs to strings to prevent Supabase query errors
-    const orderIds = localOrders.map(o => String(o.id)); 
-    
-    // FETCH UPDATE: Now requesting awb_number and created_at as well
-    const { data, error } = await db.from('orders').select('id, status, awb_number, created_at').in('id', orderIds);
+    // 1. Fetch full order history from Supabase if the user is logged in
+    if (state.user) {
+        const userEmail = state.user.email;
+        const { data: dbOrders, error } = await db.from('orders')
+            .select('*')
+            .eq('customer_details->>email', userEmail);
 
-    if (!error && data && data.length > 0) {
-        const updatedOrders = localOrders.map(localOrder => {
-            // 2. FIX: Force both IDs to be strings so they match perfectly
-            const liveOrder = data.find(d => String(d.id) === String(localOrder.id));
+        if (!error && dbOrders && dbOrders.length > 0) {
+            allOrders = [...dbOrders];
             
-            if (liveOrder) {
-                // 3. UPDATE: Sync status, awb_number, and preserve the original creation date
-                localOrder.status = liveOrder.status;
-                
-                if (liveOrder.awb_number) {
-                    localOrder.awb_number = liveOrder.awb_number;
+            // Merge any local guest orders that might not be synced yet
+            const dbOrderIds = new Set(dbOrders.map(o => String(o.id)));
+            localOrders.forEach(lo => {
+                if (!dbOrderIds.has(String(lo.id))) {
+                    allOrders.push(lo);
                 }
-                
-                if (liveOrder.created_at) {
-                    localOrder.created_at = liveOrder.created_at;
-                }
+            });
+            
+            // Update local storage to match the user's full history
+            localStorage.setItem('shria_orders', JSON.stringify(allOrders));
+        } else {
+            allOrders = [...localOrders];
+        }
+    } else {
+        // 2. Guest checkout: Just update statuses of local orders
+        if (localOrders.length > 0) {
+            const orderIds = localOrders.map(o => String(o.id));
+            const { data: liveData, error } = await db.from('orders')
+                .select('*')
+                .in('id', orderIds);
+
+            if (!error && liveData && liveData.length > 0) {
+                localOrders = localOrders.map(localOrder => {
+                    const liveOrder = liveData.find(d => String(d.id) === String(localOrder.id));
+                    return liveOrder ? liveOrder : localOrder; // Replace with full DB order if found
+                });
+                localStorage.setItem('shria_orders', JSON.stringify(localOrders));
             }
-            return localOrder;
-        });
-        localStorage.setItem('shria_orders', JSON.stringify(updatedOrders));
+        }
+        allOrders = [...localOrders];
     }
+
+    // 3. SORTING: Ensure the newest order is ALWAYS at the very top
+    allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return allOrders;
 }
 
 // --- REPLACED: renderOrders Function ---
@@ -3916,13 +3935,11 @@ async function renderOrders() {
         <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Orders</h3></div>
     `;
 
-    // Show loading state while fetching live data
+    // Show loading state
     mainContent.innerHTML = html + `<div style="text-align: center; padding: 40px; color: var(--text-gray); font-weight: 500;">Fetching live order status...</div>`;
 
-    // Sync before rendering
-    await syncLocalOrdersWithSupabase();
-
-    let orders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    // Fetch, sync, and get explicitly sorted orders
+    let orders = await syncLocalOrdersWithSupabase();
 
     if(orders.length === 0) {
         html += `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg><p>No orders found.</p></div>`;
@@ -3930,7 +3947,11 @@ async function renderOrders() {
         html += `<div class="orders-wrapper">`;
         orders.forEach(order => {
             let itemsHtml = '';
-            order.items.forEach(item => {
+            
+            // Safety check in case order items are corrupted in the database
+            const itemsArray = Array.isArray(order.items) ? order.items : [];
+            
+            itemsArray.forEach(item => {
                 const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
                 const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
                 let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
@@ -3960,35 +3981,32 @@ async function renderOrders() {
                     </div>
                 `;
             });
-// Exact Date & Time Formatting
-                const dateObj = new Date(order.created_at || Date.now());
-                const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-                // AWB Tracking Link Logic
-                let awbHtml = '';
-                if (order.awb_number) {
-                    awbHtml = `<a href="https://parcelsapp.com/en/tracking/${order.awb_number}" target="_blank" style="display: inline-block; margin-top: 8px; font-size: 12px; color: var(--brand-color); text-decoration: underline; font-weight: 600;">Track AWB: ${order.awb_number}</a>`;
-                } else {
-                    awbHtml = `<div style="margin-top: 8px; font-size: 11px; color: var(--text-gray); font-weight: 500;">AWB: Pending</div>`;
-                }
-            // Status Styling Logic
+            const dateObj = new Date(order.created_at || Date.now());
+            const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            let awbHtml = '';
+            if (order.awb_number) {
+                awbHtml = `<a href="https://parcelsapp.com/en/tracking/${order.awb_number}" target="_blank" style="display: inline-block; margin-top: 8px; font-size: 12px; color: var(--brand-color); text-decoration: underline; font-weight: 600;">Track AWB: ${order.awb_number}</a>`;
+            } else {
+                awbHtml = `<div style="margin-top: 8px; font-size: 11px; color: var(--text-gray); font-weight: 500;">AWB: Pending</div>`;
+            }
+
             let statusBgColor = 'var(--light-green)';
             let statusTextColor = 'var(--dark-green)';
             
             if (order.status === 'In Progress') {
-                statusBgColor = '#fff5e6'; // Light orange
-                statusTextColor = '#e67e22'; // Orange
+                statusBgColor = '#fff5e6'; 
+                statusTextColor = '#e67e22'; 
             } else if (order.status === 'Confirmed') {
-                statusBgColor = '#e3f2fd'; // Light Blue
-                statusTextColor = '#1976d2'; // Blue
+                statusBgColor = '#e3f2fd'; 
+                statusTextColor = '#1976d2'; 
             } else if (order.status === 'Cancelled') {
-                statusBgColor = '#ffebee'; // Light Red
-                statusTextColor = '#c62828'; // Red
-            } // Delivered uses the default green
+                statusBgColor = '#ffebee'; 
+                statusTextColor = '#c62828'; 
+            }
 
-            // --- NEW: PRICE BREAKDOWN LOGIC ---
             let priceBreakdownHtml = '';
-            // Only render the breakdown if the subtotal data exists (prevents older orders from breaking)
             if (order.customer_details && order.customer_details.subtotal !== undefined) {
                 const subtotal = order.customer_details.subtotal;
                 const shipping = order.customer_details.shippingFee || 0;
@@ -4006,7 +4024,6 @@ async function renderOrders() {
                     </div>
                 `;
 
-                // Only render discount row if discount is applied
                 if (discount > 0) {
                     priceBreakdownHtml += `
                     <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-gray); margin-bottom: 10px; align-items: center;">
@@ -4019,15 +4036,13 @@ async function renderOrders() {
                     `;
                 }
                 
-                // Add a dashed separator right before the final total
                 priceBreakdownHtml += `<div style="border-top: 1px dashed var(--border-color); margin: 10px 0 12px 0;"></div>`;
             }
-            // --- END PRICE BREAKDOWN LOGIC ---
 
             html += `
                 <div class="order-card">
                     <div class="order-header">
-<div class="order-id-date">
+                        <div class="order-id-date">
                             <span class="order-id">#${order.id}</span>
                             <span class="order-date">${formattedDate}</span>
                         </div>
@@ -4072,7 +4087,7 @@ async function renderOrders() {
 
     requestAnimationFrame(() => {
         mainContent.innerHTML = html;
-        window.scrollTo(0,0);
+        window.scrollTo(0,0); // Scrolls them to the top automatically
     });
 }
 
