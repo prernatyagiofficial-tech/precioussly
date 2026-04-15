@@ -2483,15 +2483,22 @@ if (bannerConfig.imageUrl) {
                 <div class="grid-container">
             `;
 
+            
             const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
             mainCategories.forEach(cat => {
-                const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
+                const imgContent = cat.img 
+                    ? (isVideo 
+                        ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
+                        : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                    : `<div class="img-placeholder">${imageSvg}</div>`;
                 html += `
                     <div class="category-card" onclick="renderCategory('${cat.id}')">
                         <div class="category-img-box">${imgContent}</div>
                         <span>${cat.name}</span>
                     </div>`;
             });
+            
             html += `</div>`;
 
             const bestSellers = appData.products.filter(p => p.isBestSeller);
@@ -2564,7 +2571,12 @@ if (bannerConfig.imageUrl) {
                 html += `<div class="grid-container" style="padding-bottom: 20px;">`;
                 
                 subCats.forEach(cat => {
-                    const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                    const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
+                    const imgContent = cat.img 
+                        ? (isVideo 
+                            ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
+                            : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                        : `<div class="img-placeholder">${imageSvg}</div>`;
                     html += `
                         <div class="category-card" onclick="renderCategory('${cat.id}')">
                             <div class="category-img-box">${imgContent}</div>
