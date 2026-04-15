@@ -732,6 +732,7 @@ let productSearchTimeout;
         };
         let variantCounter = 0;
 window._tempVariantStock = {}; // Holds data temporarily during edits
+window._tempVariantPrices = {}; // Holds specific prices during edits
 
 window.generateStockGrid = function() {
     const sizes = document.getElementById('prodSizes').value.split(',').map(s=>s.trim()).filter(Boolean);
@@ -750,7 +751,7 @@ window.generateStockGrid = function() {
     let html = '<table class="stock-grid"><thead><tr>';
     if (variants.length > 0) html += '<th>Variant</th>';
     if (sizes.length > 0) html += '<th>Size</th>';
-    html += '<th>Qty</th></tr></thead><tbody>';
+    html += '<th>Price (₹)</th><th>Qty</th></tr></thead><tbody>';
 
     const rows = [];
     if (variants.length > 0 && sizes.length > 0) {
@@ -762,11 +763,14 @@ window.generateStockGrid = function() {
     }
 
     rows.forEach(row => {
-        const val = window._tempVariantStock[row.key] !== undefined && window._tempVariantStock[row.key] !== null ? window._tempVariantStock[row.key] : '';
+        const stockVal = window._tempVariantStock[row.key] !== undefined && window._tempVariantStock[row.key] !== null ? window._tempVariantStock[row.key] : '';
+        const priceVal = window._tempVariantPrices && window._tempVariantPrices[row.key] !== undefined && window._tempVariantPrices[row.key] !== null ? window._tempVariantPrices[row.key] : '';
+        
         html += `<tr>`;
         if (row.v) html += `<td>${escapeHTML(row.v)}</td>`;
         if (row.s) html += `<td>${escapeHTML(row.s)}</td>`;
-        html += `<td><input type="number" class="stock-input" data-key="${escapeHTML(row.key)}" placeholder="0" value="${val}"></td></tr>`;
+        html += `<td><input type="number" class="price-input" data-key="${escapeHTML(row.key)}" placeholder="Base Price" value="${priceVal}"></td>`;
+        html += `<td><input type="number" class="stock-input" data-key="${escapeHTML(row.key)}" placeholder="0" value="${stockVal}"></td></tr>`;
     });
 
     html += '</tbody></table>';
@@ -1690,7 +1694,8 @@ window.editProduct = function(id) {
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
         window._tempVariantStock = p.variant_stock || {};
-        setTimeout(() => generateStockGrid(), 50); 
+        window._tempVariantPrices = p.variant_prices || {};
+        setTimeout(() => generateStockGrid(), 50);
         openModal('productModal');
     }
 };
@@ -1730,7 +1735,15 @@ window.editProduct = function(id) {
             compiledVariantStock[input.dataset.key] = input.value.trim() === '' ? null : Number(input.value);
         });
 
+        let compiledVariantPrices = {};
+        document.querySelectorAll('.price-input').forEach(input => {
+            if (input.value.trim() !== '') {
+                compiledVariantPrices[input.dataset.key] = Number(input.value);
+            }
+        });
+
         const payload = {
+            variant_prices: compiledVariantPrices,
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
             stock: document.getElementById('prodStock').value.trim() === '' ? null : Number(document.getElementById('prodStock').value),
