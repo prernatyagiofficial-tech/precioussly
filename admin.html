@@ -628,10 +628,12 @@
                 <div id="stockGridContainer"></div>
             </div>
 
-            <div class="form-group">
+
+<div class="form-group">
                 <label class="checkbox-label"><input type="checkbox" id="prodBestSeller"> Is Best Seller</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
+                <label class="checkbox-label"><input type="checkbox" id="prodShowSizeChart"> Show Size Chart</label>
             </div>
             
             <div class="form-group full-width">
@@ -1693,6 +1695,7 @@ window.editProduct = function(id) {
         document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
+        document.getElementById('prodShowSizeChart').checked = !!p.show_size_chart;
         window._tempVariantStock = p.variant_stock || {};
         window._tempVariantPrices = p.variant_prices || {};
         setTimeout(() => generateStockGrid(), 50);
@@ -1754,8 +1757,9 @@ window.editProduct = function(id) {
             variants: variantsObj,
             variant_stock: compiledVariantStock,
             is_best_seller: document.getElementById('prodBestSeller').checked,
-            is_alphabet: document.getElementById('prodAlphabet').checked,
+is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
+            show_size_chart: document.getElementById('prodShowSizeChart').checked,
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
         };
 
