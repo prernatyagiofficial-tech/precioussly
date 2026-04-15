@@ -1703,9 +1703,10 @@ let currentSubCategories = [];
         variants: safeParseJSON(row.variants, []), 
         sizes: safeParseJSON(row.sizes, []),
         variant_stock: safeParseJSON(row.variant_stock, {}),
-        isAlphabet: parseBool(row.is_alphabet), 
+isAlphabet: parseBool(row.is_alphabet), 
         variant_prices: safeParseJSON(row.variant_prices, {}),
-        variantLabel: row.variant_label || 'Color'
+        variantLabel: row.variant_label || 'Color',
+        showSizeChart: parseBool(row.show_size_chart)
     };
 }
 
@@ -3138,9 +3139,9 @@ function changeProductSize(size, btnElement) {
                 variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${activeVariantName}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
-            let sizeHtml = '';
+let sizeHtml = '';
             if (prod.sizes && prod.sizes.length > 0) {
-                let guideLink = `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>`;
+                let guideLink = prod.showSizeChart ? `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>` : '';
                 let titleLabel = 'Select Size';
 
                 // FIX: Only default to the first size if a size wasn't already selected via the cart
