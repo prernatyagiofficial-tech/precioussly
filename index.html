@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>E-Commerce Store</title>
+<title>Precioussly</title>
+    <meta name="description" content="Shop the best curated collections tailored for elegance.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="E-Commerce Store">
+    <meta property="og:description" content="Shop the best curated collections tailored for elegance.">
+    <script type="application/ld+json" id="product-schema">{}</script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2119,7 +2124,16 @@ isAlphabet: parseBool(row.is_alphabet),
 
     document.getElementById('footerBrandName').innerText = appData.settings.brandName;
     document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+    // START: Replace your current document.title line in applyGlobalSettings with this:
     document.title = `${appData.settings.brandName} - E-Commerce`;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", appData.settings.aboutUsText || "Welcome to our store.");
+    document.querySelector('meta[property="og:title"]')?.setAttribute("content", document.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute("content", appData.settings.aboutUsText || "Welcome to our store.");
+    
+    // Clear product schema on homepage so Google doesn't get confused
+    const schemaEl = document.getElementById('product-schema');
+    if(schemaEl) schemaEl.textContent = '{}';
+// END: Replace your current document.title line in applyGlobalSettings with this
 
     const waLink = `https://wa.me/${appData.settings.whatsappNumber}`;
     document.getElementById('whatsappLink').href = waLink;
@@ -3281,6 +3295,36 @@ function changeProductSize(size, btnElement) {
             searchContainer.style.display = 'none';
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             if(!prod) return;
+            
+            // START: Paste this right AFTER `if(!prod) return;` inside the renderProduct function
+
+            // --- SEO & Dynamic Meta Tags for Product ---
+            document.title = `${prod.name} | ${appData.settings.brandName}`;
+            
+            // Format description cleanly for Google
+            const cleanDesc = prod.desc ? prod.desc.replace(/(<([^>]+)>)/gi, "").substring(0, 155) + "..." : "Buy now at our store.";
+            document.querySelector('meta[name="description"]')?.setAttribute("content", cleanDesc);
+            document.querySelector('meta[property="og:title"]')?.setAttribute("content", prod.name);
+            document.querySelector('meta[property="og:description"]')?.setAttribute("content", cleanDesc);
+            
+            // Inject Google Structured Data (JSON-LD) so Google knows this is a product
+            const schemaData = {
+                "@context": "https://schema.org/",
+                "@type": "Product",
+                "name": prod.name,
+                "image": prod.media && prod.media.length > 0 ? prod.media : [],
+                "description": cleanDesc,
+                "offers": {
+                    "@type": "Offer",
+                    "url": window.location.href,
+                    "priceCurrency": "INR",
+                    "price": prod.price,
+                    "availability": (prod.stock === null || prod.stock > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+                }
+            };
+            const schemaElement = document.getElementById('product-schema');
+            if(schemaElement) schemaElement.textContent = JSON.stringify(schemaData);
+            // --- END SEO & Dynamic Meta Tags ---
 
             // 1. Auto-Select Variant if passed
             selectedProductVariantIndex = 0;
