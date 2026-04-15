@@ -1610,15 +1610,6 @@ if (session && window.location.href.includes('code=')) {
             reviews: []
         };
         
-        // --- SERVER-SIDE QUERY STATE ---
-let currentQueryParams = {
-    page: 1,
-    limit: 20,
-    category: 'all',
-    searchQuery: '',
-    hasMore: false,
-    totalCount: 0
-};
         // --- FILTER STATE ---
 let currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
 let baseCategoryProducts = [];
@@ -1779,83 +1770,17 @@ let currentSubCategories = [];
             }, mapCategory, 300000, force);
         }
 
-        async function fetchProductsFromServer(append = false) {
-    // 1. Initialize base query
-    let query = db.from('products').select('*', { count: 'exact' }).neq('is_hidden', true);
-
-    // 2. Apply Search
-    if (currentQueryParams.searchQuery) {
-        query = query.or(`name.ilike.%${currentQueryParams.searchQuery}%,description.ilike.%${currentQueryParams.searchQuery}%`);
-    }
-
-    // 3. Apply Category Filtering
-    if (currentQueryParams.category === 'bestsellers') {
-        query = query.eq('is_best_seller', true);
-    } else if (currentQueryParams.category !== 'all') {
-        // Include parent category and its subcategories
-        const subCategories = appData.categories.filter(c => String(c.parentId) === String(currentQueryParams.category));
-        const allValidCatIds = [String(currentQueryParams.category), ...subCategories.map(c => String(c.id))];
-        
-        // Use .in() to match any of the valid category IDs. 
-        // Note: adjust 'cat_id' if your database column is named differently (e.g., 'category_id')
-        query = query.in('cat_id', allValidCatIds); 
-    }
-
-    // 4. Apply Price Filters
-    if (currentFilters.minPrice !== null) query = query.gte('price', currentFilters.minPrice);
-    if (currentFilters.maxPrice !== null) query = query.lte('price', currentFilters.maxPrice);
-
-    // 5. Apply Stock Filters
-    // Assuming your main 'stock' column reflects overall availability. 
-    // Complex JSONB variant_stock filtering is best handled by a database function, 
-    // but standard integer column filtering works directly here.
-    if (currentFilters.inStock && !currentFilters.outOfStock) {
-        query = query.gt('stock', 0);
-    } else if (currentFilters.outOfStock && !currentFilters.inStock) {
-        query = query.lte('stock', 0);
-    }
-
-    // 6. Apply Sorting
-    switch (currentFilters.sortBy) {
-        case 'best-selling': query = query.order('is_best_seller', { ascending: false }).order('id', { ascending: false }); break;
-        case 'a-z': query = query.order('name', { ascending: true }); break;
-        case 'z-a': query = query.order('name', { ascending: false }); break;
-        case 'low-high': query = query.order('price', { ascending: true }); break;
-        case 'high-low': query = query.order('price', { ascending: false }); break;
-        case 'old-new': query = query.order('created_at', { ascending: true }); break; 
-        case 'new-old': query = query.order('created_at', { ascending: false }); break;
-        case 'featured':
-        default: query = query.order('sort_order', { ascending: true }).order('id', { ascending: false }); break;
-    }
-
-    // 7. Apply Pagination limits
-    const from = (currentQueryParams.page - 1) * currentQueryParams.limit;
-    const to = from + currentQueryParams.limit - 1;
-    query = query.range(from, to);
-
-    // Execute Query
-    const { data, count, error } = await query;
-
-    if (error) {
-        console.error("Error fetching products:", error);
-        return [];
-    }
-
-    const mappedProducts = data ? data.map(mapProduct) : [];
-    
-    // Update global state
-    currentQueryParams.totalCount = count || 0;
-    currentQueryParams.hasMore = (from + mappedProducts.length) < currentQueryParams.totalCount;
-
-    // Append or replace in-memory array so product detail pages can still find the data
-    if (append) {
-        appData.products = [...appData.products, ...mappedProducts];
-    } else {
-        appData.products = mappedProducts;
-    }
-
-    return mappedProducts;
-}
+        async function getProducts(force = false) {
+            return fetchWithCache('products', async () => {
+                const { data } = await db.from('products')
+                    .select('*')
+                    .order('sort_order', { ascending: true })
+                    .order('id', { ascending: false });
+                
+                // Filter out completely hidden products
+                return data ? data.filter(p => p.is_hidden !== true) : [];
+            }, mapProduct, 300000, force);
+        }
 
         async function getCoupons(force = false) {
             return fetchWithCache('coupons', async () => {
@@ -2176,13 +2101,14 @@ if (appData.settings.instagramUrl) {
         // --- APP INITIALIZATION ---
         async function initApp() {
             try {
-// Fetch in parallel for speed (REMOVED getProducts)
-                const [settings, categories, coupons, reviews] = await Promise.all([
-                    getSettings(), getCategories(), getCoupons(), getReviews()
+                // Fetch in parallel for speed
+                const [settings, categories, products, coupons, reviews] = await Promise.all([
+                    getSettings(), getCategories(), getProducts(), getCoupons(), getReviews()
                 ]);
 
                 appData.settings = settings;
                 appData.categories = categories;
+                appData.products = products;
                 appData.coupons = coupons;
                 appData.reviews = reviews;
 
@@ -2190,10 +2116,6 @@ if (appData.settings.instagramUrl) {
                 applyGlobalSettings();
                 updateBadges();
                 renderMenu();
-
-                // NEW: Initialize the first batch of products using the server-side function
-                currentQueryParams.category = 'all';
-                appData.products = await fetchProductsFromServer(false);
 
 // Read URL parameters to handle direct shared links
                 const urlParams = new URLSearchParams(window.location.search);
@@ -2293,7 +2215,26 @@ if (appData.settings.instagramUrl) {
             }
         }
 
-        
+        function executeSearch(query) {
+            if (!query.trim()) {
+                if(!isPopState) renderHome();
+                return;
+            }
+            navigate({view: 'search', query: query});
+            if(searchContainer.style.display !== 'block') {
+                searchContainer.style.display = 'block';
+                searchInput.value = query;
+            }
+            const q = query.toLowerCase();
+    const results = appData.products.filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
+    
+    // NEW FILTER LOGIC INTEGRATION
+    baseCategoryProducts = results;
+    currentCategoryName = "Search Results";
+    currentSubCategories = [];
+    resetFilters(false);
+    applyFiltersAndSort();
+}
 
         function toggleMenu() {
             sideMenu.classList.toggle('active');
@@ -2576,11 +2517,95 @@ if (bannerConfig.imageUrl) {
             });
         }
 
-        
+        function renderCategory(catId) {
+            if (catId === 'refresh') return; 
+            if(catId === 'track') return renderTrackOrder();
+            
+            navigate({view: 'category', id: catId});
+            searchContainer.style.display = 'none';
 
-        
+            let filteredProds;
+            let catName;
+            let subCategories = []; 
+            
+            if (catId === 'all') {
+                filteredProds = appData.products;
+                catName = 'Shop All';
+            } else if (catId === 'bestsellers') {
+                filteredProds = appData.products.filter(p => p.isBestSeller);
+                catName = 'Best Sellers';
+            } else {
+                const cat = appData.categories.find(c => String(c.id) === String(catId));
+                catName = cat?.name || 'Products';
+                subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
+                const allValidCatIds = [String(catId), ...subCategories.map(c => String(c.id))];
+        filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
+    }
+    
+    // NEW FILTER LOGIC INTEGRATION
+    baseCategoryProducts = filteredProds;
+    currentCategoryName = catName;
+    currentSubCategories = subCategories;
+    resetFilters(false);
+    applyFiltersAndSort();
+}
 
+        function renderProductList(title, products, subCats = []) {
+    let html = ``;
 
+    if (subCats && subCats.length > 0) {
+                // Added top spacing and updated the typography for a thinner, minimalist look
+                html += `
+                <div class="section-title-wrapper" style="padding-top: 30px; padding-bottom: 15px;">
+                    <h3 style="font-family: 'Roboto Slab', serif; font-size: 20px; font-weight: 400; letter-spacing: 0.5px;">${title}</h3>
+                </div>`;
+                
+                html += `<div class="grid-container" style="padding-bottom: 20px;">`;
+                
+                subCats.forEach(cat => {
+                    const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
+                    html += `
+                        <div class="category-card" onclick="renderCategory('${cat.id}')">
+                            <div class="category-img-box">${imgContent}</div>
+                            <span style="font-family: 'Roboto Slab', serif; font-size: 13px; font-weight: 400;">${cat.name}</span>
+                        </div>`;
+                });
+                
+                html += `</div>`;
+                
+                // Stop rendering here if there are subcategories
+                requestAnimationFrame(() => {
+                    mainContent.innerHTML = html;
+                    window.scrollTo(0, 0);
+                });
+                return; 
+            }
+
+    // Renders standard product grid if no subcategories exist
+
+    // Inject Filter Button and Dynamic Count (UPDATED STYLES)
+    if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+        html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+            <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filter and sort
+            </button>
+            <span id="productCountDisplay" style="font-size: 15px; color: var(--text-gray); font-weight: 500;">${products.length} products</span>
+        </div>
+        `;
+    }
+
+    html += `<div class="grid-container">`;
+    if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
+    else products.forEach(prod => html += getProductCardHTML(prod));
+    html += `</div>`;
+    
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
+        window.scrollTo(0, 0);
+    });
+}
 function updateStockUI(prod) {
     let currentVariant = prod.variants && prod.variants.length > 0 ? prod.variants[selectedProductVariantIndex].name : "Default";
     let stockKey = currentVariant;
@@ -4324,186 +4349,45 @@ function triggerFilterApply() {
     applyFiltersAndSort();
 }
 
-// ==========================================
-// START PASTING HERE: NEW SERVER-SIDE LOGIC
-// ==========================================
-
-function executeSearch(query) {
-    if (!query.trim()) {
-        if(!isPopState) renderHome();
-        return;
-    }
-    navigate({view: 'search', query: query});
-    if(searchContainer.style.display !== 'block') {
-        searchContainer.style.display = 'block';
-        searchInput.value = query;
-    }
-    
-    // Update Global Query State
-    currentQueryParams.searchQuery = query;
-    currentQueryParams.category = 'all';
-    currentQueryParams.page = 1;
-    currentCategoryName = "Search Results";
-    currentSubCategories = [];
-    
-    resetFilters(false);
-    
-    // Fetch fresh from Supabase
-    fetchProductsFromServer(false).then(products => {
-        renderProductList(currentCategoryName, products, currentSubCategories);
-        updateFilterModalCount();
-    });
-}
-
-function renderCategory(catId) {
-    if (catId === 'refresh') return; 
-    if(catId === 'track') return renderTrackOrder();
-    
-    navigate({view: 'category', id: catId});
-    searchContainer.style.display = 'none';
-
-    let catName = 'Shop All';
-    let subCategories = []; 
-    
-    if (catId === 'all') {
-        catName = 'Shop All';
-    } else if (catId === 'bestsellers') {
-        catName = 'Best Sellers';
-    } else {
-        const cat = appData.categories.find(c => String(c.id) === String(catId));
-        catName = cat?.name || 'Products';
-        subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
-    }
-    
-    // Update Global Query State
-    currentQueryParams.category = catId;
-    currentQueryParams.searchQuery = '';
-    currentQueryParams.page = 1;
-    currentCategoryName = catName;
-    currentSubCategories = subCategories;
-    
-    resetFilters(false);
-
-    // Fetch fresh from Supabase
-    fetchProductsFromServer(false).then(products => {
-        renderProductList(currentCategoryName, products, currentSubCategories);
-        updateFilterModalCount();
-    });
-}
-
 function applyFiltersAndSort() {
-    // Reset to page 1 when new filters are applied
-    currentQueryParams.page = 1; 
+    let filtered = [...baseCategoryProducts];
+
+    if (currentFilters.inStock || currentFilters.outOfStock) {
+        filtered = filtered.filter(p => {
+            const isOutOfStock = (p.stock !== null && p.stock <= 0);
+            if (currentFilters.inStock && currentFilters.outOfStock) return true;
+            if (currentFilters.inStock) return !isOutOfStock;
+            if (currentFilters.outOfStock) return isOutOfStock;
+            return true;
+        });
+    }
+
+    if (currentFilters.minPrice !== null) {
+        filtered = filtered.filter(p => p.price >= currentFilters.minPrice);
+    }
+    if (currentFilters.maxPrice !== null) {
+        filtered = filtered.filter(p => p.price <= currentFilters.maxPrice);
+    }
+
+    filtered.sort((a, b) => {
+        switch(currentFilters.sortBy) {
+            case 'best-selling': return (b.isBestSeller === a.isBestSeller) ? 0 : b.isBestSeller ? 1 : -1;
+            case 'a-z': return a.name.localeCompare(b.name);
+            case 'z-a': return b.name.localeCompare(a.name);
+            case 'low-high': return a.price - b.price;
+            case 'high-low': return b.price - a.price;
+            case 'old-new': return a.id - b.id; 
+            case 'new-old': return b.id - a.id;
+            case 'featured':
+            default: return 0; 
+        }
+    });
+
+    renderProductList(currentCategoryName, filtered, currentSubCategories);
     
-    fetchProductsFromServer(false).then(products => {
-        renderProductList(currentCategoryName, products, currentSubCategories);
-        updateFilterModalCount();
-    });
+    // Update the counter inside the modal for next time it opens
+    document.getElementById('filterTotalCount').innerText = `${filtered.length} products`;
 }
-
-function updateFilterModalCount() {
-    const countDisplay = document.getElementById('filterTotalCount');
-    if (countDisplay) {
-        countDisplay.innerText = `${currentQueryParams.totalCount} products`;
-    }
-}
-
-function renderProductList(title, products, subCats = [], append = false) {
-    let html = ``;
-
-    // Render Subcategories Header (if any)
-    if (subCats && subCats.length > 0 && !append) {
-        html += `
-        <div class="section-title-wrapper" style="padding-top: 30px; padding-bottom: 15px;">
-            <h3 style="font-family: 'Roboto Slab', serif; font-size: 20px; font-weight: 400; letter-spacing: 0.5px;">${title}</h3>
-        </div>
-        <div class="grid-container" style="padding-bottom: 20px;">`;
-        
-        subCats.forEach(cat => {
-            const imgContent = cat.img ? `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">` : `<div class="img-placeholder">${imageSvg}</div>`;
-            html += `
-                <div class="category-card" onclick="renderCategory('${cat.id}')">
-                    <div class="category-img-box">${imgContent}</div>
-                    <span style="font-family: 'Roboto Slab', serif; font-size: 13px; font-weight: 400;">${cat.name}</span>
-                </div>`;
-        });
-        html += `</div>`;
-        
-        requestAnimationFrame(() => {
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
-        });
-        return; 
-    }
-
-    // Render Product Grid Header
-    if (!append) {
-        if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
-            html += `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
-                <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    Filter and sort
-                </button>
-                <span id="productCountDisplay" style="font-size: 15px; color: var(--text-gray); font-weight: 500;">${currentQueryParams.totalCount} products</span>
-            </div>
-            `;
-        }
-        html += `<div class="grid-container" id="productGridContainer">`;
-    }
-
-    // Render Product Cards
-    if(products.length === 0 && !append) {
-        html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
-    } else {
-        products.forEach(prod => html += getProductCardHTML(prod));
-    }
-
-    // Render Pagination Wrapper
-    if (!append) {
-        html += `</div>`; // Close grid-container
-        html += `<div id="paginationWrapper" style="display: flex; justify-content: center; padding: 20px 20px 60px;"></div>`;
-    }
-
-    requestAnimationFrame(() => {
-        if (append) {
-            const grid = document.getElementById('productGridContainer');
-            if (grid) grid.insertAdjacentHTML('beforeend', html);
-        } else {
-            mainContent.innerHTML = html;
-            window.scrollTo(0, 0);
-        }
-        renderPaginationUI();
-    });
-}
-
-function renderPaginationUI() {
-    const wrapper = document.getElementById('paginationWrapper');
-    if (!wrapper) return;
-
-    if (currentQueryParams.hasMore) {
-        wrapper.innerHTML = `
-            <button class="btn-secondary" id="btnLoadMore" onclick="loadMoreProducts(this)" style="max-width: 250px;">
-                <span class="btn-text">Load More</span>
-            </button>
-        `;
-    } else {
-        wrapper.innerHTML = `<span style="color: var(--text-gray); font-size: 14px;">You've reached the end of the list.</span>`;
-    }
-}
-
-function loadMoreProducts(btn) {
-    withLoading(btn, () => {
-        currentQueryParams.page += 1;
-        fetchProductsFromServer(true).then(newProducts => {
-            renderProductList(currentCategoryName, newProducts, currentSubCategories, true);
-        });
-    });
-}
-
-// ==========================================
-// STOP PASTING HERE
-// ==========================================
         // --- KICKOFF APP ---
         initApp();
     </script>
