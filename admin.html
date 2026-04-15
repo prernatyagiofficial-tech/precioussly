@@ -95,10 +95,17 @@
         .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; margin-bottom: 10px;}
         .checkbox-label input { width: 16px; height: 16px; cursor: pointer; margin-bottom: 0;}
 
-        /* Settings Grid */
-        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .settings-card { background: #fff; border: 1px solid #000; padding: 20px; box-shadow: 3px 3px 0px #000; }
-        .settings-card h3 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; font-size: 14px;}
+/* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .settings-card { background: #fff; border: 1px solid #000; padding: 20px; box-shadow: 3px 3px 0px #000; }
+        .settings-card h3 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; font-size: 14px;}
+        /* Dynamic Home Sections */
+        .home-section-item { display: flex; align-items: center; gap: 10px; background: #f9f9f9; border: 1px solid #000; padding: 10px; margin-bottom: 10px; box-shadow: 2px 2px 0px #000; transition: transform 0.2s; }
+        .home-section-item:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #000; }
+        .home-section-item .drag-handle { cursor: grab; padding: 0 10px; font-weight: bold; color: #000; user-select: none;}
+        .home-section-item .drag-handle:active { cursor: grabbing; color: #666; }
+        .home-section-item input { margin-bottom: 0; flex: 1; border: 1px solid #ccc; }
+        .home-section-item input:focus { border-color: #000; }
         /* Product Management UI Upgrades */
 .toolbar-flex { display: flex; gap: 10px; align-items: center; background: #fff; padding: 10px; border: 1px solid #000; margin-bottom: 15px; box-shadow: 3px 3px 0px #000; }
 .toolbar-flex input, .toolbar-flex select { margin-bottom: 0; flex: 1; border: 1px solid #000; }
@@ -525,13 +532,29 @@
                             </div>
                             <div class="form-group">
                                 <label>Banner Click Action</label>
-                                <select id="setBannerAction">
-                                    <option value="all">Shop All</option>
-                                    <option value="bestsellers">Best Sellers</option>
-                                </select>
+<select id="setBannerAction">
+                                    <option value="all">Shop All</option>
+                                    <option value="bestsellers">Best Sellers</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+<div class="settings-card">
+                            <h3>Home Page Sections Layout</h3>
+                            <p style="font-size: 11px; margin-bottom: 15px; color: #666; font-weight: 600;">Drag the grip handle (⋮⋮) to reorder. Edit text to change the title.</p>
+                            
+                            <div class="flex-row" style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">
+                                <select id="addSectionSelect" style="flex: 1; margin-bottom: 0;">
+                                    <option value="">Select Category to Showcase</option>
+                                    </select>
+                                <button class="outline" onclick="addDynamicHomeSection()" style="width: auto; margin-bottom: 0;">+ ADD SECTION</button>
                             </div>
+
+                            <div id="homeSectionsList">
+                                </div>
                         </div>
-                    </div>
+
+                    </div>
                 </div>
                 
 <div id="view-users" class="view-section">
@@ -1223,12 +1246,42 @@ if (session) {
             document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
             document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
             
-            // Banner Config
-            const banner = data.banner_config || {};
-            document.getElementById('setBannerUrl').value = banner.imageUrl || '';
-            document.getElementById('setBannerAction').value = banner.target || 'all';
-       }
-    } catch (err) {
+// Banner Config
+            const banner = data.banner_config || {};
+            document.getElementById('setBannerUrl').value = banner.imageUrl || '';
+            document.getElementById('setBannerAction').value = banner.target || 'all';
+
+// Home Sections Config
+            const defaultSections = [
+                { id: 'collections', title: 'Explore Collections' },
+                { id: 'bestsellers', title: 'Best Sellers' }
+            ];
+            const sections = data.home_sections_config || defaultSections;
+            let sectionsHtml = '';
+            sections.forEach(sec => {
+                // Do not allow deleting the core default sections
+                const delBtn = (sec.id === 'collections' || sec.id === 'bestsellers') 
+                    ? `<div style="width: 30px;"></div>` 
+                    : `<button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="this.parentElement.remove()">X</button>`;
+                
+                sectionsHtml += `
+                    <div class="home-section-item" data-id="${sec.id}">
+                        <div class="drag-handle section-drag" title="Drag to reorder">⋮⋮</div>
+                        <input type="text" class="section-title-input" value="${escapeHTML(sec.title)}" placeholder="Section Title">
+                        ${delBtn}
+                    </div>
+                `;
+            });
+            document.getElementById('homeSectionsList').innerHTML = sectionsHtml;
+
+            // Initialize Sortable for Sections
+            if(window.homeSectionsSortable) window.homeSectionsSortable.destroy();
+            window.homeSectionsSortable = new Sortable(document.getElementById('homeSectionsList'), {
+                handle: '.section-drag',
+                animation: 150
+            });
+       }
+    } catch (err) {
         console.error("Settings load error:", err);
     }
 }
@@ -1261,20 +1314,53 @@ if (session) {
             shipping_fee: Number(document.getElementById('setShippingFee').value) || 0,
             free_shipping_threshold: Number(document.getElementById('setFreeShippingThreshold').value) || 0,
             
-            // Banner Config
-            banner_config: {
-                imageUrl: document.getElementById('setBannerUrl').value.trim(),
-                target: document.getElementById('setBannerAction').value
-            }
-        };
-        
-        const { error } = await db.from('settings').update(payload).eq('id', 1);
+// Banner Config
+            banner_config: {
+                imageUrl: document.getElementById('setBannerUrl').value.trim(),
+                target: document.getElementById('setBannerAction').value
+            }
+        };
+
+        // Home Sections Config
+        const sectionsConfig = [];
+        document.querySelectorAll('#homeSectionsList .home-section-item').forEach(item => {
+            sectionsConfig.push({
+                id: item.getAttribute('data-id'),
+                title: item.querySelector('.section-title-input').value.trim()
+            });
+        });
+        payload.home_sections_config = sectionsConfig;
+        
+        const { error } = await db.from('settings').update(payload).eq('id', 1);
         if (error) throw error;
         alert("Settings saved successfully!");
     } catch (err) {
         alert("Error saving settings: " + err.message);
     }
 }
+
+window.addDynamicHomeSection = function() {
+            const select = document.getElementById('addSectionSelect');
+            const val = select.value;
+            const text = select.options[select.selectedIndex].text.replace('↳ ', '');
+            
+            if(!val) return alert("Please select a category first");
+            
+            const list = document.getElementById('homeSectionsList');
+            if(list.querySelector(`[data-id="${val}"]`)) return alert("This category is already added to the homepage!");
+
+            const div = document.createElement('div');
+            div.className = 'home-section-item';
+            div.setAttribute('data-id', val);
+            div.innerHTML = `
+                <div class="drag-handle section-drag" title="Drag to reorder">⋮⋮</div>
+                <input type="text" class="section-title-input" value="${escapeHTML(text)}" placeholder="Section Title">
+                <button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="this.parentElement.remove()">X</button>
+            `;
+            list.appendChild(div);
+            select.value = ''; // Reset dropdown
+        }
+
 
         // Categories Management
         async function loadCategories() {
@@ -1370,6 +1456,16 @@ if (session) {
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
                 document.getElementById('catParentId').innerHTML = parentCatOptions;
                 document.getElementById('setBannerAction').innerHTML = bannerOptions;
+
+                // Populate Home Sections Dropdown
+                let addSecHtml = '<option value="">Select Category to Showcase</option>';
+                State.categories.forEach(c => {
+                    let prefix = c.parent_id ? '↳ ' : '';
+                    addSecHtml += `<option value="cat_${c.id}">${prefix}${escapeHTML(c.name)}</option>`;
+                });
+                if(document.getElementById('addSectionSelect')) {
+                    document.getElementById('addSectionSelect').innerHTML = addSecHtml;
+                }
 
                 // Re-bind SortableJS
                 initCategorySortable();
