@@ -1704,6 +1704,7 @@ let currentSubCategories = [];
         sizes: safeParseJSON(row.sizes, []),
         variant_stock: safeParseJSON(row.variant_stock, {}),
         isAlphabet: parseBool(row.is_alphabet), 
+        variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color'
     };
 }
@@ -2606,10 +2607,30 @@ if (bannerConfig.imageUrl) {
         window.scrollTo(0, 0);
     });
 }
+
 function updateStockUI(prod) {
     let currentVariant = prod.variants && prod.variants.length > 0 ? prod.variants[selectedProductVariantIndex].name : "Default";
     let stockKey = currentVariant;
     if (selectedProductSize) stockKey += `_${selectedProductSize}`;
+
+    // Dynamic Price UI Update (Fallback: Size Price -> Variant Price -> Base Price)
+    const priceDisplayEl = document.querySelector('.product-detail-price');
+    if (priceDisplayEl) {
+        let displayPrice = prod.price; // Base Fallback
+
+        if (prod.variants && prod.variants.length > 0) {
+            const activeVar = prod.variants[selectedProductVariantIndex];
+            if (activeVar.price !== undefined && activeVar.price !== null && activeVar.price !== '') {
+                displayPrice = activeVar.price; // Variant Fallback
+            }
+        }
+
+        if (prod.variant_prices && prod.variant_prices[stockKey] !== undefined && prod.variant_prices[stockKey] !== null) {
+            displayPrice = prod.variant_prices[stockKey]; // Specific Size+Variant Price
+        }
+
+        priceDisplayEl.innerText = formatPrice(displayPrice);
+    }
 
     // Read granular stock, fallback to global integer stock
     let availableStock = null;
@@ -2950,12 +2971,7 @@ function switchPolicyTab(tabId) {
             const colorNameEl = document.getElementById('selectedColorNameText');
             if(colorNameEl && variant) colorNameEl.innerText = variant.name || `Variant ${variantIndex + 1}`;
 
-            // --- NEW: Update the main product price ---
-            const priceDisplayEl = document.querySelector('.product-detail-price');
-            if (priceDisplayEl) {
-                const displayPrice = (variant.price !== undefined && variant.price !== null && variant.price !== '') ? variant.price : prod.price;
-                priceDisplayEl.innerText = formatPrice(displayPrice);
-            }
+
             // ------------------------------------------
 
             updateStockUI(prod);
@@ -3258,10 +3274,17 @@ function quickAddToCart(event, btn, prodId) {
                 if(prod.variants && prod.variants.length > 0) {
                     const activeVar = prod.variants[selectedProductVariantIndex];
                     selectedVariantStr = activeVar.name || "Default";
-                    // --- NEW: Overwrite the cart price if the variant has a custom price ---
                     if (activeVar.price !== undefined && activeVar.price !== null && activeVar.price !== '') {
                         activeVariantPrice = Number(activeVar.price);
                     }
+                }
+
+                // Check for exact Size + Variant price
+                let cartStockKey = selectedVariantStr;
+                if (selectedProductSize) cartStockKey += `_${selectedProductSize}`;
+                
+                if (prod.variant_prices && prod.variant_prices[cartStockKey] !== undefined && prod.variant_prices[cartStockKey] !== null) {
+                    activeVariantPrice = Number(prod.variant_prices[cartStockKey]);
                 }
 
                 const existing = state.cart.find(i => String(i.id) === String(prodId) && i.variant === selectedVariantStr && i.size === selectedProductSize && i.alphabet === selectedAlphabet);
