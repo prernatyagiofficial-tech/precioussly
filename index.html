@@ -3701,15 +3701,14 @@ function initiatePayment(btn, totalAmount) {
     const name = document.getElementById('chkName').value;
     const email = document.getElementById('chkEmail').value;
     const phone = document.getElementById('chkPhone').value;
+    const altPhone = document.getElementById('chkAltPhone').value; // NEW: Capture Alt Phone
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
-    // --- NEW: Calculate exact financial breakdown ---
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
     let discount = 0;
     let appliedCouponStr = "None";
     
-    // Check which coupon was applied
     for (let rule of appData.coupons) {
         if (subtotal >= rule.minThreshold) { 
             discount = rule.discountAmount; 
@@ -3717,37 +3716,34 @@ function initiatePayment(btn, totalAmount) {
             break; 
         }
     }
-    // ------------------------------------------------
 
     let amountToCharge = totalAmount;
     let amountDueOnDelivery = 0;
 
-    // Logic for Cash on Delivery (COD) advance fee
     if (paymentMethod === 'cod') {
         amountToCharge = appData.settings.codUpfrontFee;
         amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
     }
 
-    // --- UPDATED: Add the new fields to orderDetails ---
+    // UPDATED: Added altPhone to the object
     const orderDetails = {
         name: name,
         email: email,
         phone: phone,
+        altPhone: altPhone, // NEW: Saves to Supabase
         address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
         paymentMethod: paymentMethod,
         amountPaid: amountToCharge,
         amountDue: amountDueOnDelivery,
-        subtotal: subtotal,          // New!
-        shippingFee: shipping,       // New!
-        discount: discount,          // New!
-        couponApplied: appliedCouponStr // New!
+        subtotal: subtotal,
+        shippingFee: shipping,
+        discount: discount,
+        couponApplied: appliedCouponStr
     };
 
     if (amountToCharge > 0) {
-        // Notice the 'async' here!
         withLoading(btn, async () => {
             try {
-                // 1. Ask Backend to securely create a Razorpay Order
                 const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
                     body: { amount: amountToCharge }
                 });
@@ -3758,18 +3754,16 @@ function initiatePayment(btn, totalAmount) {
                     return;
                 }
 
-                // 2. Open Razorpay Modal with the secure Order ID
                 const options = {
-                    "key": "rzp_live_Sc7Dz1pFcekdz3", // Public Key ID STAYS here
-                    "amount": orderData.amount,       // Secured amount from backend
+                    "key": "rzp_live_Sc7Dz1pFcekdz3", 
+                    "amount": orderData.amount,       
                     "currency": "INR",
-                    "order_id": orderData.id,         // Secured Order ID from backend
+                    "order_id": orderData.id,         
                     "name": appData.settings.brandName,
                     "description": "Payment for Order",
                     "image": appData.settings.logoUrl,
                     "handler": async function (response) { 
                         showToast("Verifying payment...");
-                        
                         try {
                             const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
                                 body: {
@@ -3781,7 +3775,6 @@ function initiatePayment(btn, totalAmount) {
 
                             if (verifyError) throw verifyError;
 
-                            // Added 'await' here to ensure the flow waits for the database insertion
                             if (verifyData && verifyData.success) {
                                 await processOrderPlacement(totalAmount, orderDetails); 
                             } else {
@@ -3806,25 +3799,19 @@ function initiatePayment(btn, totalAmount) {
                     }
                 };
                 
-                // NEW UPDATED CODE TO ADD:
                 const rzp = new Razorpay(options);
-
-                // Catch the error gracefully instead of showing the ugly browser alert
                 rzp.on('payment.failed', function (response) {
                     console.error("Payment Failed:", response.error);
-                    // Use your existing toast notification for a smooth user experience
                     showToast("Payment Failed: " + response.error.description);
                 });
-
                 rzp.open();
                 
             } catch (e) {
                 console.error("Payment Gateway Error:", e);
                 showToast("Payment Gateway Error. Please try again.");
             }
-        }, 1200); // 1.2 second loading delay
+        }, 1200); 
     } else {
-        // If amount is 0 (Free order or full discount), place order directly
         withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); 
     }
 }
@@ -4055,9 +4042,14 @@ async function renderOrders() {
                         </div>
                     </div>
                     <div class="order-items">${itemsHtml}</div>
-                    ${order.customer_details && order.customer_details.name ? `
+${order.customer_details && order.customer_details.name ? `
                     <div class="order-address">
                         <strong>Delivery to: ${order.customer_details.name}</strong>
+                        <div style="margin: 6px 0; font-size: 12px;">
+                            <span style="display: block;">✉️ ${order.customer_details.email || 'N/A'}</span>
+                            <span style="display: block;">📞 ${order.customer_details.phone || 'N/A'}</span>
+                            ${order.customer_details.altPhone ? `<span style="display: block; color: var(--text-gray); margin-top: 2px;">↳ Alt: ${order.customer_details.altPhone}</span>` : ''}
+                        </div>
                         ${order.customer_details.address}
                     </div>
                     ` : ''}
