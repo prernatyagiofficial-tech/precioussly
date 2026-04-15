@@ -1537,13 +1537,57 @@ main {
         document.getElementById('year').textContent = new Date().getFullYear();
         const imageSvg = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
 
-      // --- STATE MANAGEMENT WITH PERSISTENCE ---
+// --- STATE MANAGEMENT WITH PERSISTENCE & INDEXEDDB ---
+        const dbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open('EcoStoreDB', 1);
+            request.onupgradeneeded = (e) => {
+                const idb = e.target.result;
+                if (!idb.objectStoreNames.contains('cache')) {
+                    idb.createObjectStore('cache', { keyPath: 'key' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        async function idbSet(key, data) {
+            const idb = await dbPromise;
+            return new Promise((resolve) => {
+                const tx = idb.transaction('cache', 'readwrite');
+                tx.objectStore('cache').put({ key, data, timestamp: Date.now() });
+                tx.oncomplete = () => resolve();
+            });
+        }
+
+        async function idbGet(key, maxAge = 300000) {
+            const idb = await dbPromise;
+            return new Promise((resolve) => {
+                const tx = idb.transaction('cache', 'readonly');
+                const req = tx.objectStore('cache').get(key);
+                req.onsuccess = () => {
+                    if (req.result && (Date.now() - req.result.timestamp < maxAge)) {
+                        resolve(req.result.data);
+                    } else {
+                        resolve(null);
+                    }
+                };
+                req.onerror = () => resolve(null);
+            });
+        }
+
         const state = {
             user: null, 
             cart: JSON.parse(localStorage.getItem('eco_cart') || '[]'),
             wishlist: JSON.parse(localStorage.getItem('eco_wishlist') || '[]'),
             itemToRemove: null
         };
+
+        // --- PAGINATION & INFINITE SCROLL STATE ---
+        let currentPage = 0;
+        const ITEMS_PER_PAGE = 12;
+        let isFetchingProducts = false;
+        let hasMoreProducts = true;
+        let currentFetchParams = { search: null, category: null, subCatIds: [] };
 
         async function persistUserData() {
     localStorage.setItem('eco_cart', JSON.stringify(state.cart));
@@ -1731,32 +1775,29 @@ isAlphabet: parseBool(row.is_alphabet),
             return { id: row.id, image: row.image_url || row.image || row.media || '' };
         }
 
-        // --- OPTIMIZED DATA FETCHING (Stale-While-Revalidate) ---
+// --- OPTIMIZED DATA FETCHING (IndexedDB & Supabase Server-Side) ---
         async function fetchWithCache(key, fetcher, mapper, cacheTimeMs = 300000, forceFetch = false) {
-            const cachedData = localStorage.getItem(`eco_cache_${key}`);
-            const cacheTimestamp = localStorage.getItem(`eco_cache_time_${key}`);
+            const cachedData = await idbGet(key, cacheTimeMs);
             const now = Date.now();
 
-            if (!forceFetch && cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp) < cacheTimeMs)) {
+            if (!forceFetch && cachedData) {
                 // Background update for freshness
                 setTimeout(async () => {
                     const freshData = await fetcher();
                     if (freshData) {
-                        localStorage.setItem(`eco_cache_${key}`, JSON.stringify(freshData.map ? freshData.map(mapper) : mapper(freshData)));
-                        localStorage.setItem(`eco_cache_time_${key}`, now.toString());
+                        await idbSet(key, freshData.map ? freshData.map(mapper) : mapper(freshData));
                     }
                 }, 100);
-                return JSON.parse(cachedData);
+                return cachedData;
             }
 
             const freshData = await fetcher();
             if (freshData) {
                 const mappedData = freshData.map ? freshData.map(mapper) : mapper(freshData);
-                localStorage.setItem(`eco_cache_${key}`, JSON.stringify(mappedData));
-                localStorage.setItem(`eco_cache_time_${key}`, now.toString());
+                await idbSet(key, mappedData);
                 return mappedData;
             }
-            return cachedData ? JSON.parse(cachedData) : null;
+            return cachedData || null;
         }
 
         async function getSettings(force = false) {
@@ -1772,8 +1813,6 @@ isAlphabet: parseBool(row.is_alphabet),
                     .select('*')
                     .order('sort_order', { ascending: true })
                     .order('id', { ascending: true });
-                
-                // Filter out hidden categories. If a parent is hidden, hide its subcategories too.
                 return data ? data.filter(c => {
                     if (c.is_hidden === true) return false;
                     if (c.parent_id) {
@@ -1785,16 +1824,74 @@ isAlphabet: parseBool(row.is_alphabet),
             }, mapCategory, 300000, force);
         }
 
+        // This now ONLY fetches initial top products for the home page to keep load times instant
         async function getProducts(force = false) {
-            return fetchWithCache('products', async () => {
+            return fetchWithCache('products_initial', async () => {
                 const { data } = await db.from('products')
                     .select('*')
-                    .order('sort_order', { ascending: true })
-                    .order('id', { ascending: false });
-                
-                // Filter out completely hidden products
-                return data ? data.filter(p => p.is_hidden !== true) : [];
+                    .neq('is_hidden', true)
+                    .order('is_best_seller', { ascending: false }) // Prioritize bestsellers
+                    .limit(50); // Just enough to paint the home page
+                return data || [];
             }, mapProduct, 300000, force);
+        }
+
+        // --- NEW: SUPABASE SERVER-SIDE QUERY ENGINE ---
+        async function fetchServerProducts(page = 0, params = {}) {
+            let query = db.from('products').select('*', { count: 'exact' }).neq('is_hidden', true);
+
+            // 1. Server-Side Search
+            if (params.search) {
+                query = query.ilike('name', `%${params.search}%`);
+            }
+
+            // 2. Server-Side Category Filtering
+            if (params.category && params.category !== 'all' && params.category !== 'bestsellers') {
+                if (params.subCatIds && params.subCatIds.length > 0) {
+                    const allValidIds = [params.category, ...params.subCatIds];
+                    // Using OR to check either cat_id or category_id depending on your DB schema
+                    query = query.or(`cat_id.in.(${allValidIds.join(',')}),category_id.in.(${allValidIds.join(',')})`);
+                } else {
+                    query = query.or(`cat_id.eq.${params.category},category_id.eq.${params.category}`);
+                }
+            } else if (params.category === 'bestsellers') {
+                query = query.eq('is_best_seller', true);
+            }
+
+            // 3. Server-Side Stock & Price Filtering
+            if (currentFilters.inStock && !currentFilters.outOfStock) query = query.gt('stock', 0);
+            if (currentFilters.outOfStock && !currentFilters.inStock) query = query.lte('stock', 0);
+            if (currentFilters.minPrice !== null) query = query.gte('price', currentFilters.minPrice);
+            if (currentFilters.maxPrice !== null) query = query.lte('price', currentFilters.maxPrice);
+
+            // 4. Server-Side Sorting
+            switch(currentFilters.sortBy) {
+                case 'best-selling': query = query.order('is_best_seller', { ascending: false }); break;
+                case 'a-z': query = query.order('name', { ascending: true }); break;
+                case 'z-a': query = query.order('name', { ascending: false }); break;
+                case 'low-high': query = query.order('price', { ascending: true }); break;
+                case 'high-low': query = query.order('price', { ascending: false }); break;
+                case 'old-new': query = query.order('id', { ascending: true }); break;
+                case 'new-old': query = query.order('id', { ascending: false }); break;
+                case 'featured':
+                default: query = query.order('sort_order', { ascending: true }).order('id', { ascending: false }); break;
+            }
+
+            // 5. Pagination
+            const from = page * ITEMS_PER_PAGE;
+            const to = from + ITEMS_PER_PAGE - 1;
+            query = query.range(from, to);
+
+            const { data, count, error } = await query;
+            if (error) { console.error("Supabase Query Error:", error); return { data: [], count: 0 }; }
+            
+            const mappedData = data ? data.map(mapProduct) : [];
+            
+            // Merge into appData.products so Cart and Product Details page can find them
+            const newMap = new Map([...appData.products, ...mappedData].map(item => [item.id, item]));
+            appData.products = Array.from(newMap.values());
+
+            return { data: mappedData, count };
         }
 
         async function getCoupons(force = false) {
@@ -2230,7 +2327,7 @@ if (appData.settings.instagramUrl) {
             }
         }
 
-        function executeSearch(query) {
+        async function executeSearch(query) {
             if (!query.trim()) {
                 if(!isPopState) renderHome();
                 return;
@@ -2240,16 +2337,25 @@ if (appData.settings.instagramUrl) {
                 searchContainer.style.display = 'block';
                 searchInput.value = query;
             }
-            const q = query.toLowerCase();
-    const results = appData.products.filter(p => p.name.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q)));
-    
-    // NEW FILTER LOGIC INTEGRATION
-    baseCategoryProducts = results;
-    currentCategoryName = "Search Results";
-    currentSubCategories = [];
-    resetFilters(false);
-    applyFiltersAndSort();
-}
+            
+            // Server-Side Request Setup
+            currentPage = 0;
+            currentFetchParams = { search: query };
+            currentCategoryName = `Results for "${query}"`;
+            currentSubCategories = [];
+            
+            // Reset filters visually without re-triggering the fetch
+            currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+            updateFilterUI();
+            
+            mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div><p style="margin-top:20px; color: var(--text-gray);">Searching catalog...</p></div>`;
+            
+            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
+            hasMoreProducts = data.length >= ITEMS_PER_PAGE;
+            
+            renderProductList(currentCategoryName, data, currentSubCategories, count);
+            document.getElementById('filterTotalCount').innerText = `${count} products`;
+        }
 
         function toggleMenu() {
             sideMenu.classList.toggle('active');
@@ -2430,11 +2536,11 @@ if (appData.settings.instagramUrl) {
                         <span class="btn-text">Sold Out</span>
                     </button>
                 `;
-            } else if (hasVariants) {
+} else if (hasVariants) {
                 // In Stock WITH variants -> Route to Product Details Page
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation(); renderProduct('${prod.id}');">
-                        <span class="btn-text">Select Options</span>
+                        <span class="btn-text">VIEW</span>
                     </button>
                 `;
             } else {
@@ -2592,51 +2698,96 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
             });
         }
 
-        function renderCategory(catId) {
+        async function renderCategory(catId) {
             if (catId === 'refresh') return; 
             if(catId === 'track') return renderTrackOrder();
             
             navigate({view: 'category', id: catId});
             searchContainer.style.display = 'none';
 
-            let filteredProds;
-            let catName;
+            let catName = 'Shop All';
             let subCategories = []; 
             
-            if (catId === 'all') {
-                filteredProds = appData.products;
-                catName = 'Shop All';
-            } else if (catId === 'bestsellers') {
-                filteredProds = appData.products.filter(p => p.isBestSeller);
-                catName = 'Best Sellers';
-            } else {
+            if (catId !== 'all' && catId !== 'bestsellers') {
                 const cat = appData.categories.find(c => String(c.id) === String(catId));
                 catName = cat?.name || 'Products';
                 subCategories = appData.categories.filter(c => String(c.parentId) === String(catId));
-                const allValidCatIds = [String(catId), ...subCategories.map(c => String(c.id))];
-        filteredProds = appData.products.filter(p => allValidCatIds.includes(String(p.catId)));
-    }
-    
-    // NEW FILTER LOGIC INTEGRATION
-    baseCategoryProducts = filteredProds;
-    currentCategoryName = catName;
-    currentSubCategories = subCategories;
-    resetFilters(false);
-    applyFiltersAndSort();
-}
+            } else if (catId === 'bestsellers') {
+                catName = 'Best Sellers';
+            }
 
-        function renderProductList(title, products, subCats = []) {
-    let html = ``;
+            // Server-Side Request Setup
+            currentPage = 0;
+            currentFetchParams = { 
+                category: catId, 
+                subCatIds: subCategories.map(c => String(c.id)) 
+            };
+            currentCategoryName = catName;
+            currentSubCategories = subCategories;
+            
+            // Show loading state if there are no subcategories to show first
+            if (subCategories.length === 0) {
+                mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div></div>`;
+            }
 
-    if (subCats && subCats.length > 0) {
-                // Added top spacing and updated the typography for a thinner, minimalist look
+            // Reset filters visually without re-triggering the fetch
+            currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+            updateFilterUI();
+
+            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
+            hasMoreProducts = data.length >= ITEMS_PER_PAGE;
+            
+            renderProductList(currentCategoryName, data, currentSubCategories, count);
+            document.getElementById('filterTotalCount').innerText = `${count} products`;
+        }
+
+        // --- INFINITE SCROLL OBSERVER ---
+        const scrollObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMoreProducts && !isFetchingProducts) {
+                loadNextPage();
+            }
+        }, { rootMargin: '300px' });
+
+        async function loadNextPage() {
+            if (!hasMoreProducts || isFetchingProducts) return;
+            isFetchingProducts = true;
+            currentPage++;
+
+            const anchor = document.getElementById('infinite-scroll-anchor');
+            if (anchor) anchor.innerHTML = '<div class="btn-spinner" style="position:relative; width: 30px; height: 30px; border-color: var(--border-color); border-top-color: var(--text-dark); margin: 0 auto;"></div>';
+
+            const { data } = await fetchServerProducts(currentPage, currentFetchParams);
+
+            if (data.length > 0) {
+                const grid = document.getElementById('dynamic-product-grid');
+                if (grid) {
+                    data.forEach(prod => {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = getProductCardHTML(prod);
+                        grid.appendChild(tempDiv.firstElementChild);
+                    });
+                }
+            }
+
+            if (data.length < ITEMS_PER_PAGE) {
+                hasMoreProducts = false;
+                if (anchor) anchor.innerHTML = '<p style="text-align:center; color: var(--text-gray); margin-top:20px; font-size: 13px;">End of results</p>';
+            } else {
+                if (anchor) anchor.innerHTML = '';
+            }
+            isFetchingProducts = false;
+        }
+
+        function renderProductList(title, products, subCats = [], totalCount = 0) {
+            let html = ``;
+
+            if (subCats && subCats.length > 0) {
                 html += `
                 <div class="section-title-wrapper" style="padding-top: 30px; padding-bottom: 15px;">
                     <h3 style="font-family: 'Roboto Slab', serif; font-size: 20px; font-weight: 400; letter-spacing: 0.5px;">${title}</h3>
                 </div>`;
                 
                 html += `<div class="grid-container" style="padding-bottom: 20px;">`;
-                
                 subCats.forEach(cat => {
                     const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
                     const imgContent = cat.img 
@@ -2650,10 +2801,8 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                             <span style="font-family: 'Roboto Slab', serif; font-size: 13px; font-weight: 400;">${cat.name}</span>
                         </div>`;
                 });
-                
                 html += `</div>`;
                 
-                // Stop rendering here if there are subcategories
                 requestAnimationFrame(() => {
                     mainContent.innerHTML = html;
                     window.scrollTo(0, 0);
@@ -2661,31 +2810,37 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                 return; 
             }
 
-    // Renders standard product grid if no subcategories exist
+            if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+                html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+                    <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                        Filter and sort
+                    </button>
+                    <span id="productCountDisplay" style="font-size: 15px; color: var(--text-gray); font-weight: 500;">${totalCount} products</span>
+                </div>
+                `;
+            }
 
-    // Inject Filter Button and Dynamic Count (UPDATED STYLES)
-    if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
-        html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
-            <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                Filter and sort
-            </button>
-            <span id="productCountDisplay" style="font-size: 15px; color: var(--text-gray); font-weight: 500;">${products.length} products</span>
-        </div>
-        `;
-    }
-
-    html += `<div class="grid-container">`;
-    if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
-    else products.forEach(prod => html += getProductCardHTML(prod));
-    html += `</div>`;
-    
-    requestAnimationFrame(() => {
-        mainContent.innerHTML = html;
-        window.scrollTo(0, 0);
-    });
-}
+            html += `<div class="grid-container" id="dynamic-product-grid">`;
+            if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
+            else products.forEach(prod => html += getProductCardHTML(prod));
+            html += `</div>`;
+            
+            // Add the anchor for the intersection observer
+            if (products.length >= ITEMS_PER_PAGE && title !== "Your Wishlist") {
+                html += `<div id="infinite-scroll-anchor" style="width: 100%; height: 50px; padding: 20px 0;"></div>`;
+            }
+            
+            requestAnimationFrame(() => {
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+                
+                // Attach observer
+                const anchor = document.getElementById('infinite-scroll-anchor');
+                if (anchor) scrollObserver.observe(anchor);
+            });
+        }
 
 function updateStockUI(prod) {
     let currentVariant = prod.variants && prod.variants.length > 0 ? prod.variants[selectedProductVariantIndex].name : "Default";
@@ -4458,45 +4613,18 @@ function triggerFilterApply() {
     applyFiltersAndSort();
 }
 
-function applyFiltersAndSort() {
-    let filtered = [...baseCategoryProducts];
-
-    if (currentFilters.inStock || currentFilters.outOfStock) {
-        filtered = filtered.filter(p => {
-            const isOutOfStock = (p.stock !== null && p.stock <= 0);
-            if (currentFilters.inStock && currentFilters.outOfStock) return true;
-            if (currentFilters.inStock) return !isOutOfStock;
-            if (currentFilters.outOfStock) return isOutOfStock;
-            return true;
-        });
-    }
-
-    if (currentFilters.minPrice !== null) {
-        filtered = filtered.filter(p => p.price >= currentFilters.minPrice);
-    }
-    if (currentFilters.maxPrice !== null) {
-        filtered = filtered.filter(p => p.price <= currentFilters.maxPrice);
-    }
-
-    filtered.sort((a, b) => {
-        switch(currentFilters.sortBy) {
-            case 'best-selling': return (b.isBestSeller === a.isBestSeller) ? 0 : b.isBestSeller ? 1 : -1;
-            case 'a-z': return a.name.localeCompare(b.name);
-            case 'z-a': return b.name.localeCompare(a.name);
-            case 'low-high': return a.price - b.price;
-            case 'high-low': return b.price - a.price;
-            case 'old-new': return a.id - b.id; 
-            case 'new-old': return b.id - a.id;
-            case 'featured':
-            default: return 0; 
+async function applyFiltersAndSort() {
+            // Server-Side Request Setup for Filters
+            currentPage = 0;
+            
+            mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div><p style="margin-top:20px; color: var(--text-gray);">Applying filters...</p></div>`;
+            
+            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
+            hasMoreProducts = data.length >= ITEMS_PER_PAGE;
+            
+            renderProductList(currentCategoryName, data, currentSubCategories, count);
+            document.getElementById('filterTotalCount').innerText = `${count} products`;
         }
-    });
-
-    renderProductList(currentCategoryName, filtered, currentSubCategories);
-    
-    // Update the counter inside the modal for next time it opens
-    document.getElementById('filterTotalCount').innerText = `${filtered.length} products`;
-}
         // --- KICKOFF APP ---
         initApp();
     </script>
