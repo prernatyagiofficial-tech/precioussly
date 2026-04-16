@@ -1868,14 +1868,15 @@ isAlphabet: parseBool(row.is_alphabet),
                 query = query.ilike('name', `%${params.search}%`);
             }
 
-            // 2. Server-Side Category Filtering
+// 2. Server-Side Category Filtering
             if (params.category && params.category !== 'all' && params.category !== 'bestsellers') {
                 if (params.subCatIds && params.subCatIds.length > 0) {
                     const allValidIds = [params.category, ...params.subCatIds];
-                    // Using OR to check either cat_id or category_id depending on your DB schema
-                    query = query.or(`cat_id.in.(${allValidIds.join(',')}),category_id.in.(${allValidIds.join(',')})`);
+                    // Seedha IN query use karo sirf cat_id par
+                    query = query.in('cat_id', allValidIds);
                 } else {
-                    query = query.or(`cat_id.eq.${params.category},category_id.eq.${params.category}`);
+                    // Seedha EQ query use karo sirf cat_id par
+                    query = query.eq('cat_id', params.category);
                 }
             } else if (params.category === 'bestsellers') {
                 query = query.eq('is_best_seller', true);
