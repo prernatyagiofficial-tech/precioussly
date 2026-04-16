@@ -1741,6 +1741,7 @@ let currentSubCategories = [];
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
+        acceptingPayments: row.accepting_payments !== false,
         
         // Dynamic Shipping Settings
         shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
@@ -4022,26 +4023,36 @@ function handleCheckoutClick(btn) {
                             <textarea id="chkAddress" rows="3" placeholder="House No, Building, Street, Area" required>${prefillAddress}</textarea>
                             <div class="error-message" id="errAddress">Please enter your full address</div>
                         </div>
-                        <div class="row-group">
+<div class="row-group">
                             <div class="form-group"><label>Phone Number</label><input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillPhone}" required><div class="error-message" id="errPhone">Please enter a valid 10-digit number</div></div>
                             <div class="form-group"><label>Alt. Phone (Optional)</label><input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillAltPhone}"><div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div></div>
                         </div>
 
-                        <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
-                        <div class="payment-options">
-                            <label class="radio-label">
-                                <input type="radio" name="payment" value="online" onchange="handlePaymentSelection(this, ${totalAmount})" checked> Online Payment (UPI/Cards)
-                            </label>
-                            <label class="radio-label ${!isCODAvailable ? 'disabled' : ''}">
-                                <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this, ${totalAmount})" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
-                            </label>
-                            ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${appData.settings.minCODAmount}</span>` : ''}
-                            <div id="codInfoText" style="display: none; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);"></div>
-                        </div>
-                        
-                        <div style="margin-top: 40px; margin-bottom: 20px;">
-                            <button class="btn-primary" id="placeOrderBtn" onclick="initiatePayment(this, ${totalAmount})"><span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
-                        </div>
+                        ${appData.settings.acceptingPayments ? `
+                            <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
+                            <div class="payment-options">
+                                <label class="radio-label">
+                                    <input type="radio" name="payment" value="online" onchange="handlePaymentSelection(this, ${totalAmount})" checked> Online Payment (UPI/Cards)
+                                </label>
+                                <label class="radio-label ${!isCODAvailable ? 'disabled' : ''}">
+                                    <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this, ${totalAmount})" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
+                                </label>
+                                ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${appData.settings.minCODAmount}</span>` : ''}
+                                <div id="codInfoText" style="display: none; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);"></div>
+                            </div>
+                            
+                            <div style="margin-top: 40px; margin-bottom: 20px;">
+                                <button class="btn-primary" id="placeOrderBtn" onclick="initiatePayment(this, ${totalAmount})"><span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
+                            </div>
+                        ` : `
+                            <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
+                            <div style="background: #fff5f5; border: 1px dashed #ff4757; color: #ff4757; padding: 20px; border-radius: var(--radius-md); text-align: center; font-weight: 500; margin-bottom: 20px;">
+                                We are not accepting payments right now. Please check back later.
+                            </div>
+                            <div style="margin-top: 20px; margin-bottom: 20px;">
+                                <button class="btn-primary btn-disabled" disabled style="background: #ccc; border-color: #ccc; cursor: not-allowed;"><span class="btn-text">Payments Disabled</span></button>
+                            </div>
+                        `}
                     </div>
                 </div>
             `;
