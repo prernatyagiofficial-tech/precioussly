@@ -1770,7 +1770,7 @@ let currentSubCategories = [];
             return { id: row.id, name: row.name || 'Category', img: row.img || row.image_url || '', parentId: row.parent_id || null };
         }
 
-        function mapProduct(row) {
+function mapProduct(row) {
     return {
         id: row.id, 
         name: row.name || 'Product', 
@@ -1783,10 +1783,11 @@ let currentSubCategories = [];
         variants: safeParseJSON(row.variants, []), 
         sizes: safeParseJSON(row.sizes, []),
         variant_stock: safeParseJSON(row.variant_stock, {}),
-isAlphabet: parseBool(row.is_alphabet), 
+        isAlphabet: parseBool(row.is_alphabet), 
         variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color',
-        showSizeChart: parseBool(row.show_size_chart)
+        showSizeChart: parseBool(row.show_size_chart),
+        smart_tag: row.smart_tag || null  // <--- YEH NAYI LINE ADD KARNI HAI
     };
 }
 
