@@ -3553,6 +3553,7 @@ function quickAddToCart(event, btn, prodId) {
             // Trigger the exact same Add to Cart function you already have
             addToCart(btn, prodId);
         }
+        
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
@@ -3595,7 +3596,7 @@ function quickAddToCart(event, btn, prodId) {
                         cartMedia = prod.variants[selectedProductVariantIndex].media;
                     }
                     // Pass the overridden `activeVariantPrice` here
-                    state.cart.push({ ...prod, price: activeVariantPrice, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia });
+                    state.cart.push({ ...prod, price: activeVariantPrice, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia, smart_tag: prod.smart_tag || null });
                 }
                 
                 updateBadges();
