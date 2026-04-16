@@ -495,37 +495,31 @@
                             <div class="form-group"><label>Instagram URL</label><input type="url" id="setInstagram" placeholder="https://instagram.com/yourbrand"></div>
                         </div>
 
-<div class="settings-card">
-                            <h3>Order & COD Rules</h3>
-                            
-                            <div class="form-group">
-                                <label>Standard Shipping Fee (₹)</label>
-                                <input type="number" id="setShippingFee" placeholder="e.g. 50">
-                            </div>
-                            <div class="form-group">
-                                <label>Free Shipping Threshold (₹)</label>
-                                <input type="number" id="setFreeShippingThreshold" placeholder="e.g. 499">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Minimum Order Amount (₹)</label>
-                                <input type="number" id="setMinOrder" placeholder="e.g. 149">
-                            </div>
-                            <div class="form-group">
-                                <label>Minimum Amount for COD (₹)</label>
-                                <input type="number" id="setMinCod" placeholder="e.g. 500">
-                            </div>
-                            <div class="form-group">
-                                <label>COD Upfront/Advance Fee (₹)</label>
-                                <input type="number" id="setCodFee" placeholder="e.g. 49">
-                            </div>
-                            <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="setAcceptingPayments" checked> Accept Payments & Orders
-                                </label>
-                                <span style="font-size: 11px; color: #666; display: block; margin-top: 4px;">Uncheck this to temporarily disable checkout on the website.</span>
-                            </div>
-                        </div>
+                        <div class="settings-card">
+    <h3>Order & COD Rules</h3>
+    
+    <div class="form-group">
+        <label>Standard Shipping Fee (₹)</label>
+        <input type="number" id="setShippingFee" placeholder="e.g. 50">
+    </div>
+    <div class="form-group">
+        <label>Free Shipping Threshold (₹)</label>
+        <input type="number" id="setFreeShippingThreshold" placeholder="e.g. 499">
+    </div>
+    
+    <div class="form-group">
+        <label>Minimum Order Amount (₹)</label>
+        <input type="number" id="setMinOrder" placeholder="e.g. 149">
+    </div>
+    <div class="form-group">
+        <label>Minimum Amount for COD (₹)</label>
+        <input type="number" id="setMinCod" placeholder="e.g. 500">
+    </div>
+    <div class="form-group">
+        <label>COD Upfront/Advance Fee (₹)</label>
+        <input type="number" id="setCodFee" placeholder="e.g. 49">
+    </div>
+</div>
                         
 
                         <div class="settings-card">
@@ -576,8 +570,6 @@
             
             <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
                 <label style="font-weight: 600; font-size: 11px; text-transform: uppercase; white-space: nowrap; margin-bottom: 0;">Sort By:</label>
-<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px;">
-                <label style="font-weight: 600; font-size: 11px; text-transform: uppercase; white-space: nowrap; margin-bottom: 0;">Sort By:</label>
                 <select id="userSortFilter" style="flex: 1; min-width: 0; margin-bottom: 0; text-overflow: ellipsis;" onchange="loadUsers(1)">
                     <option value="date_desc">Joined Date (Newest First)</option>
                     <option value="orders_desc">Orders (High to Low)</option>
@@ -586,9 +578,6 @@
                     <option value="wishlist_desc">Wishlist Count (High to Low)</option>
                     <option value="wishlist_asc">Wishlist Count (Low to High)</option>
                     <option value="wishlist_activity">Wishlist Updated (Recently First)</option>
-                    <option value="cart_desc">Cart Items (High to Low)</option>
-                    <option value="cart_asc">Cart Items (Low to High)</option>
-                    <option value="cart_activity">Cart Updated (Recently First)</option>
                 </select>
             </div>
             
@@ -599,12 +588,11 @@
 
     <div class="table-responsive">
         <table>
-<thead>
+            <thead>
                 <tr>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Total Orders</th>
-                    <th>Cart Items</th>
                     <th>Wishlist Items</th>
                     <th>Joined Date</th>
                     <th>Action</th>
@@ -1086,13 +1074,6 @@ async function loadDashboard() {
                         catch(e) { wishlistArr = []; }
                     }
 
-                    let cartArr = [];
-                    if (u.cart) {
-                        try { cartArr = Array.isArray(u.cart) ? u.cart : JSON.parse(u.cart); }
-                        catch(e) { cartArr = []; }
-                    }
-                    const totalCartQty = cartArr.reduce((sum, item) => sum + (item.qty || 1), 0);
-
                     // Calculate activity timestamps
                     let latestOrderTime = 0;
                     if (userOrders.length > 0) {
@@ -1104,9 +1085,7 @@ async function loadDashboard() {
                         _orderCount: userOrders.length,
                         _latestOrderTime: latestOrderTime,
                         _wishlistCount: wishlistArr.length,
-                        _cartCount: totalCartQty,
                         _wishlistUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
-                        _cartUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
                         _joinedTime: new Date(u.created_at).getTime()
                     };
                 });
@@ -1120,9 +1099,6 @@ async function loadDashboard() {
                         case 'wishlist_desc': return b._wishlistCount - a._wishlistCount;
                         case 'wishlist_asc': return a._wishlistCount - b._wishlistCount;
                         case 'wishlist_activity': return b._wishlistUpdated - a._wishlistUpdated;
-                        case 'cart_desc': return b._cartCount - a._cartCount;
-                        case 'cart_asc': return a._cartCount - b._cartCount;
-                        case 'cart_activity': return b._cartUpdated - a._cartUpdated;
                         case 'date_desc': 
                         default: return b._joinedTime - a._joinedTime;
                     }
@@ -1161,7 +1137,6 @@ async function loadDashboard() {
                             <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
                             <td>${escapeHTML(u.email)}</td>
                             <td><span class="badge">${u._orderCount}</span></td>
-                            <td><span class="badge" style="background: #e67e22;">${u._cartCount}</span></td>
                             <td><span class="badge" style="background: #34495e;">${u._wishlistCount}</span></td>
                             <td>${new Date(u.created_at).toLocaleDateString()}</td>
                             <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
@@ -1169,11 +1144,11 @@ async function loadDashboard() {
                     });
                 }
                 
-                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
+                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
 
             } catch (err) {
                 console.error("Error loading users:", err);
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
             }
         }
 
@@ -1199,14 +1174,6 @@ async function loadDashboard() {
                 } catch(e) { wishlistItems = []; }
             }
 
-            // Parse Cart Array safely
-            let cartItems = [];
-            if (user.cart) {
-                try {
-                    cartItems = Array.isArray(user.cart) ? user.cart : JSON.parse(user.cart);
-                } catch(e) { cartItems = []; }
-            }
-
             // Generate Wishlist Grid
             let wishlistHtml = '';
             if (wishlistItems.length === 0) {
@@ -1214,10 +1181,13 @@ async function loadDashboard() {
             } else {
                 wishlistHtml = '<div class="wishlist-grid">';
                 wishlistItems.forEach(itemId => {
+                    // Cross-reference with the loaded products catalog
                     const prod = State.products.find(p => String(p.id) === String(itemId));
+                    
                     if (prod) {
                         const imgUrl = (prod.media && prod.media.length > 0) ? prod.media[0] : '';
                         const isVideo = imgUrl && typeof imgUrl === 'string' && imgUrl.toLowerCase().endsWith('.mp4');
+                        
                         let mediaTag = `<div style="width:70px; height:70px; background:#eee; border:1px solid #000; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">NO PIC</div>`;
                         
                         if (imgUrl) {
@@ -1235,6 +1205,7 @@ async function loadDashboard() {
                             <div class="wishlist-item-price">₹${prod.price.toLocaleString()}</div>
                         </div>`;
                     } else {
+                         // Fallback if the product was deleted from the store
                          wishlistHtml += `
                         <div class="wishlist-item" style="opacity: 0.6;">
                             <div style="width:70px; height:70px; background:#eee; border:1px dashed #000; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:20px;">?</div>
@@ -1246,45 +1217,7 @@ async function loadDashboard() {
                 wishlistHtml += '</div>';
             }
 
-            // Generate Cart Grid
-            let cartHtml = '';
-            if (cartItems.length === 0) {
-                cartHtml = '<div style="text-align: center; padding: 30px; color: #666; font-weight: 600; border: 1px dashed #000;">User has no items in their cart.</div>';
-            } else {
-                cartHtml = '<div class="wishlist-grid">';
-                cartItems.forEach(item => {
-                    const imgUrl = (item.media && item.media.length > 0) ? item.media[0] : '';
-                    const isVideo = imgUrl && typeof imgUrl === 'string' && imgUrl.toLowerCase().endsWith('.mp4');
-                    let mediaTag = `<div style="width:70px; height:70px; background:#eee; border:1px solid #000; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">NO PIC</div>`;
-                    
-                    if (imgUrl) {
-                        if (isVideo) {
-                            mediaTag = `<video src="${escapeHTML(imgUrl)}" class="wishlist-item-media" muted playsinline></video>`;
-                        } else {
-                            mediaTag = `<img src="${escapeHTML(imgUrl)}" class="wishlist-item-media">`;
-                        }
-                    }
-
-                    let specs = [];
-                    if (item.variant && item.variant !== "Default") specs.push(item.variant);
-                    if (item.size) specs.push(item.size);
-                    if (item.alphabet) specs.push(item.alphabet);
-                    const variantDisplay = specs.length > 0 ? `<div style="font-size:10px; color:#555; margin-bottom:4px; font-weight: 600;">${escapeHTML(specs.join(', '))}</div>` : '';
-
-                    cartHtml += `
-                    <div class="wishlist-item">
-                        ${mediaTag}
-                        <div class="wishlist-item-title">${escapeHTML(item.name)}</div>
-                        ${variantDisplay}
-                        <div class="wishlist-item-price" style="color: #e67e22;">₹${item.price.toLocaleString()} x ${item.qty}</div>
-                    </div>`;
-                });
-                cartHtml += '</div>';
-            }
-
-            // Combine into the Modal Layout with Tabs
-            const totalCartQty = cartItems.reduce((sum, i) => sum + (i.qty || 1), 0);
-            
+// Combine into the Modal Layout
             const contentHtml = `
                 <div class="user-info-panel">
                     <h4 style="text-transform: uppercase; margin-bottom: 15px; font-size: 14px; font-weight: 700;">Account Summary</h4>
@@ -1297,17 +1230,9 @@ async function loadDashboard() {
                     <p><span>Total Orders:</span> <strong>${userOrders.length}</strong></p>
                     <p><span>Lifetime Value:</span> <strong>₹${totalSpent.toLocaleString()}</strong></p>
                 </div>
-                
-                <div style="display: flex; gap: 10px; border-bottom: 2px solid #000; margin-bottom: 15px;">
-                    <button id="tabBtnWishlist" style="flex:1; margin:0; padding:10px; background:#000; color:#fff; border:none; cursor:pointer; font-weight:bold; text-transform:uppercase;" onclick="document.getElementById('tabContentWishlist').style.display='block'; document.getElementById('tabContentCart').style.display='none'; this.style.background='#000'; this.style.color='#fff'; document.getElementById('tabBtnCart').style.background='#eee'; document.getElementById('tabBtnCart').style.color='#000';">Wishlist (${wishlistItems.length})</button>
-                    <button id="tabBtnCart" style="flex:1; margin:0; padding:10px; background:#eee; color:#000; border:none; cursor:pointer; font-weight:bold; text-transform:uppercase;" onclick="document.getElementById('tabContentCart').style.display='block'; document.getElementById('tabContentWishlist').style.display='none'; this.style.background='#000'; this.style.color='#fff'; document.getElementById('tabBtnWishlist').style.background='#eee'; document.getElementById('tabBtnWishlist').style.color='#000';">Cart (${totalCartQty})</button>
-                </div>
-
-                <div id="tabContentWishlist" style="display:block;">
+                <div>
+                    <h4 style="text-transform: uppercase; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 14px; font-weight: 700;">User Wishlist (${wishlistItems.length})</h4>
                     ${wishlistHtml}
-                </div>
-                <div id="tabContentCart" style="display:none;">
-                    ${cartHtml}
                 </div>
             `;
 
@@ -1340,15 +1265,14 @@ async function loadDashboard() {
             document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
             document.getElementById('setAboutUs').value = data.about_us_text || '';
             
-// Order, COD & Shipping Rules
+            // Order, COD & Shipping Rules
             document.getElementById('setMinOrder').value = data.min_order_amount || 0;
             document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
             document.getElementById('setMinCod').value = data.min_cod_amount || 0;
             document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
             document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
-            document.getElementById('setAcceptingPayments').checked = data.accepting_payments !== false; // Defaults to true
             
-            // Banner Config
+// Banner Config
             const banner = data.banner_config || {};
             document.getElementById('setBannerUrl').value = banner.imageUrl || '';
             document.getElementById('setBannerAction').value = banner.target || 'all';
@@ -1409,15 +1333,14 @@ async function loadDashboard() {
             announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
             about_us_text: document.getElementById('setAboutUs').value.trim(),
             
-// Order, COD & Shipping Rules
+            // Order, COD & Shipping Rules
             min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
             cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
             min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
             shipping_fee: Number(document.getElementById('setShippingFee').value) || 0,
             free_shipping_threshold: Number(document.getElementById('setFreeShippingThreshold').value) || 0,
-            accepting_payments: document.getElementById('setAcceptingPayments').checked,
             
-            // Banner Config
+// Banner Config
             banner_config: {
                 imageUrl: document.getElementById('setBannerUrl').value.trim(),
                 target: document.getElementById('setBannerAction').value
