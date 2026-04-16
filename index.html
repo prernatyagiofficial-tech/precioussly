@@ -3837,7 +3837,7 @@ function handleCheckoutClick(btn) {
         renderCheckout();
     }, 1200);
 }
-        function renderCheckout() {
+        async function renderCheckout() {
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
             let discount = 0;
@@ -3849,16 +3849,44 @@ function handleCheckoutClick(btn) {
             navigate({view: 'checkout', amount: totalAmount});
             const isCODAvailable = totalAmount >= appData.settings.minCODAmount;
             
-            // --- NEW: Grab user details if they are logged in ---
             let prefillName = '';
             let prefillEmail = '';
+            let prefillPhone = '';
+            let prefillAltPhone = '';
+            let prefillState = '';
+            let prefillCity = '';
+            let prefillPincode = '';
+            let prefillAddress = '';
             
             if (state.user) {
                 prefillEmail = state.user.email || '';
-                // Google usually stores the user's name inside the user_metadata object
                 prefillName = state.user.user_metadata?.full_name || state.user.user_metadata?.name || '';
+                try {
+                    const { data: profile } = await db.from('profiles').select('phone, alt_phone, state, city, pincode, address').eq('id', state.user.id).single();
+                    if (profile) {
+                        prefillPhone = profile.phone || '';
+                        prefillAltPhone = profile.alt_phone || '';
+                        prefillState = profile.state || '';
+                        prefillCity = profile.city || '';
+                        prefillPincode = profile.pincode || '';
+                        prefillAddress = profile.address || '';
+                    }
+                } catch(e) { console.error("Error fetching address", e); }
+            } else {
+                try {
+                    const savedObj = JSON.parse(localStorage.getItem('eco_guest_address'));
+                    if (savedObj) {
+                        prefillName = savedObj.name || '';
+                        prefillEmail = savedObj.email || '';
+                        prefillPhone = savedObj.phone || '';
+                        prefillAltPhone = savedObj.altPhone || '';
+                        prefillState = savedObj.state || '';
+                        prefillCity = savedObj.city || '';
+                        prefillPincode = savedObj.pincode || '';
+                        prefillAddress = savedObj.address || '';
+                    }
+                } catch(e) {}
             }
-            // ----------------------------------------------------
 
             let html = `
                 <div class="back-nav" onclick="renderCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Cart</div>
@@ -3888,22 +3916,22 @@ function handleCheckoutClick(btn) {
                             <div class="error-message" id="errEmail">Please enter a valid email</div>
                         </div>
                         <div class="row-group">
-                            <div class="form-group"><label>State</label><input type="text" id="chkState" placeholder="Enter your state" required><div class="error-message" id="errState">Please enter your state</div></div>
-                            <div class="form-group"><label>City</label><input type="text" id="chkCity" placeholder="Enter your city" required><div class="error-message" id="errCity">Please enter your city</div></div>
+                            <div class="form-group"><label>State</label><input type="text" id="chkState" placeholder="Enter your state" value="${prefillState}" required><div class="error-message" id="errState">Please enter your state</div></div>
+                            <div class="form-group"><label>City</label><input type="text" id="chkCity" placeholder="Enter your city" value="${prefillCity}" required><div class="error-message" id="errCity">Please enter your city</div></div>
                         </div>
                         <div class="form-group">
                             <label>Pincode</label>
-                            <input type="text" id="chkPincode" placeholder="6-digit pincode" maxlength="6" pattern="[0-9]{6}" required>
+                            <input type="text" id="chkPincode" placeholder="6-digit pincode" maxlength="6" pattern="[0-9]{6}" value="${prefillPincode}" required>
                             <div class="error-message" id="errPincode">Please enter a valid 6-digit pincode</div>
                         </div>
                         <div class="form-group">
                             <label>Full Address</label>
-                            <textarea id="chkAddress" rows="3" placeholder="House No, Building, Street, Area" required></textarea>
+                            <textarea id="chkAddress" rows="3" placeholder="House No, Building, Street, Area" required>${prefillAddress}</textarea>
                             <div class="error-message" id="errAddress">Please enter your full address</div>
                         </div>
                         <div class="row-group">
-                            <div class="form-group"><label>Phone Number</label><input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" required><div class="error-message" id="errPhone">Please enter a valid 10-digit number</div></div>
-                            <div class="form-group"><label>Alt. Phone (Optional)</label><input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}"><div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div></div>
+                            <div class="form-group"><label>Phone Number</label><input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillPhone}" required><div class="error-message" id="errPhone">Please enter a valid 10-digit number</div></div>
+                            <div class="form-group"><label>Alt. Phone (Optional)</label><input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillAltPhone}"><div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div></div>
                         </div>
 
                         <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
@@ -3996,7 +4024,7 @@ function initiatePayment(btn, totalAmount) {
         amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
     }
 
-    // UPDATED: Added altPhone to the object
+// UPDATED: Added altPhone to the object
     const orderDetails = {
         name: name,
         email: email,
@@ -4011,6 +4039,34 @@ function initiatePayment(btn, totalAmount) {
         discount: discount,
         couponApplied: appliedCouponStr
     };
+
+    // --- NEW: AUTO-SAVE ADDRESS LOGIC ---
+    const saveAddressData = {
+        name: name,
+        email: email,
+        phone: phone,
+        altPhone: altPhone,
+        state: document.getElementById('chkState').value.trim(),
+        city: document.getElementById('chkCity').value.trim(),
+        pincode: document.getElementById('chkPincode').value.trim(),
+        address: document.getElementById('chkAddress').value.trim()
+    };
+
+    if (state.user) {
+        db.from('profiles').update({
+            phone: saveAddressData.phone,
+            alt_phone: saveAddressData.altPhone,
+            state: saveAddressData.state,
+            city: saveAddressData.city,
+            pincode: saveAddressData.pincode,
+            address: saveAddressData.address
+        }).eq('id', state.user.id).then(({error}) => {
+            if (error) console.error("Failed to auto-save profile address", error);
+        });
+    } else {
+        localStorage.setItem('eco_guest_address', JSON.stringify(saveAddressData));
+    }
+    // ------------------------------------
 
     if (amountToCharge > 0) {
         withLoading(btn, async () => {
