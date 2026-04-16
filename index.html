@@ -3529,18 +3529,25 @@ ${relatedProductsHtml}
             });
         }
 
-        // --- CART LOGIC ---
-        function withLoading(btn, callback, delay = 500) {
+// --- CART LOGIC ---
+        async function withLoading(btn, callback, delay = 500) {
             if (btn.disabled) return;
             const originalText = btn.querySelector('.btn-text').innerText;
             btn.disabled = true;
             btn.innerHTML = `<span class="btn-spinner"></span><span class="btn-text" style="opacity:0;">${originalText}</span>`;
             
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = `<span class="btn-text">${originalText}</span>`;
-                callback();
-            }, delay); // Uses custom delay, defaults to 500ms
+            try {
+                // Execute the action immediately so iPhone/Safari doesn't block the Razorpay popup
+                await callback(); 
+            } finally {
+                // Keep the visual spinner delay before resetting the button
+                setTimeout(() => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<span class="btn-text">${originalText}</span>`;
+                    }
+                }, delay);
+            }
         }
 function quickAddToCart(event, btn, prodId) {
             // Stop the click from opening the product details page
