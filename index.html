@@ -383,17 +383,19 @@ main {
             display: block;
             margin-top: 0 !important;
         }
-        .banner img, .banner video {
+.banner img, .banner video {
             display: block !important;
             margin: 0 !important;
         }
 
+/* --- REPLACE FROM HERE --- */
 .section-title-wrapper {
-    display: flex; align-items: center; justify-content: center; padding: 40px 20px 10px;
+    display: flex; align-items: center; justify-content: center; padding: 40px 20px 30px; /* Increased bottom padding to 30px */
 }
-        .section-title-wrapper h3 {
-            font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); font-weight: 600;
-        }
+.section-title-wrapper h3 {
+    font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); font-weight: 600;
+}
+/* --- TO HERE --- */
 
         .grid-container {
             display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 0 20px 20px;
@@ -946,10 +948,12 @@ main {
         /* Desktop specific overrides */
 @media (min-width: 768px) {
             .app-container { box-shadow: none; margin: 0; border-radius: 0; overflow: hidden; min-height: 100vh; }
+/* --- REPLACE FROM HERE --- */
 .grid-container { grid-template-columns: repeat(3, 1fr); gap: 30px; padding: 0 40px 40px; }
 .horizontal-scroll { padding: 10px 40px 40px; gap: 20px; }
-.section-title-wrapper { padding: 60px 40px 20px; }
+.section-title-wrapper { padding: 60px 40px 40px; } /* Increased bottom padding to 40px */
             .section-title-wrapper h3 { font-size: 32px; }
+/* --- TO HERE --- */
             
             .product-layout-wrapper { display: flex; flex-direction: row; gap: 50px; padding: 40px; align-items: flex-start; max-width: 1100px; margin: 0 auto;}
             .product-hero { width: 50%; aspect-ratio: 1 / 1; border-radius: 24px; flex-shrink: 0; margin-bottom: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
