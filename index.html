@@ -3671,12 +3671,13 @@ async function renderCart(preserveScroll = false) {
         return;
     }
 
-    // 2. Fetch LIVE stock from Supabase for cart items
-    let liveProducts = [];
-    try {
-        const cartItemIds = [...new Set(state.cart.map(i => i.id))];
-        const { data, error } = await db.from('products').select('id, stock, variant_stock').in('id', cartItemIds);
-        if (!error && data) {
+// 2. Fetch LIVE stock from Supabase for cart items
+    let liveProducts = [];
+    try {
+        const cartItemIds = [...new Set(state.cart.map(i => i.id))];
+        // Fetch media and variants along with the stock
+        const { data, error } = await db.from('products').select('id, stock, variant_stock, media, variants').in('id', cartItemIds);
+        if (!error && data) {
             liveProducts = data;
         }
     } catch (e) {
@@ -3718,12 +3719,30 @@ async function renderCart(preserveScroll = false) {
             isOutofStock = true; // Product deleted from backend
             hasOutofStockItems = true;
         }
-        // --- Live Stock Check Logic End ---
+// --- Live Stock Check Logic End ---
 
-        subtotal += (item.price * item.qty);
-        const firstMedia = item.media && item.media.length > 0 ? item.media[0] : "";
-        const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
-        let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
+        subtotal += (item.price * item.qty);
+        
+        // --- Dynamic Media Update Logic Start ---
+        let liveMediaArr = item.media || []; 
+        if (liveProd) {
+            const liveVariants = safeParseJSON(liveProd.variants, []);
+            const liveBaseMedia = safeParseJSON(liveProd.media, []);
+            
+            const activeVar = liveVariants.find(v => v.name === item.variant);
+            if (activeVar && activeVar.media && activeVar.media.length > 0) {
+                liveMediaArr = activeVar.media;
+            } else if (liveBaseMedia && liveBaseMedia.length > 0) {
+                liveMediaArr = liveBaseMedia;
+            }
+            
+            item.media = liveMediaArr; // Keep local storage in sync
+        }
+        // --- Dynamic Media Update Logic End ---
+
+        const firstMedia = liveMediaArr && liveMediaArr.length > 0 ? liveMediaArr[0] : "";
+        const isVideo = firstMedia && typeof firstMedia === 'string' && firstMedia.toLowerCase().endsWith('.mp4');
+        let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
         
         if (firstMedia) {
             if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
@@ -3851,8 +3870,11 @@ async function renderCart(preserveScroll = false) {
     `;
     html += `</div></div>`;
 
-    requestAnimationFrame(() => {
-        mainContent.innerHTML = html;
+    // Save any dynamic media updates permanently to local storage
+    persistUserData();
+
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
         if (preserveScroll) {
             window.scrollTo(0, currentScrollY); 
         } else {
