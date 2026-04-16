@@ -298,27 +298,28 @@
             </aside>
 
             <main>
-                <div id="view-dashboard" class="view-section active">
-                    <div class="section-header"><h1>Dashboard Overview</h1></div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
-                            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
-                            <div id="statOrders" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
-                        </div>
-                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
-                            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Revenue</div>
-                            <div id="statRevenue" style="font-size:24px; font-weight:bold; margin-top:5px;">₹0</div>
-                        </div>
-                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
-                            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Live Products</div>
-                            <div id="statProducts" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
-                        </div>
-                        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
-                            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Users</div>
-                            <div id="statUsers" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
-                        </div>
-                    </div>
-                </div>
+
+<div id="view-dashboard" class="view-section active">
+    <div class="section-header"><h1>Dashboard Overview</h1></div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
+            <div id="statOrders" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+        </div>
+        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Received</div>
+            <div id="statReceived" style="font-size:24px; font-weight:bold; margin-top:5px;">₹0</div>
+        </div>
+        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Live Products</div>
+            <div id="statProducts" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+        </div>
+        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Users</div>
+            <div id="statUsers" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
+        </div>
+    </div>
+</div>
 
 <div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
@@ -997,23 +998,45 @@ if (session) {
             }
         }
 
-        async function loadDashboard() {
-            try {
-                const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
-                    db.from('orders').select('*', { count: 'exact', head: true }),
-                    db.from('products').select('id'),
-                    db.from('orders').select('total_amount').eq('status', 'Completed'),
-                    db.from('profiles').select('*', { count: 'exact', head: true }) 
-                ]);
-                document.getElementById('statOrders').innerText = ordCount || 0;
-                document.getElementById('statProducts').innerText = prods?.length || 0;
-                document.getElementById('statUsers').innerText = userCount || 0; 
-                const revenue = revs?.reduce((acc, row) => acc + (row.total_amount || 0), 0) || 0;
-                document.getElementById('statRevenue').innerText = `₹${revenue.toLocaleString()}`;
-            } catch (err) {
-                console.error("Dashboard error:", err);
-            }
+async function loadDashboard() {
+    try {
+        const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
+            db.from('orders').select('*', { count: 'exact', head: true }),
+            db.from('products').select('id'),
+            db.from('orders').select('status, total_amount, customer_details'),
+            db.from('profiles').select('*', { count: 'exact', head: true })
+        ]);
+        document.getElementById('statOrders').innerText = ordCount || 0;
+        document.getElementById('statProducts').innerText = prods?.length || 0;
+        document.getElementById('statUsers').innerText = userCount || 0;
+
+        let totalReceived = 0;
+        if (revs) {
+            revs.forEach(row => {
+                const c = row.customer_details || {};
+                
+                if (c.paymentMethod === 'cod') {
+                    // For COD: Always add the advance fee paid upfront
+                    totalReceived += (Number(c.amountPaid) || 0);
+                    
+                    // Add the remaining due amount ONLY if the order is marked Delivered
+                    if (row.status === 'Delivered') {
+                        totalReceived += (Number(c.amountDue) || 0);
+                    }
+                } else {
+                    // For Online Payments: The full amount is collected upfront. 
+                    // Exclude cancelled orders to maintain accurate received funds.
+                    if (row.status !== 'Cancelled') {
+                        totalReceived += (Number(row.total_amount) || 0);
+                    }
+                }
+            });
         }
+        document.getElementById('statReceived').innerText = `₹${totalReceived.toLocaleString()}`;
+    } catch (err) {
+        console.error("Dashboard error:", err);
+    }
+}
 
 // --- UPGRADED USERS LOGIC ---
         let usersCurrentPage = 1;
