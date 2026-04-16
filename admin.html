@@ -306,7 +306,7 @@
             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
             <div id="statOrders" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
         </div>
-        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+<div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; cursor: pointer;" onclick="switchView('revenue-tags')">
             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Received</div>
             <div id="statReceived" style="font-size:24px; font-weight:bold; margin-top:5px;">₹0</div>
         </div>
@@ -366,11 +366,15 @@
         <button onclick="openModal('productModal')">+ ADD PRODUCT</button>
     </div>
 
-    <div class="toolbar-flex">
+<div class="toolbar-flex">
         <input type="text" id="prodSearchFilter" placeholder="Search product name..." oninput="debounceProductSearch()">
         <select id="prodCatFilter" onchange="loadProducts(1)">
             <option value="">All Categories</option>
-            </select>
+        </select>
+        <select id="prodSmartTagFilter" onchange="loadProducts(1)">
+            <option value="">All Tags</option>
+            <option value="uncategorized">Uncategorized (No Tag)</option>
+        </select>
     </div>
 
     <div id="bulkActionBar" class="bulk-action-bar">
@@ -452,6 +456,17 @@
                         <button onclick="saveSettings()">SAVE SETTINGS</button>
                     </div>
                     <div class="settings-grid">
+                      
+                      
+                     <div class="settings-card">
+                            <h3>Smart Tags Management</h3>
+                            <div class="flex-row">
+                                <input type="text" id="newSmartTag" placeholder="Enter new tag name">
+                                <button class="outline" onclick="addSmartTag()" style="width: auto; margin-bottom: 0;">ADD TAG</button>
+                            </div>
+                            <div id="smartTagsList" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                            </div>
+                        </div> 
                         <div class="settings-card">
                             <h3>General Settings</h3>
                             <div class="form-group"><label>Brand Name</label><input type="text" id="setBrandName"></div>
@@ -615,6 +630,39 @@
     </div>
 </div>
 
+
+<div id="view-revenue-tags" class="view-section">
+    <div class="section-header">
+        <h1>Revenue by Smart Tag</h1>
+        <button class="outline" onclick="switchView('dashboard')">BACK TO DASHBOARD</button>
+    </div>
+    <div class="toolbar-flex" style="margin-bottom: 20px;">
+        <select id="revenueTagFilter" onchange="calculateTagRevenue()" style="flex: 1; margin-bottom: 0;">
+            <option value="All">All Smart Tags</option>
+        </select>
+    </div>
+    <div style="background:#fff; border:1px solid #000; padding:20px; box-shadow: 3px 3px 0px #000; margin-bottom: 20px; text-align: center;">
+        <div style="font-size:12px; text-transform:uppercase; font-weight: 700; margin-bottom: 5px;">Filtered Revenue</div>
+        <div id="filteredRevenueTotal" style="font-size:32px; font-weight:bold; color: #000;">₹0</div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Smart Tag</th>
+                    <th>Units Sold</th>
+                    <th>Revenue Generated</th>
+                </tr>
+            </thead>
+            <tbody id="revenueTagsTableBody">
+                <tr><td colspan="4" style="text-align:center; padding: 20px;">Select a tag to view revenue</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
     <input type="file" id="fileLogo" style="display:none;" onchange="handleDirectUpload(event, 'setLogoUrl')">
     <input type="file" id="fileBanner" style="display:none;" onchange="handleDirectUpload(event, 'setBannerUrl')">
     <input type="file" id="fileCatImg" style="display:none;" onchange="handleDirectUpload(event, 'catImgUrl')">
@@ -630,6 +678,13 @@
             <div class="form-group"><label>Price (₹)</label><input type="number" id="prodPrice" required></div>
             <div class="form-group"><label>Global Stock (Fallback)</label><input type="number" id="prodStock" placeholder="Leave empty for unlimited"></div>
             <div class="form-group"><label>Category</label><select id="prodCat"></select></div>
+            <div class="form-group">
+                <label>Select Smart Tag</label>
+                <select id="prodSmartTag">
+                    <option value="">None</option>
+                </select>
+            </div>
+            
             <div class="form-group full-width"><label>Description</label><textarea id="prodDesc" rows="3"></textarea></div>
             
             <div class="form-group full-width">
@@ -1341,6 +1396,8 @@ async function loadUsers(page = 1) {
             // Announcement Settings
             document.getElementById('setAnnouncement').value = data.announcement_text || '';
             document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
+            State.smartTags = data.smart_tags || [];
+renderSmartTagsUI();
             document.getElementById('setAboutUs').value = data.about_us_text || '';
             
             // Order, COD & Shipping Rules
@@ -1394,6 +1451,7 @@ async function loadUsers(page = 1) {
     try {
         const payload = {
             // General Settings
+            smart_tags: State.smartTags,
             brand_name: document.getElementById('setBrandName').value.trim(),
             logo_url: document.getElementById('setLogoUrl').value.trim(),
             logo_width: Number(document.getElementById('setLogoWidth').value) || 0,
@@ -1636,6 +1694,9 @@ async function loadProducts(page = 1) {
         // Apply Filters
         if (searchQ) query = query.ilike('name', `%${searchQ}%`);
         if (catFilter) query = query.eq('cat_id', catFilter);
+        const tagFilter = document.getElementById('prodSmartTagFilter').value;
+if (tagFilter === 'uncategorized') query = query.is('smart_tag', null);
+else if (tagFilter) query = query.eq('smart_tag', tagFilter);
 
         // Pagination setup
         const from = (page - 1) * PROD_PAGE_SIZE;
@@ -1879,6 +1940,7 @@ window.editProduct = function(id) {
         document.getElementById('prodPrice').value = p.price;
         document.getElementById('prodStock').value = (p.stock !== null && p.stock !== undefined) ? p.stock : '';
         document.getElementById('prodCat').value = p.cat_id;
+        document.getElementById('prodSmartTag').value = p.smart_tag || '';
         document.getElementById('prodDesc').value = p.description || '';
         document.getElementById('prodMedia').value = (p.media || []).join(', ');
         document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
@@ -1946,6 +2008,7 @@ window.editProduct = function(id) {
         });
 
         const payload = {
+          smart_tag: document.getElementById('prodSmartTag').value || null,
             variant_prices: compiledVariantPrices,
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
@@ -2760,6 +2823,91 @@ window.exportOrdersCSV = function() {
                 isDragging = false; 
             });
         });
+        
+        // --- SMART TAGS & REVENUE LOGIC ---
+State.smartTags = [];
+
+function renderSmartTagsUI() {
+    const list = document.getElementById('smartTagsList');
+    const prodSelect = document.getElementById('prodSmartTag');
+    const filterSelect = document.getElementById('prodSmartTagFilter');
+    const revenueSelect = document.getElementById('revenueTagFilter');
+    
+    // Render Settings List
+    list.innerHTML = State.smartTags.map((tag, i) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; border:1px solid #000; padding:8px 12px; background:#f9f9f9;">
+            <span style="font-weight:600; font-size:12px; text-transform:uppercase;">${escapeHTML(tag)}</span>
+            <button class="danger" style="width:auto; padding:2px 8px; margin:0; font-size:10px;" onclick="deleteSmartTag(${i})">DEL</button>
+        </div>
+    `).join('');
+
+    // Update Dropdowns
+    const optionsHtml = State.smartTags.map(tag => `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`).join('');
+    prodSelect.innerHTML = `<option value="">None</option>` + optionsHtml;
+    
+    // Retain current filter selections
+    const currentProdFilter = filterSelect.value;
+    filterSelect.innerHTML = `<option value="">All Tags</option><option value="uncategorized">Uncategorized (No Tag)</option>` + optionsHtml;
+    filterSelect.value = currentProdFilter;
+
+    const currentRevFilter = revenueSelect.value;
+    revenueSelect.innerHTML = `<option value="All">All Smart Tags</option>` + optionsHtml;
+    revenueSelect.value = currentRevFilter || "All";
+}
+
+function addSmartTag() {
+    const input = document.getElementById('newSmartTag');
+    const val = input.value.trim();
+    if (!val || State.smartTags.includes(val)) return;
+    State.smartTags.push(val);
+    input.value = '';
+    renderSmartTagsUI();
+}
+
+function deleteSmartTag(index) {
+    State.smartTags.splice(index, 1);
+    renderSmartTagsUI();
+}
+
+function calculateTagRevenue() {
+    const selectedTag = document.getElementById('revenueTagFilter').value;
+    const tbody = document.getElementById('revenueTagsTableBody');
+    let totalRev = 0;
+    const productStats = {};
+
+    // Only count non-cancelled orders
+    const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
+
+    validOrders.forEach(order => {
+        (order.items || []).forEach(item => {
+            const prodTag = item.smart_tag || null;
+
+            if (selectedTag === 'All' || prodTag === selectedTag) {
+                const revenue = item.price * item.qty;
+                totalRev += revenue;
+                
+                if (!productStats[item.id]) {
+                    productStats[item.id] = { name: item.name, tag: prodTag || 'None', units: 0, rev: 0 };
+                }
+                productStats[item.id].units += item.qty;
+                productStats[item.id].rev += revenue;
+            }
+        });
+    });
+
+    document.getElementById('filteredRevenueTotal').innerText = `₹${totalRev.toLocaleString()}`;
+
+    const rows = Object.values(productStats).sort((a, b) => b.rev - a.rev).map(stat => `
+        <tr>
+            <td><strong>${escapeHTML(stat.name)}</strong></td>
+            <td><span class="badge" style="background:#f0f0f0; color:#000; border:1px solid #000;">${escapeHTML(stat.tag)}</span></td>
+            <td>${stat.units}</td>
+            <td><strong>₹${stat.rev.toLocaleString()}</strong></td>
+        </tr>
+    `).join('');
+
+    tbody.innerHTML = rows || `<tr><td colspan="4" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
+}
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
