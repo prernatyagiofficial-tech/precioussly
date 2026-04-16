@@ -495,31 +495,37 @@
                             <div class="form-group"><label>Instagram URL</label><input type="url" id="setInstagram" placeholder="https://instagram.com/yourbrand"></div>
                         </div>
 
-                        <div class="settings-card">
-    <h3>Order & COD Rules</h3>
-    
-    <div class="form-group">
-        <label>Standard Shipping Fee (₹)</label>
-        <input type="number" id="setShippingFee" placeholder="e.g. 50">
-    </div>
-    <div class="form-group">
-        <label>Free Shipping Threshold (₹)</label>
-        <input type="number" id="setFreeShippingThreshold" placeholder="e.g. 499">
-    </div>
-    
-    <div class="form-group">
-        <label>Minimum Order Amount (₹)</label>
-        <input type="number" id="setMinOrder" placeholder="e.g. 149">
-    </div>
-    <div class="form-group">
-        <label>Minimum Amount for COD (₹)</label>
-        <input type="number" id="setMinCod" placeholder="e.g. 500">
-    </div>
-    <div class="form-group">
-        <label>COD Upfront/Advance Fee (₹)</label>
-        <input type="number" id="setCodFee" placeholder="e.g. 49">
-    </div>
-</div>
+<div class="settings-card">
+                            <h3>Order & COD Rules</h3>
+                            
+                            <div class="form-group">
+                                <label>Standard Shipping Fee (₹)</label>
+                                <input type="number" id="setShippingFee" placeholder="e.g. 50">
+                            </div>
+                            <div class="form-group">
+                                <label>Free Shipping Threshold (₹)</label>
+                                <input type="number" id="setFreeShippingThreshold" placeholder="e.g. 499">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Minimum Order Amount (₹)</label>
+                                <input type="number" id="setMinOrder" placeholder="e.g. 149">
+                            </div>
+                            <div class="form-group">
+                                <label>Minimum Amount for COD (₹)</label>
+                                <input type="number" id="setMinCod" placeholder="e.g. 500">
+                            </div>
+                            <div class="form-group">
+                                <label>COD Upfront/Advance Fee (₹)</label>
+                                <input type="number" id="setCodFee" placeholder="e.g. 49">
+                            </div>
+                            <div class="form-group" style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="setAcceptingPayments" checked> Accept Payments & Orders
+                                </label>
+                                <span style="font-size: 11px; color: #666; display: block; margin-top: 4px;">Uncheck this to temporarily disable checkout on the website.</span>
+                            </div>
+                        </div>
                         
 
                         <div class="settings-card">
@@ -1334,14 +1340,15 @@ async function loadDashboard() {
             document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
             document.getElementById('setAboutUs').value = data.about_us_text || '';
             
-            // Order, COD & Shipping Rules
+// Order, COD & Shipping Rules
             document.getElementById('setMinOrder').value = data.min_order_amount || 0;
             document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
             document.getElementById('setMinCod').value = data.min_cod_amount || 0;
             document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
             document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
+            document.getElementById('setAcceptingPayments').checked = data.accepting_payments !== false; // Defaults to true
             
-// Banner Config
+            // Banner Config
             const banner = data.banner_config || {};
             document.getElementById('setBannerUrl').value = banner.imageUrl || '';
             document.getElementById('setBannerAction').value = banner.target || 'all';
@@ -1402,14 +1409,15 @@ async function loadDashboard() {
             announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
             about_us_text: document.getElementById('setAboutUs').value.trim(),
             
-            // Order, COD & Shipping Rules
+// Order, COD & Shipping Rules
             min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
             cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
             min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
             shipping_fee: Number(document.getElementById('setShippingFee').value) || 0,
             free_shipping_threshold: Number(document.getElementById('setFreeShippingThreshold').value) || 0,
+            accepting_payments: document.getElementById('setAcceptingPayments').checked,
             
-// Banner Config
+            // Banner Config
             banner_config: {
                 imageUrl: document.getElementById('setBannerUrl').value.trim(),
                 target: document.getElementById('setBannerAction').value
