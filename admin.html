@@ -641,10 +641,18 @@
             <option value="All">All Smart Tags</option>
         </select>
     </div>
-    <div style="background:#fff; border:1px solid #000; padding:20px; box-shadow: 3px 3px 0px #000; margin-bottom: 20px; text-align: center;">
-        <div style="font-size:12px; text-transform:uppercase; font-weight: 700; margin-bottom: 5px;">Filtered Revenue</div>
-        <div id="filteredRevenueTotal" style="font-size:32px; font-weight:bold; color: #000;">₹0</div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <div style="background:#fff; border:1px solid #000; padding:20px; box-shadow: 3px 3px 0px #000; text-align: center;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Filtered Received Revenue</div>
+            <div id="filteredRevenueTotal" style="font-size:28px; font-weight:bold; color: #000;">₹0</div>
+        </div>
+        <div style="background:#fff; border:1px solid #000; padding:20px; box-shadow: 3px 3px 0px #000; text-align: center;">
+            <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Filtered Net Profit</div>
+            <div id="filteredProfitTotal" style="font-size:28px; font-weight:bold; color: #2ecc71;">₹0</div>
+        </div>
     </div>
+
     <div class="table-responsive">
         <table>
             <thead>
@@ -652,7 +660,8 @@
                     <th>Product Name</th>
                     <th>Smart Tag</th>
                     <th>Units Sold</th>
-                    <th>Revenue Generated</th>
+                    <th>Received Revenue</th>
+                    <th>Net Profit</th>
                 </tr>
             </thead>
             <tbody id="revenueTagsTableBody">
@@ -674,8 +683,9 @@
     <div class="modal-box">
         <h3><span id="prodModalTitle">Add Product</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('productModal')">X</button></h3>
         <div class="grid-form">
-            <div class="form-group"><label>Product Name</label><input type="text" id="prodName" required></div>
+<div class="form-group"><label>Product Name</label><input type="text" id="prodName" required></div>
             <div class="form-group"><label>Price (₹)</label><input type="number" id="prodPrice" required></div>
+            <div class="form-group"><label>Base Cost Price (₹)</label><input type="number" id="prodCostPrice" placeholder="Your purchase cost" required></div>
             <div class="form-group"><label>Global Stock (Fallback)</label><input type="number" id="prodStock" placeholder="Leave empty for unlimited"></div>
             <div class="form-group"><label>Category</label><select id="prodCat"></select></div>
             <div class="form-group">
@@ -861,7 +871,8 @@ window.generateStockGrid = function() {
     html += '</tbody></table>';
     container.innerHTML = html;
 };
-        function addVariantBox(name = '', mediaStr = '', price = '') {
+// NEW REPLACEMENT
+        function addVariantBox(name = '', mediaStr = '', price = '', costPrice = '') {
             const container = document.getElementById('variantsContainer');
             const varId = 'var_' + variantCounter++;
             
@@ -870,16 +881,21 @@ window.generateStockGrid = function() {
             
             box.innerHTML = `
                 <button type="button" class="danger" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 4px 8px; font-size: 10px;" onclick="this.parentElement.remove()">REMOVE</button>
-                <div class="grid-form">
+                <div class="grid-form" style="grid-template-columns: 1fr 1fr 1fr;">
                     <div class="form-group">
-                        <label>Variant Name (e.g., Red, Blue)</label>
-                        <input type="text" class="var-name" value="${escapeHTML(name)}" placeholder="Enter variant name" required>
+                        <label>Variant Name</label>
+                        <input type="text" class="var-name" value="${escapeHTML(name)}" placeholder="e.g., Red, Blue" required>
                     </div>
                     <div class="form-group">
-                        <label>Variant Price (₹)</label>
-                        <input type="number" class="var-price" value="${escapeHTML(String(price))}" placeholder="Leave empty to use base price">
+                        <label>Selling Price (₹)</label>
+                        <input type="number" class="var-price" value="${escapeHTML(String(price))}" placeholder="Base Price Fallback">
+                    </div>
+                    <div class="form-group">
+                        <label>Cost Price (₹)</label>
+                        <input type="number" class="var-cost-price" value="${escapeHTML(String(costPrice))}" placeholder="Base Cost Fallback">
                     </div>
                 </div>
+// END OF NEW REPLACEMENT
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Media URLs (Comma separated)</label>
                     <div class="flex-row">
@@ -1931,29 +1947,33 @@ window.executeBulkAction = async function(action) {
 };
 
 // Ensure your existing editProduct function is put back here:
-window.editProduct = function(id) {
-    const p = State.products.find(x => x.id === id);
-    if(p) {
-        State.currentEditId = id;
-        document.getElementById('prodModalTitle').innerText = 'Edit Product';
-        document.getElementById('prodName').value = p.name;
-        document.getElementById('prodPrice').value = p.price;
-        document.getElementById('prodStock').value = (p.stock !== null && p.stock !== undefined) ? p.stock : '';
-        document.getElementById('prodCat').value = p.cat_id;
-        document.getElementById('prodSmartTag').value = p.smart_tag || '';
-        document.getElementById('prodDesc').value = p.description || '';
-        document.getElementById('prodMedia').value = (p.media || []).join(', ');
-        document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
-        document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
-        document.getElementById('variantsContainer').innerHTML = '';
-        variantCounter = 0;
-        if (p.variants && Array.isArray(p.variants)) {
-            p.variants.forEach(v => {
-                const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
-                const priceVal = (v.price !== undefined && v.price !== null) ? v.price : '';
-                addVariantBox(v.name, mediaStr, priceVal);
-            });
-        }
+// NEW REPLACEMENT
+        window.editProduct = function(id) {
+            const p = State.products.find(x => x.id === id);
+            if(p) {
+                State.currentEditId = id;
+                document.getElementById('prodModalTitle').innerText = 'Edit Product';
+                document.getElementById('prodName').value = p.name;
+                document.getElementById('prodPrice').value = p.price;
+                document.getElementById('prodCostPrice').value = p.cost_price || '';
+                document.getElementById('prodStock').value = (p.stock !== null && p.stock !== undefined) ? p.stock : '';
+                document.getElementById('prodCat').value = p.cat_id;
+                document.getElementById('prodSmartTag').value = p.smart_tag || '';
+                document.getElementById('prodDesc').value = p.description || '';
+                document.getElementById('prodMedia').value = (p.media || []).join(', ');
+                document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
+                document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
+                document.getElementById('variantsContainer').innerHTML = '';
+                variantCounter = 0;
+                if (p.variants && Array.isArray(p.variants)) {
+                    p.variants.forEach(v => {
+                        const mediaStr = v.media && Array.isArray(v.media) ? v.media.join(', ') : '';
+                        const priceVal = (v.price !== undefined && v.price !== null) ? v.price : '';
+                        const costPriceVal = (v.cost_price !== undefined && v.cost_price !== null) ? v.cost_price : '';
+                        addVariantBox(v.name, mediaStr, priceVal, costPriceVal);
+                    });
+                }
+// END OF NEW REPLACEMENT
         document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
@@ -1966,6 +1986,7 @@ window.editProduct = function(id) {
 };
         
 
+  // NEW REPLACEMENT
   async function saveProduct() {
     const btn = document.getElementById('saveProdBtn');
     btn.disabled = true; 
@@ -1981,15 +2002,14 @@ window.editProduct = function(id) {
             const vName = box.querySelector('.var-name').value.trim();
             const vMediaStr = box.querySelector('.var-media').value.trim();
             const vPriceStr = box.querySelector('.var-price').value.trim();
+            const vCostPriceStr = box.querySelector('.var-cost-price').value.trim();
             
             if (vName || vMediaStr) {
                 const vMediaArr = vMediaStr.split(',').map(s => s.trim()).filter(Boolean);
                 const variantData = { name: vName, media: vMediaArr };
                 
-                // Attach the price if it was provided
-                if (vPriceStr !== '') {
-                    variantData.price = Number(vPriceStr);
-                }
+                if (vPriceStr !== '') variantData.price = Number(vPriceStr);
+                if (vCostPriceStr !== '') variantData.cost_price = Number(vCostPriceStr);
                 
                 variantsObj.push(variantData);
             }
@@ -2008,10 +2028,12 @@ window.editProduct = function(id) {
         });
 
         const payload = {
-          smart_tag: document.getElementById('prodSmartTag').value || null,
+            smart_tag: document.getElementById('prodSmartTag').value || null,
             variant_prices: compiledVariantPrices,
             name: document.getElementById('prodName').value.trim(),
             price: Number(document.getElementById('prodPrice').value),
+            cost_price: Number(document.getElementById('prodCostPrice').value) || 0,
+// END OF NEW REPLACEMENT
             stock: document.getElementById('prodStock').value.trim() === '' ? null : Number(document.getElementById('prodStock').value),
             cat_id: Number(document.getElementById('prodCat').value),
             description: document.getElementById('prodDesc').value.trim(),
@@ -2404,17 +2426,44 @@ window.viewOrderItems = async function(orderId) {
         const paymentMethod = c.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online';
         
         // --- NEW: Extract the new financial details safely ---
+   // NEW REPLACEMENT
+        // --- NEW: Extract the new financial details safely ---
         const subtotal = c.subtotal || 0;
         const shippingFee = c.shippingFee || 0;
         const discount = c.discount || 0;
         const couponStr = c.couponApplied || 'None';
         
+        // Calculate Total Cost of Items
+        let totalItemsCost = 0;
+        order.items.forEach(item => {
+            const cost = Number(item.cost_price) || 0;
+            totalItemsCost += (cost * (item.qty || 1));
+        });
+
+        // Determine Amount Received based on Payment Method and Status
+        let amountReceived = 0;
+        if (c.paymentMethod === 'cod') {
+            amountReceived = Number(c.amountPaid || 0); // Always collected
+            if (order.status === 'Delivered') {
+                amountReceived += Number(c.amountDue || 0); // Collected on delivery
+            }
+        } else {
+            // Online payment: full amount received upfront (unless cancelled)
+            if (order.status !== 'Cancelled') {
+                amountReceived = Number(order.total_amount || 0);
+            }
+        }
+
+        const actualShipping = Number(order.actual_shipping_cost) || 0;
+        const netProfit = amountReceived - actualShipping - totalItemsCost;
+        const profitColor = netProfit >= 0 ? '#2ecc71' : '#ff4757';
+        
         // CSS Grid with auto-fit forces 1 column on mobile, 2 on desktop. Break-all prevents email overflow.
         let summaryHtml = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; background: #fff; padding: 15px; border: 1px solid #000; box-shadow: 3px 3px 0px #000;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; background: #fff; padding: 15px; border: 1px solid #000; box-shadow: 3px 3px 0px #000; margin-bottom: 20px;">
             <div style="min-width: 0;">
                 <h4 style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 12px;">Customer Details</h4>
-<div style="font-size: 12px; line-height: 1.6;">
+                <div style="font-size: 12px; line-height: 1.6;">
                     <strong>Name:</strong> ${escapeHTML(c.name || 'N/A')}<br>
                     <strong>Phone:</strong> ${escapeHTML(c.phone || 'N/A')}<br>
                     ${c.altPhone ? `<strong>Alt Phone:</strong> ${escapeHTML(c.altPhone)}<br>` : ''}
@@ -2428,7 +2477,7 @@ window.viewOrderItems = async function(orderId) {
                 <div style="font-size: 12px; line-height: 1.6;">
                     
                     <div style="display:flex; justify-content:space-between; gap: 10px;"><span>Subtotal:</span> <strong>₹${subtotal.toLocaleString()}</strong></div>
-                    <div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 4px;"><span>Shipping:</span> <strong>${shippingFee === 0 ? 'Free' : '₹' + shippingFee.toLocaleString()}</strong></div>
+                    <div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 4px;"><span>Shipping Charged:</span> <strong>${shippingFee === 0 ? 'Free' : '₹' + shippingFee.toLocaleString()}</strong></div>
                     ${discount > 0 ? `<div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 4px; color:#2ecc71;"><span>Discount (${couponStr}):</span> <strong>-₹${discount.toLocaleString()}</strong></div>` : ''}
                     
                     <div style="display:flex; justify-content:space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;"><span>Payment Method:</span> <strong style="text-align:right;">${paymentMethod}</strong></div>
@@ -2443,9 +2492,28 @@ window.viewOrderItems = async function(orderId) {
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 15px; border: 1px solid #000; box-shadow: 3px 3px 0px #000;">
+            <h4 style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 12px;">Profit Tracking</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+                <div style="display:flex; justify-content:space-between;"><span>Total Received:</span> <strong>₹${amountReceived.toLocaleString()}</strong></div>
+                <div style="display:flex; justify-content:space-between;"><span>Total Items Cost:</span> <strong>₹${totalItemsCost.toLocaleString()}</strong></div>
+                <div style="display:flex; justify-content:space-between; align-items: center;">
+                    <span>Actual Shipping Cost:</span>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" id="inpActualShipping_${order.id}" value="${actualShipping}" style="width: 80px; margin: 0; padding: 4px; font-size: 11px; border: 1px solid #000; border-radius: 0;">
+                        <button class="outline" onclick="saveActualShippingCost('${order.id}')" style="padding: 4px 8px; width: auto; margin: 0; font-size: 10px;">SAVE</button>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top: 5px; padding-top: 10px; border-top: 1px dashed #000; font-size: 14px;">
+                    <span>Net Profit:</span> <strong style="color: ${profitColor};">₹${netProfit.toLocaleString()}</strong>
+                </div>
+            </div>
         </div>`;
 
         document.getElementById('oiContent').innerHTML = itemsHtml + summaryHtml;
+// END OF NEW REPLACEMENT
         openModal('orderItemsModal');
     } catch (err) {
         alert("Could not load order details: " + err.message);
@@ -2470,22 +2538,43 @@ window.updateOrderStatus = async function(id, newStatus) {
     }
 };
 
-window.updateAWB = async function(id, currentAWB) {
-    const newAWB = prompt("Enter AWB Tracking Number:", currentAWB);
-    if (newAWB === null) return; // User cancelled
-    
-    try {
-        const { error } = await db.from('orders').update({ awb_number: newAWB.trim() }).eq('id', id);
-        if (error) throw error;
-        
-        await loadOrders(); 
-        alert("AWB Updated Successfully!");
-    } catch (err) {
-        alert("Failed to update AWB: " + err.message);
-    }
-};
+// NEW REPLACEMENT
+        window.updateAWB = async function(id, currentAWB) {
+            const newAWB = prompt("Enter AWB Tracking Number:", currentAWB);
+            if (newAWB === null) return; // User cancelled
+            
+            try {
+                const { error } = await db.from('orders').update({ awb_number: newAWB.trim() }).eq('id', id);
+                if (error) throw error;
+                
+                await loadOrders(); 
+                alert("AWB Updated Successfully!");
+            } catch (err) {
+                alert("Failed to update AWB: " + err.message);
+            }
+        };
 
-window.exportOrdersCSV = function() {
+        window.saveActualShippingCost = async function(orderId) {
+            const costInput = document.getElementById(`inpActualShipping_${orderId}`);
+            if (!costInput) return;
+            const costVal = Number(costInput.value) || 0;
+
+            try {
+                const { error } = await db.from('orders').update({ actual_shipping_cost: costVal }).eq('id', orderId);
+                if (error) throw error;
+                
+                const idx = State.orders.findIndex(o => String(o.id) === String(orderId));
+                if (idx > -1) State.orders[idx].actual_shipping_cost = costVal;
+                
+                alert("Shipping cost saved! Profit updated.");
+                viewOrderItems(orderId); // Re-render modal to show new profit
+            } catch (err) {
+                alert("Failed to save shipping cost: " + err.message);
+            }
+        };
+
+        window.exportOrdersCSV = function() {
+// END OF NEW REPLACEMENT
     if (!window.currentFilteredOrders || window.currentFilteredOrders.length === 0) {
         return alert("No orders available to export based on current filters.");
     }
@@ -2869,45 +2958,77 @@ function deleteSmartTag(index) {
     renderSmartTagsUI();
 }
 
+// NEW REPLACEMENT
 function calculateTagRevenue() {
     const selectedTag = document.getElementById('revenueTagFilter').value;
     const tbody = document.getElementById('revenueTagsTableBody');
     let totalRev = 0;
+    let totalProfitGlobal = 0;
     const productStats = {};
 
     // Only count non-cancelled orders
     const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
 
     validOrders.forEach(order => {
+        // Calculate true received amount for the entire order
+        const c = order.customer_details || {};
+        let orderReceivedAmount = 0;
+        if (c.paymentMethod === 'cod') {
+            orderReceivedAmount = Number(c.amountPaid || 0);
+            if (order.status === 'Delivered') orderReceivedAmount += Number(c.amountDue || 0);
+        } else {
+            orderReceivedAmount = Number(order.total_amount || 0);
+        }
+
+        const actualShipping = Number(order.actual_shipping_cost) || 0;
+        const totalItemsVal = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        
+        // Ratio of order revenue available for distribution to individual items
+        const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
+        // Distribute shipping cost proportionally by value
+        const shippingRatio = totalItemsVal > 0 ? (actualShipping / totalItemsVal) : 0;
+
         (order.items || []).forEach(item => {
             const prodTag = item.smart_tag || null;
 
             if (selectedTag === 'All' || prodTag === selectedTag) {
-                const revenue = item.price * item.qty;
-                totalRev += revenue;
+                // Item's proportional revenue & shipping
+                const itemGrossValue = item.price * item.qty;
+                const itemTrueRevenue = itemGrossValue * revenueRatio;
+                const itemShippingCost = itemGrossValue * shippingRatio;
+                const itemCost = (Number(item.cost_price) || 0) * item.qty;
+                
+                const itemProfit = itemTrueRevenue - itemShippingCost - itemCost;
+
+                totalRev += itemTrueRevenue;
+                totalProfitGlobal += itemProfit;
                 
                 if (!productStats[item.id]) {
-                    productStats[item.id] = { name: item.name, tag: prodTag || 'None', units: 0, rev: 0 };
+                    productStats[item.id] = { name: item.name, tag: prodTag || 'None', units: 0, rev: 0, profit: 0 };
                 }
                 productStats[item.id].units += item.qty;
-                productStats[item.id].rev += revenue;
+                productStats[item.id].rev += itemTrueRevenue;
+                productStats[item.id].profit += itemProfit;
             }
         });
     });
 
-    document.getElementById('filteredRevenueTotal').innerText = `₹${totalRev.toLocaleString()}`;
+    document.getElementById('filteredRevenueTotal').innerText = `₹${Math.round(totalRev).toLocaleString()}`;
+    document.getElementById('filteredProfitTotal').innerText = `₹${Math.round(totalProfitGlobal).toLocaleString()}`;
 
     const rows = Object.values(productStats).sort((a, b) => b.rev - a.rev).map(stat => `
         <tr>
             <td><strong>${escapeHTML(stat.name)}</strong></td>
             <td><span class="badge" style="background:#f0f0f0; color:#000; border:1px solid #000;">${escapeHTML(stat.tag)}</span></td>
             <td>${stat.units}</td>
-            <td><strong>₹${stat.rev.toLocaleString()}</strong></td>
+            <td><strong>₹${Math.round(stat.rev).toLocaleString()}</strong></td>
+            <td><strong style="color: ${stat.profit >= 0 ? '#2ecc71' : '#ff4757'};">₹${Math.round(stat.profit).toLocaleString()}</strong></td>
         </tr>
     `).join('');
 
-    tbody.innerHTML = rows || `<tr><td colspan="4" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
+    tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
 }
+// END OF NEW REPLACEMENT
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
