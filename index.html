@@ -1603,14 +1603,15 @@ main {
     localStorage.setItem('eco_cart', JSON.stringify(state.cart));
     localStorage.setItem('eco_wishlist', JSON.stringify(state.wishlist));
 
-    // Sync wishlist to Supabase if the user is logged in
+    // Sync wishlist and cart to Supabase if the user is logged in
     if (state.user) {
         try {
             await db.from('profiles').update({ 
-                wishlist: state.wishlist 
+                wishlist: state.wishlist,
+                cart: state.cart
             }).eq('id', state.user.id);
         } catch (error) {
-            console.error("Error syncing wishlist to database:", error);
+            console.error("Error syncing data to database:", error);
         }
     }
 }
