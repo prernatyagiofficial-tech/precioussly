@@ -3632,7 +3632,7 @@ function quickAddToCart(event, btn, prodId) {
             }
             updateBadges();
     persistUserData();
-    renderCart(true); // Passes a flag to preserve the scroll
+    renderCart(true, true); // Passes flag to preserve scroll AND trigger quiet update
 }
 
         function openRemoveModal(cartItemIndex) {
@@ -3660,20 +3660,22 @@ function quickAddToCart(event, btn, prodId) {
 
         
 
-async function renderCart(preserveScroll = false) {
+async function renderCart(preserveScroll = false, isQuietUpdate = false) {
     const currentScrollY = window.scrollY; 
     navigate({view: 'cart'});
     searchContainer.style.display = 'none';
 
-    // 1. Show loading spinner while checking live stock
-    mainContent.innerHTML = `
-        <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
-        <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
-        <div style="text-align: center; padding: 60px 20px;">
-            <div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div>
-            <p style="margin-top:20px; color: var(--text-gray); font-weight: 500;">Checking live stock...</p>
-        </div>
-    `;
+    // 1. Show loading spinner while checking live stock (Only if NOT a quiet update)
+    if (!isQuietUpdate) {
+        mainContent.innerHTML = `
+            <div class="back-nav" onclick="renderHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Continue Shopping</div>
+            <div class="section-title-wrapper" style="padding-top: 0;"><h3>Your Cart</h3></div>
+            <div style="text-align: center; padding: 60px 20px;">
+                <div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div>
+                <p style="margin-top:20px; color: var(--text-gray); font-weight: 500;">Checking live stock...</p>
+            </div>
+        `;
+    }
 
     if(state.cart.length === 0) {
         let emptyHtml = `
