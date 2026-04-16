@@ -1770,11 +1770,13 @@ let currentSubCategories = [];
             return { id: row.id, name: row.name || 'Category', img: row.img || row.image_url || '', parentId: row.parent_id || null };
         }
 
+// NEW REPLACEMENT
 function mapProduct(row) {
     return {
         id: row.id, 
         name: row.name || 'Product', 
         price: Number(row.price || 0), 
+        cost_price: Number(row.cost_price || 0),
         catId: row.cat_id || row.category_id,
         desc: row.description || row.desc || '', 
         stock: row.stock !== null && row.stock !== undefined ? Number(row.stock) : null,
@@ -1787,9 +1789,10 @@ function mapProduct(row) {
         variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color',
         showSizeChart: parseBool(row.show_size_chart),
-        smart_tag: row.smart_tag || null  // <--- YEH NAYI LINE ADD KARNI HAI
+        smart_tag: row.smart_tag || null
     };
 }
+// END OF NEW REPLACEMENT
 
         function mapCoupon(row) {
             return { id: row.id, minThreshold: Number(row.min_threshold || row.threshold || 0), discountAmount: Number(row.discount_amount || row.discount || 0), active: parseBool(row.active ?? true) };
@@ -3555,6 +3558,7 @@ function quickAddToCart(event, btn, prodId) {
             addToCart(btn, prodId);
         }
         
+        // NEW REPLACEMENT
         function addToCart(btn, prodId) {
             const prod = appData.products.find(p => String(p.id) === String(prodId));
             
@@ -3570,12 +3574,16 @@ function quickAddToCart(event, btn, prodId) {
             withLoading(btn, () => {
                 let selectedVariantStr = "Default";
                 let activeVariantPrice = prod.price; // Default to base price
+                let activeCostPrice = prod.cost_price || 0; // Default to base cost price
 
                 if(prod.variants && prod.variants.length > 0) {
                     const activeVar = prod.variants[selectedProductVariantIndex];
                     selectedVariantStr = activeVar.name || "Default";
                     if (activeVar.price !== undefined && activeVar.price !== null && activeVar.price !== '') {
                         activeVariantPrice = Number(activeVar.price);
+                    }
+                    if (activeVar.cost_price !== undefined && activeVar.cost_price !== null && activeVar.cost_price !== '') {
+                        activeCostPrice = Number(activeVar.cost_price);
                     }
                 }
 
@@ -3596,8 +3604,8 @@ function quickAddToCart(event, btn, prodId) {
                     if(prod.variants && prod.variants.length > 0 && prod.variants[selectedProductVariantIndex].media && prod.variants[selectedProductVariantIndex].media.length > 0) {
                         cartMedia = prod.variants[selectedProductVariantIndex].media;
                     }
-                    // Pass the overridden `activeVariantPrice` here
-                    state.cart.push({ ...prod, price: activeVariantPrice, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia, smart_tag: prod.smart_tag || null });
+                    // Attach price and cost_price securely inside cart array for historical preservation
+                    state.cart.push({ ...prod, price: activeVariantPrice, cost_price: activeCostPrice, qty: 1, variant: selectedVariantStr, size: selectedProductSize, alphabet: selectedAlphabet, media: cartMedia, smart_tag: prod.smart_tag || null });
                 }
                 
                 updateBadges();
@@ -3611,6 +3619,7 @@ function quickAddToCart(event, btn, prodId) {
                 showToast("Added to Cart!");
             });
         }
+// END OF NEW REPLACEMENT
 
         function buyNow(btn, prodId) {
             addToCart(btn, prodId);
