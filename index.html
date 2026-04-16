@@ -3739,7 +3739,7 @@ async function renderCart(preserveScroll = false) {
         // Out of stock visual styling
         const itemOpacity = isOutofStock ? '0.5' : '1';
         const itemBorder = isOutofStock ? '1px solid var(--error-color)' : '1px solid var(--border-color)';
-        const outOfStockBadge = isOutofStock ? `<div style="color: var(--error-color); font-size: 11px; font-weight: 700; margin-top: 8px; background: #fff5f5; padding: 4px 8px; border-radius: 4px; display: inline-block; border: 1px solid #ffcccc;">⚠️ OUT OF STOCK</div>` : '';
+        const outOfStockBadge = isOutofStock ? `<div style="color: var(--error-color); font-size: 11px; font-weight: 700; margin-top: 8px; background: #fff5f5; padding: 4px 8px; border-radius: 4px; display: inline-block; border: 1px solid #ffcccc;"> OUT OF STOCK</div>` : '';
 
         html += `
             <div class="cart-item" style="opacity: ${itemOpacity}; border: ${itemBorder};">
@@ -3840,7 +3840,7 @@ async function renderCart(preserveScroll = false) {
         </div>
         <div class="cart-checkout-wrapper">
             ${hasOutofStockItems ? 
-                `<div style="color: #ff4757; background: #fff5f5; border: 1px solid #ffcccc; padding: 10px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; margin-bottom: 15px; text-align: center;">⚠️ One or more items are out of stock. Please remove them to checkout.</div>
+                `<div style="color: #ff4757; background: #fff5f5; border: 1px solid #ffcccc; padding: 10px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; margin-bottom: 15px; text-align: center;"> One or more items are out of stock. Please remove them to checkout.</div>
                  <button class="btn-primary" disabled style="background: #ccc; border-color: #ccc; cursor: not-allowed;"><span class="btn-text">Proceed to Checkout</span></button>`
             : isMinOrderMet ? 
                 `<button class="btn-primary" onclick="handleCheckoutClick(this)"><span class="btn-text">Proceed to Checkout</span></button>` :
