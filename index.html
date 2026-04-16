@@ -1095,10 +1095,11 @@ main {
 }
 .size-option-btn.out-of-stock {
     opacity: 0.3;
-    background: var(--placeholder-bg);
+    background: var(--placeholder-bg) !important;
+    color: var(--text-dark) !important; /* Yeh line add ki hai text ko dark rakhne ke liye */
     text-decoration: line-through;
     pointer-events: none;
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
 }
 .btn-disabled {
     background: #e0e0e0 !important;
