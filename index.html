@@ -1742,16 +1742,20 @@ let currentSubCategories = [];
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
         
-// Dynamic Shipping Settings
-        shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
-        freeShippingThreshold: row.free_shipping_threshold !== undefined ? Number(row.free_shipping_threshold) : 499,
-        
-        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' }),
+        // Dynamic Shipping Settings
+        shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
+        freeShippingThreshold: row.free_shipping_threshold !== undefined ? Number(row.free_shipping_threshold) : 499,
+        
+        // Customer Reviews Config
+        reviewsTitle: row.reviews_title || 'Customer Reviews',
+        showReviewsSection: row.show_reviews_section !== false,
+
+        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' }),
         homeSectionsConfig: safeParseJSON(row.home_sections_config, [
             { id: 'collections', title: 'Explore Collections' },
             { id: 'bestsellers', title: 'Best Sellers' }
         ])
-    };
+    };
 }
 
         function mapCategory(row) {
@@ -2703,11 +2707,12 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                 }
             });
 
-            if (appData.reviews && appData.reviews.length > 0) {
-                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>Customer Reviews</h3></div><div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none;">`;
+if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
+                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 10px 20px 30px;">`;
                 appData.reviews.forEach(review => {
                     let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-                    html += `<div class="review-card" style="flex: 0 0 220px; min-width: 220px;">${imgContent}</div>`;
+                    html += `<div class="review-card" style="width: 100%; max-width: 400px; flex: none; display: flex; flex-direction: column; margin-bottom: 15px;">${imgContent}</div>`;
                 });
                 html += `</div>`;
             }
