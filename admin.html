@@ -1217,13 +1217,16 @@ async function loadDashboard() {
                 wishlistHtml += '</div>';
             }
 
-            // Combine into the Modal Layout
+// Combine into the Modal Layout
             const contentHtml = `
                 <div class="user-info-panel">
                     <h4 style="text-transform: uppercase; margin-bottom: 15px; font-size: 14px; font-weight: 700;">Account Summary</h4>
                     <p><span>Name:</span> <strong>${escapeHTML(user.full_name || 'N/A')}</strong></p>
                     <p><span>Email:</span> <strong>${escapeHTML(user.email)}</strong></p>
-                    <p><span>Joined Date:</span> <strong>${new Date(user.created_at).toLocaleDateString()}</strong></p>
+                    <p><span>Phone:</span> <strong>${escapeHTML(user.phone || 'N/A')}</strong></p>
+                    <p><span>Alt Phone:</span> <strong>${escapeHTML(user.alt_phone || 'N/A')}</strong></p>
+                    <p><span>Default Address:</span> <strong style="text-align:right;">${escapeHTML(user.address || 'N/A')}<br>${escapeHTML(user.city || '')}, ${escapeHTML(user.state || '')} - ${escapeHTML(user.pincode || '')}</strong></p>
+                    <p style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;"><span>Joined Date:</span> <strong>${new Date(user.created_at).toLocaleDateString()}</strong></p>
                     <p><span>Total Orders:</span> <strong>${userOrders.length}</strong></p>
                     <p><span>Lifetime Value:</span> <strong>₹${totalSpent.toLocaleString()}</strong></p>
                 </div>
