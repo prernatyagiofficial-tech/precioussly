@@ -306,7 +306,7 @@
             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
             <div id="statOrders" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
         </div>
-<div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; cursor: pointer;" onclick="switchView('revenue-tags')">
+<div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; cursor: pointer;" onclick="switchView('revenue-tags'); calculateTagRevenue();">
             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Received</div>
             <div id="statReceived" style="font-size:24px; font-weight:bold; margin-top:5px;">₹0</div>
         </div>
@@ -2970,8 +2970,14 @@ function calculateTagRevenue() {
     const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
 
     validOrders.forEach(order => {
+        // Safely parse customer details and items
+        let c = {};
+        try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
+        
+        let itemsArr = [];
+        try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
+
         // Calculate true received amount for the entire order
-        const c = order.customer_details || {};
         let orderReceivedAmount = 0;
         if (c.paymentMethod === 'cod') {
             orderReceivedAmount = Number(c.amountPaid || 0);
@@ -2981,32 +2987,36 @@ function calculateTagRevenue() {
         }
 
         const actualShipping = Number(order.actual_shipping_cost) || 0;
-        const totalItemsVal = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
         
+        // Safely calculate total items value
+        const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+
         // Ratio of order revenue available for distribution to individual items
         const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
         // Distribute shipping cost proportionally by value
         const shippingRatio = totalItemsVal > 0 ? (actualShipping / totalItemsVal) : 0;
 
-        (order.items || []).forEach(item => {
+        itemsArr.forEach(item => {
             const prodTag = item.smart_tag || null;
 
             if (selectedTag === 'All' || prodTag === selectedTag) {
                 // Item's proportional revenue & shipping
-                const itemGrossValue = item.price * item.qty;
+                const itemQty = Number(item.qty) || 1;
+                const itemGrossValue = (Number(item.price) || 0) * itemQty;
+                
                 const itemTrueRevenue = itemGrossValue * revenueRatio;
                 const itemShippingCost = itemGrossValue * shippingRatio;
-                const itemCost = (Number(item.cost_price) || 0) * item.qty;
-                
+                const itemCost = (Number(item.cost_price) || 0) * itemQty;
+
                 const itemProfit = itemTrueRevenue - itemShippingCost - itemCost;
 
                 totalRev += itemTrueRevenue;
                 totalProfitGlobal += itemProfit;
-                
+
                 if (!productStats[item.id]) {
                     productStats[item.id] = { name: item.name, tag: prodTag || 'None', units: 0, rev: 0, profit: 0 };
                 }
-                productStats[item.id].units += item.qty;
+                productStats[item.id].units += itemQty;
                 productStats[item.id].rev += itemTrueRevenue;
                 productStats[item.id].profit += itemProfit;
             }
