@@ -1116,6 +1116,7 @@
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkPriceModal');">Bulk Update Price</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
 <button class="danger" onclick="closeModal('bulkChoiceModal'); openModal('bulkDeleteModal');">Bulk Delete By Category</button>
         </div>
     </div>
@@ -1212,6 +1213,34 @@
             </div>
             <div class="form-group full-width">
                 <button type="button" id="saveBulkDeleteBtn" class="danger" onclick="executeBulkDeleteByCategory()">PERMANENTLY DELETE CATEGORY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div id="bulkVisibilityModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Hide/Unhide <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkVisibilityModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatVisibility">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Visibility Action</label>
+                <select id="bulkVisibilityAction">
+                    <option value="true">Hide All Products</option>
+                    <option value="false">Unhide All Products</option>
+                </select>
+                <p style="font-size: 11px; color: var(--danger); margin-top: 12px; font-weight: 500;">Warning: This will instantly change the visibility for ALL products in the selected category.</p>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkVisibilityBtn" onclick="executeBulkVisibilityByCategory()">APPLY VISIBILITY</button>
             </div>
         </div>
     </div>
@@ -2261,6 +2290,7 @@ window.addDynamicHomeSection = function() {
                 document.getElementById('categoriesTable').innerHTML = tableHtml || '<tbody><tr><td colspan="4" style="text-align:center;">No categories</td></tr></tbody>';
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
                 document.getElementById('bulkProdCat').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatVisibility')) document.getElementById('bulkTargetCatVisibility').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatDesc')) document.getElementById('bulkTargetCatDesc').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatPrice')) document.getElementById('bulkTargetCatPrice').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatCostPrice')) document.getElementById('bulkTargetCatCostPrice').innerHTML = prodCatOptions;
@@ -2933,6 +2963,45 @@ window.executeBulkDeleteByCategory = async function() {
     }
 };
 
+
+
+window.executeBulkVisibilityByCategory = async function() {
+    const catId = document.getElementById('bulkTargetCatVisibility').value;
+    const isHiddenStr = document.getElementById('bulkVisibilityAction').value;
+    
+    if (!catId) return alert("Please select a target category.");
+
+    const actionText = isHiddenStr === 'true' ? 'HIDE' : 'UNHIDE';
+    if (!confirm(`Are you ABSOLUTELY sure you want to ${actionText} all products in the selected category?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkVisibilityBtn');
+    btn.disabled = true;
+    btn.innerText = "UPDATING...";
+
+    try {
+        const isHiddenBoolean = isHiddenStr === 'true';
+        const { error } = await db.from('products')
+            .update({ is_hidden: isHiddenBoolean })
+            .eq('cat_id', Number(catId));
+            
+        if (error) throw error;
+
+        alert(`All products in the selected category have been successfully ${actionText.toLowerCase()}d.`);
+        
+        closeModal('bulkVisibilityModal');
+        document.getElementById('bulkTargetCatVisibility').value = '';
+        document.getElementById('bulkVisibilityAction').value = 'true';
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error updating visibility: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "APPLY VISIBILITY";
+    }
+};
 
         // Coupons Management
         async function loadCoupons() {
