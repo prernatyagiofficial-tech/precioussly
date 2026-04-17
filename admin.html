@@ -515,6 +515,7 @@
                 <div class="nav-link" onclick="switchView('reviews', this)">Reviews</div>
                 <div class="nav-link" onclick="switchView('settings', this)">Store Settings</div>
                 <div class="nav-link" onclick="switchView('users', this)">Registered Users</div>
+                <div class="nav-link" onclick="switchView('status-checker', this)">Order Status Checker</div>
             </aside>
 
             <main>
@@ -798,6 +799,37 @@
                     </div>
                 </div>
                 
+                <div id="view-status-checker" class="view-section">
+    <div class="section-header">
+        <h1>Order Status Checker</h1>
+        <button id="btnSyncSupabase" class="primary" onclick="syncToSupabase()" disabled style="background: #ccc; border-color: #ccc; cursor: not-allowed;">SYNC TO SUPABASE</button>
+    </div>
+    
+    <div class="toolbar-flex" style="margin-bottom: 20px; background: #fff; padding: 15px; border: 1px solid #000; box-shadow: 2px 2px 0px #000;">
+        <select id="awbStatusFilter" onchange="renderStatusCheckerTable()" style="flex: 1; margin-bottom: 0;">
+            <option value="All">All Orders (with AWB)</option>
+            <option value="Delivered">Show Only 'Delivered' (Ready to Sync)</option>
+        </select>
+        <button class="outline" onclick="fetchLiveDelhiveryStatus()" style="width: auto; margin-bottom: 0;">1. FETCH LIVE STATUS</button>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer Name</th>
+                    <th>AWB Number</th>
+                    <th>Current DB Status</th>
+                    <th>Live API Status</th>
+                </tr>
+            </thead>
+            <tbody id="statusCheckerTableBody">
+                <tr><td colspan="5" style="text-align:center; padding: 20px;">Click 'Fetch Live Status' to check Delhivery.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 <div id="view-users" class="view-section">
     <div class="section-header">
         <h1>Registered Users</h1>
@@ -1237,6 +1269,14 @@ if (session) {
         
         function switchView(viewId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            // Trigger table render if opening status checker
+            if (viewId === 'status-checker') {
+                // Clear any previous fetched statuses when reopening the tab
+                window.fetchedDelhiveryStatuses = {};
+                document.getElementById('btnSyncSupabase').disabled = true;
+                document.getElementById('btnSyncSupabase').style.background = '#ccc';
+                renderStatusCheckerTable();
+            }
             document.getElementById('view-' + viewId).classList.add('active');
             
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
@@ -3148,6 +3188,186 @@ window.updateOrderStatus = async function(id, newStatus) {
             });
         });
         
+        
+        // --- ORDER STATUS CHECKER LOGIC ---
+window.fetchedDelhiveryStatuses = {}; // Holds the live statuses temporally
+
+window.renderStatusCheckerTable = function() {
+    const tbody = document.getElementById('statusCheckerTableBody');
+    const filter = document.getElementById('awbStatusFilter').value;
+
+    // Get orders that have an AWB number assigned AND are not already Delivered in Supabase
+    let trackedOrders = State.orders.filter(o => o.awb_number && o.awb_number.trim() !== '' && o.status !== 'Delivered');
+
+    // If "Delivered" filter is selected, only show orders where the FETCHED live status is "Delivered"
+    if (filter === 'Delivered') {
+        trackedOrders = trackedOrders.filter(o => window.fetchedDelhiveryStatuses[o.id] === 'Delivered');
+    }
+
+    if (trackedOrders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No pending tracked orders found matching the filter.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    trackedOrders.forEach(o => {
+        const customerName = o.customer_details?.name || 'Unknown';
+        const liveStatus = window.fetchedDelhiveryStatuses[o.id] || 'Pending Check';
+        
+        let liveStatusColor = '#64748b'; // Gray
+        if (liveStatus === 'Delivered') liveStatusColor = '#10b981'; // Green
+        else if (liveStatus !== 'Pending Check') liveStatusColor = '#f59e0b'; // Orange for in-transit
+
+        html += `
+            <tr data-order-id="${o.id}">
+                <td><strong>#${o.id}</strong></td>
+                <td>${escapeHTML(customerName)}</td>
+                <td><span class="badge" style="background:#e2e8f0; color:#0f172a;">${escapeHTML(o.awb_number)}</span></td>
+                <td><span class="badge warning">${escapeHTML(o.status)}</span></td>
+                <td id="live-status-${o.id}"><strong style="color:${liveStatusColor};">${escapeHTML(liveStatus)}</strong></td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+};
+
+window.fetchLiveDelhiveryStatus = async function() {
+    const trackedOrders = State.orders.filter(o => o.awb_number && o.awb_number.trim() !== '' && o.status !== 'Delivered');
+    
+    if (trackedOrders.length === 0) {
+        return alert("No pending orders with AWB numbers to check!");
+    }
+
+    if(typeof showToast === 'function') showToast("Fetching statuses from Delhivery...");
+
+    // Retrieve the active session token to satisfy Supabase's JWT verification
+    const { data: { session } } = await db.auth.getSession();
+    const authToken = session?.access_token || SUPABASE_KEY;
+
+    for (const order of trackedOrders) {
+        const statusCell = document.getElementById(`live-status-${order.id}`);
+        if(statusCell) statusCell.innerHTML = '<span style="color:#f59e0b;">Checking API...</span>';
+
+        try {
+            // Use native fetch to explicitly pass the Authorization header and prevent 401s
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/check-delhivery-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ awb: order.awb_number.trim() })
+            });
+
+            if (!response.ok) throw new Error(`API rejected request with status ${response.status}`);
+
+            const data = await response.json();
+
+            let liveStatus = "Pending Check";
+            
+            // Safely check if ShipmentData exists and is an array
+            if (data && Array.isArray(data.ShipmentData) && data.ShipmentData.length > 0) {
+                const currentStatus = data.ShipmentData[0]?.Shipment?.Status?.Status;
+                
+                if (currentStatus) {
+                    if (currentStatus.trim().toLowerCase() === "delivered") {
+                        liveStatus = "Delivered";
+                    } else {
+                        liveStatus = currentStatus; 
+                    }
+                } else {
+                     liveStatus = "Manifested / Not Scanned";
+                }
+            } else if (data && data.Error) {
+                liveStatus = data.Error; // Delhivery uppercase errors
+            } else if (data && data.error) {
+                liveStatus = data.error; // Deno/Supabase lowercase errors
+            } else if (data && data.message) {
+                liveStatus = data.message; // Auth failure messages
+            } else {
+                liveStatus = "Unknown API Response";
+            }
+            
+            window.fetchedDelhiveryStatuses[order.id] = liveStatus;
+            
+        } catch (error) {
+            console.error("Error checking AWB:", error);
+            window.fetchedDelhiveryStatuses[order.id] = error.message || "API Network Error";
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    renderStatusCheckerTable();
+
+    const readyToSync = trackedOrders.some(o => window.fetchedDelhiveryStatuses[o.id] === 'Delivered');
+    const syncBtn = document.getElementById('btnSyncSupabase');
+    
+if (readyToSync) {
+        syncBtn.disabled = false;
+        syncBtn.style.background = 'var(--primary)';
+        syncBtn.style.borderColor = 'var(--primary)';
+        syncBtn.style.cursor = 'pointer';
+        if(typeof showToast === 'function') showToast("Fetch complete. Ready to sync!");
+    } else {
+        syncBtn.disabled = true;
+        syncBtn.style.background = '#ccc';
+        syncBtn.style.borderColor = '#ccc';
+        syncBtn.style.cursor = 'not-allowed';
+        if(typeof showToast === 'function') showToast("Fetch complete. No new delivered orders.");
+    }
+};
+
+window.syncToSupabase = async function() {
+    const syncBtn = document.getElementById('btnSyncSupabase');
+    syncBtn.innerText = "SYNCING...";
+    syncBtn.disabled = true;
+
+    try {
+        const ordersToUpdate = [];
+        
+        // Find all orders that Delhivery says are "Delivered"
+        for (const [orderId, liveStatus] of Object.entries(window.fetchedDelhiveryStatuses)) {
+            if (liveStatus === 'Delivered') {
+                // Ensure we only update orders that aren't already marked Delivered in your DB
+                const order = State.orders.find(o => String(o.id) === String(orderId));
+                if (order && order.status !== 'Delivered') {
+                    ordersToUpdate.push(orderId);
+                }
+            }
+        }
+
+        if (ordersToUpdate.length === 0) {
+            alert("All delivered orders are already synced!");
+            syncBtn.innerText = "SYNC TO SUPABASE";
+            return;
+        }
+
+        // Update all matched orders in Supabase to "Delivered" at the same time
+        const { error } = await db.from('orders')
+            .update({ status: 'Delivered' })
+            .in('id', ordersToUpdate);
+
+        if (error) throw error;
+
+        alert(`Successfully synced ${ordersToUpdate.length} order(s) to 'Delivered'!`);
+
+        // Refresh the orders data and the table UI
+        await loadOrders();
+        
+    } catch (err) {
+        alert("Error syncing to Supabase: " + err.message);
+    } finally {
+        // Reset the button back to its default disabled state until the next fetch
+        syncBtn.innerText = "SYNC TO SUPABASE";
+        syncBtn.disabled = true;
+        syncBtn.style.background = '#ccc';
+        syncBtn.style.borderColor = '#ccc';
+        syncBtn.style.cursor = 'not-allowed';
+    }
+};
+        
+
         // --- SMART TAGS & REVENUE LOGIC ---
 State.smartTags = [];
 
