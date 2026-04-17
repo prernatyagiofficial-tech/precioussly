@@ -2722,14 +2722,14 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
             });
 
 if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
-                html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 10px 20px 30px;">`;
-                appData.reviews.forEach(review => {
-                    let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-                    html += `<div class="review-card" style="width: 100%; max-width: 400px; flex: none; display: flex; flex-direction: column; margin-bottom: 15px;">${imgContent}</div>`;
-                });
-                html += `</div>`;
-            }
+    html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
+    <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 30px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+    appData.reviews.forEach(review => {
+        let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
+        html += `<div class="review-card" style="flex: 0 0 260px; width: 260px; display: flex; flex-direction: column;">${imgContent}</div>`;
+    });
+    html += `</div>`;
+}
 
             requestAnimationFrame(() => {
                 mainContent.innerHTML = html;
