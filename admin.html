@@ -2627,9 +2627,11 @@ function renderOrdersTable(filterStatus) {
                             : `<span class="awb-badge" style="cursor:pointer;" onclick="updateAWB('${o.id}', '')">+ Add AWB</span>`
                         }
                     </td>
-                    <td data-label="Action">
-                        <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
-                            <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
+<td data-label="Action">
+    <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
+        <button class="outline" onclick="openWaModal('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0; color: #25D366; border-color: #25D366;">WA</button>
+        
+        <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
                                 <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
                                 <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
                                 <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
@@ -3503,6 +3505,74 @@ function calculateTagRevenue() {
     tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
 }
 // END OF NEW REPLACEMENT
+// --- WHATSAPP INTEGRATION LOGIC ---
+let currentWaOrder = null;
+
+window.openWaModal = function(orderId) {
+    currentWaOrder = State.orders.find(o => String(o.id) === String(orderId));
+    if (currentWaOrder) {
+        openModal('waActionModal');
+    }
+};
+
+function formatPhoneForWa(phone) {
+    // Strip all non-numeric characters
+    let cleanPhone = String(phone).replace(/\D/g, '');
+    
+    // Auto-append +91 country code if it's a standard 10-digit Indian number
+    if (cleanPhone.length === 10) {
+        cleanPhone = '91' + cleanPhone;
+    } else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+        cleanPhone = '91' + cleanPhone.substring(1);
+    }
+    return cleanPhone;
+}
+
+window.openWhatsAppChat = function() {
+    if (!currentWaOrder || !currentWaOrder.customer_details?.phone) {
+        return alert('No phone number found for this order.');
+    }
+    const phone = formatPhoneForWa(currentWaOrder.customer_details.phone);
+    window.open(`https://wa.me/${phone}`, '_blank');
+    closeModal('waActionModal');
+};
+
+window.sendWaConfirmation = function() {
+    if (!currentWaOrder || !currentWaOrder.customer_details?.phone) {
+        return alert('No phone number found for this order.');
+    }
+    
+    const phone = formatPhoneForWa(currentWaOrder.customer_details.phone);
+    const c = currentWaOrder.customer_details;
+    const items = Array.isArray(currentWaOrder.items) ? currentWaOrder.items : JSON.parse(currentWaOrder.items || '[]');
+
+    // Format the items list dynamically
+    let itemsList = items.map(i => {
+        let specs = [];
+        const variantLabel = i.variant_label || i.variantLabel || 'Variant';
+        if (i.variant && i.variant !== "Default") specs.push(`${variantLabel}: ${i.variant}`);
+        if (i.size) specs.push(`Size: ${i.size}`);
+        if (i.alphabet) specs.push(`Alphabet: ${i.alphabet}`);
+        const specStr = specs.length > 0 ? ` (${specs.join(', ')})` : '';
+        return `▪ ${i.name}${specStr} x ${i.qty}`;
+    }).join('\n');
+
+    // Build the dynamic payment text block
+    let paymentText = '';
+    if (c.paymentMethod === 'cod') {
+        paymentText = `*Payment Method:* Cash on Delivery (COD)\n*Advance Paid:* ₹${Number(c.amountPaid || 0).toLocaleString()}\n*Due on Delivery:* ₹${Number(c.amountDue || 0).toLocaleString()}\n\n_Please keep the due amount ready in Cash/UPI for the delivery executive._`;
+    } else {
+        paymentText = `*Payment Status:* Paid Online\n*Final Total Amount:* ₹${Number(currentWaOrder.total_amount || 0).toLocaleString()}`;
+    }
+
+    // Assemble the final message
+    const msg = `Hi ${c.name || 'there'}! \n\nThank you for shopping at *Precioussly*! We have received your order.\n\n*Order Summary:*\n*Order ID:* #${currentWaOrder.id}\n${itemsList}\n\n${paymentText}\n\n*Track Your Order:*\nYou can check your live order status here:\n👉 https://precioussly.com/?view=orders\n\n_Note: Once your order is dispatched, a tracking number (AWB) will be updated on that page. You can simply click the tracking number to easily track your shipment._\n\nWarm regards,\n*Team Precioussly* ✨`;
+
+    // Encode and dispatch
+    const encodedMsg = encodeURIComponent(msg);
+    window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
+    closeModal('waActionModal');
+};
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
@@ -3516,5 +3586,15 @@ function calculateTagRevenue() {
         <video id="lightbox-vid" class="lightbox-media" src="" controls autoplay loop muted playsinline></video>
 
     </div>
+    <div id="waActionModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px; width: 90%; text-align: center;">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Choose the action</h3>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button onclick="openWhatsAppChat()" style="background: #25D366; border-color: #25D366; color: #fff; margin-bottom: 0;">Open WhatsApp</button>
+            <button onclick="sendWaConfirmation()" style="background: var(--primary); color: #fff; margin-bottom: 0;">Send Order Confirmation</button>
+            <button class="outline" onclick="closeModal('waActionModal')" style="margin-bottom: 0;">Cancel</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
