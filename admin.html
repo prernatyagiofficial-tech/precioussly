@@ -581,10 +581,13 @@
                     </div>
                 </div>
 
-               <div id="view-products" class="view-section">
+<div id="view-products" class="view-section">
     <div class="section-header">
         <h1>Manage Products</h1>
-        <button onclick="openModal('productModal')">+ ADD PRODUCT</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="outline" onclick="openModal('bulkChoiceModal')" style="margin-bottom: 0;">BULK ACTIONS</button>
+            <button onclick="openModal('productModal')" style="margin-bottom: 0;">+ ADD PRODUCT</button>
+        </div>
     </div>
 
 <div class="toolbar-flex">
@@ -993,7 +996,68 @@
     </div>
 </div>
 
-    <div id="categoryModal" class="modal-overlay">
+
+
+<div id="bulkChoiceModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px; text-align: center; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px;">
+            <h3 style="margin: 0; border: none; padding: 0;">Choose Bulk Action</h3>
+            <button class="outline" style="width: auto; padding: 2px 8px; margin: 0;" onclick="closeModal('bulkChoiceModal')">X</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button onclick="closeModal('bulkChoiceModal'); openModal('bulkProductModal');">Bulk Add Products</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
+        </div>
+    </div>
+</div>
+
+<div id="bulkDescModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>Bulk Add Description <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkDescModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Universal Product Description</label>
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will overwrite the existing description for ALL products currently in your database.</p>
+                <textarea id="bulkUniversalDesc" rows="6" placeholder="Enter the description to apply to all products..."></textarea>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkDescBtn" onclick="saveBulkDescription()">APPLY TO ALL PRODUCTS</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    <div id="bulkProductModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>Bulk Add Products <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkProductModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Paste Image URLs (One per line, up to 100+)</label>
+                <textarea id="bulkUrls" rows="10" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.mp4"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Base Price (₹)</label>
+                <input type="number" id="bulkBasePrice" required>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="bulkProdCat"></select>
+            </div>
+            <div class="form-group">
+                <label>Select Smart Tag</label>
+                <select id="bulkProdSmartTag">
+                    <option value="">None</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkBtn" onclick="saveBulkProducts()">SAVE BULK PRODUCTS</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="categoryModal" class="modal-overlay">
         <div class="modal-box" style="max-width: 400px;">
             <h3><span id="catModalTitle">Add Category</span> <button class="outline" style="padding: 2px 8px;" onclick="closeModal('categoryModal')">X</button></h3>
             <div class="form-group"><label>Category Name</label><input type="text" id="catName" required></div>
@@ -1898,6 +1962,7 @@ window.addDynamicHomeSection = function() {
 
                 document.getElementById('categoriesTable').innerHTML = tableHtml || '<tbody><tr><td colspan="4" style="text-align:center;">No categories</td></tr></tbody>';
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
+                document.getElementById('bulkProdCat').innerHTML = prodCatOptions;
                 document.getElementById('catParentId').innerHTML = parentCatOptions;
                 document.getElementById('setBannerAction').innerHTML = bannerOptions;
 
@@ -2342,6 +2407,107 @@ is_alphabet: document.getElementById('prodAlphabet').checked,
         btn.innerText = "SAVE PRODUCT";
     }
 }
+
+
+
+async function saveBulkProducts() {
+    const btn = document.getElementById('saveBulkBtn');
+    const urlsText = document.getElementById('bulkUrls').value;
+    const basePrice = document.getElementById('bulkBasePrice').value;
+    const catId = document.getElementById('bulkProdCat').value;
+    const smartTag = document.getElementById('bulkProdSmartTag').value || null;
+
+    // 1. Split URLs by newline, trim spaces, and remove any empty lines
+    const urlsArray = urlsText.split('\n').map(url => url.trim()).filter(url => url !== '');
+
+    // 2. Validate inputs
+    if (urlsArray.length === 0) return alert("Please paste at least one valid image URL.");
+    if (!basePrice) return alert("Please enter a base price.");
+    if (!catId) return alert("Please select a category.");
+
+    btn.disabled = true;
+    btn.innerText = "SAVING...";
+
+    try {
+        // 3. Create the payload array for Supabase
+        const payloadArray = urlsArray.map(url => {
+            // Generate a random string to ensure unique temporary names
+            const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+            return {
+                name: "Bulk Item " + uniqueSuffix,
+                price: Number(basePrice),
+                cost_price: 0,
+                cat_id: Number(catId),
+                smart_tag: smartTag,
+                media: [url],
+                variants: [],
+                sizes: [],
+                stock: null,
+                is_hidden: true, // Hidden so customers don't see the dummy names
+                show_size_chart: false,
+                is_best_seller: false,
+                is_alphabet: false,
+                variant_label: 'Color'
+            };
+        });
+
+        // 4. Send the bulk insert request to Supabase
+        const { error } = await db.from('products').insert(payloadArray);
+        if (error) throw error;
+
+        // 5. Cleanup and Refresh UI
+        closeModal('bulkProductModal');
+        document.getElementById('bulkUrls').value = '';
+        document.getElementById('bulkBasePrice').value = '';
+        
+        await loadProducts(); // Refresh the table
+        alert(`Successfully generated ${payloadArray.length} hidden products!`);
+
+    } catch (err) {
+        alert("Error saving bulk products: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "SAVE BULK PRODUCTS";
+    }
+}
+
+
+window.saveBulkDescription = async function() {
+    const desc = document.getElementById('bulkUniversalDesc').value.trim();
+    
+    // Add a strict confirmation lock since this is a destructive action
+    if (!confirm("Are you ABSOLUTELY sure you want to overwrite the description for ALL products in your database? This action cannot be undone.")) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkDescBtn');
+    btn.disabled = true;
+    btn.innerText = "UPDATING ALL PRODUCTS...";
+
+    try {
+        // Blanket update query for all products. 
+        // .gt('id', 0) is required by PostgREST to process a table-wide update safely.
+        const { error } = await db.from('products')
+            .update({ description: desc })
+            .gt('id', 0); 
+            
+        if (error) throw error;
+
+        alert("Successfully updated descriptions for all products!");
+        
+        // Cleanup UI and refresh state
+        closeModal('bulkDescModal');
+        document.getElementById('bulkUniversalDesc').value = '';
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error updating descriptions: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "APPLY TO ALL PRODUCTS";
+    }
+};
+
 
         // Coupons Management
         async function loadCoupons() {
@@ -3390,6 +3556,7 @@ function renderSmartTagsUI() {
     // Update Dropdowns
     const optionsHtml = State.smartTags.map(tag => `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`).join('');
     prodSelect.innerHTML = `<option value="">None</option>` + optionsHtml;
+    document.getElementById('bulkProdSmartTag').innerHTML = `<option value="">None</option>` + optionsHtml;
     
     // Retain current filter selections
     const currentProdFilter = filterSelect.value;
