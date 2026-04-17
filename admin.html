@@ -1658,13 +1658,14 @@ renderSmartTagsUI();
                 { id: 'collections', title: 'Explore Collections' },
                 { id: 'bestsellers', title: 'Best Sellers' }
             ];
+            
             const sections = data.home_sections_config || defaultSections;
             let sectionsHtml = '';
             sections.forEach(sec => {
                 // Do not allow deleting the core default sections
                 const delBtn = (sec.id === 'collections' || sec.id === 'bestsellers') 
                     ? `<div style="width: 30px;"></div>` 
-                    : `<button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="this.parentElement.remove()">X</button>`;
+                    : `<button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="if(confirm('Are you sure you want to remove this section from the home page layout?')) { this.parentElement.remove(); }">X</button>`;
                 
                 sectionsHtml += `
                     <div class="home-section-item" data-id="${sec.id}">
@@ -1758,7 +1759,7 @@ window.addDynamicHomeSection = function() {
             div.innerHTML = `
                 <div class="drag-handle section-drag" title="Drag to reorder">⋮⋮</div>
                 <input type="text" class="section-title-input" value="${escapeHTML(text)}" placeholder="Section Title">
-                <button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="this.parentElement.remove()">X</button>
+                <button class="danger" style="width:auto; padding: 4px 8px; font-size: 10px; margin-bottom:0;" onclick="if(confirm('Are you sure you want to remove this section from the home page layout?')) { this.parentElement.remove(); }">X</button>
             `;
             list.appendChild(div);
             select.value = ''; // Reset dropdown
@@ -3188,8 +3189,17 @@ function addSmartTag() {
 }
 
 function deleteSmartTag(index) {
-    State.smartTags.splice(index, 1);
-    renderSmartTagsUI();
+    // Get the name of the tag so we can show it in the popup
+    const tagName = State.smartTags[index];
+    
+    // Show the confirmation popup
+    const userConfirmed = confirm(`Are you sure you want to delete the smart tag "${tagName}"?`);
+    
+    // Only delete if the user clicks "OK"
+    if (userConfirmed) {
+        State.smartTags.splice(index, 1);
+        renderSmartTagsUI();
+    }
 }
 
 // NEW REPLACEMENT
