@@ -595,6 +595,11 @@
             <option value="">All Tags</option>
             <option value="uncategorized">Uncategorized (No Tag)</option>
         </select>
+        <select id="prodStockFilter" onchange="loadProducts(1)">
+            <option value="">All Stock Status</option>
+            <option value="in_stock">In Stock</option>
+            <option value="out_of_stock">Out of Stock</option>
+        </select>
     </div>
 
     <div id="bulkActionBar" class="bulk-action-bar">
@@ -1922,6 +1927,7 @@ async function loadProducts(page = 1) {
     prodCurrentPage = page;
     const searchQ = document.getElementById('prodSearchFilter').value.trim();
     const catFilter = document.getElementById('prodCatFilter').value;
+    const stockFilter = document.getElementById('prodStockFilter').value; // Reads the new dropdown
 
     try {
         // Base Query with exact count
@@ -1930,9 +1936,17 @@ async function loadProducts(page = 1) {
         // Apply Filters
         if (searchQ) query = query.ilike('name', `%${searchQ}%`);
         if (catFilter) query = query.eq('cat_id', catFilter);
+        
         const tagFilter = document.getElementById('prodSmartTagFilter').value;
-if (tagFilter === 'uncategorized') query = query.is('smart_tag', null);
-else if (tagFilter) query = query.eq('smart_tag', tagFilter);
+        if (tagFilter === 'uncategorized') query = query.is('smart_tag', null);
+        else if (tagFilter) query = query.eq('smart_tag', tagFilter);
+
+        // Apply Stock Filter Server-Side (Blazing fast for 10k+ products)
+        if (stockFilter === 'in_stock') {
+            query = query.or('stock.gt.0,stock.is.null'); 
+        } else if (stockFilter === 'out_of_stock') {
+            query = query.lte('stock', 0); 
+        }
 
         // Pagination setup
         const from = (page - 1) * PROD_PAGE_SIZE;
