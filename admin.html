@@ -1505,36 +1505,7 @@ db.channel('live-orders')
         loadDashboard(); 
     })
     .subscribe();
-        // UI & Auth
-        async function checkSession() {
-            try {
-                const { data: { session }, error } = await db.auth.getSession();
-                if (error) throw error;
-                
-if (session) {
-                    document.getElementById('loginContainer').style.display = 'none';
-                    document.getElementById('adminContainer').style.display = 'block';
-                    
-                    // --- NEW: Read URL hash and restore the view ---
-                    const hash = window.location.hash.replace('#', '');
-                    const validViews = ['dashboard', 'orders', 'products', 'categories', 'coupons', 'reviews', 'settings', 'users'];
-                    
-                    if (validViews.includes(hash)) {
-                        switchView(hash); // Load the view from the URL
-                    } else {
-                        switchView('dashboard'); // Default fallback
-                    }
-                    // ------------------------------------------------
 
-                    await loadAllData();
-                } else {
-                    document.getElementById('loginContainer').style.display = 'block';
-                    document.getElementById('adminContainer').style.display = 'none';
-                }
-            } catch (err) {
-                console.error("Session check error:", err);
-            }
-        }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1551,7 +1522,7 @@ if (session) {
                 
                 if (error) throw error;
                 err.style.display = 'none';
-                await checkSession();
+                // Transition handled automatically by SIGNED_IN event listener
             } catch (error) {
                 err.innerText = error.message; 
                 err.style.display = 'block';
@@ -1563,7 +1534,7 @@ if (session) {
 
         async function logout() { 
             await db.auth.signOut(); 
-            await checkSession(); 
+            // Transition handled automatically by SIGNED_OUT event listener
         }
 
         // Layout Navigation
@@ -4357,9 +4328,41 @@ window.sendWaConfirmation = function() {
     window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
     closeModal('waActionModal');
 };
-        // Boot
-        db.auth.onAuthStateChange(() => { checkSession(); });
-        checkSession();
+// Boot & Auth State Management
+        db.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+                if (session) {
+                    // User is authenticated
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('adminContainer').style.display = 'block';
+                    
+                    // Read URL hash and restore the view
+                    const hash = window.location.hash.replace('#', '');
+                    const validViews = ['dashboard', 'orders', 'products', 'categories', 'coupons', 'reviews', 'settings', 'users', 'status-checker', 'monthly-earnings'];
+                    
+                    if (validViews.includes(hash)) {
+                        switchView(hash); 
+                    } else {
+                        switchView('dashboard'); 
+                    }
+
+                    await loadAllData();
+                } else {
+                    // No active session found on load
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('adminContainer').style.display = 'none';
+                }
+            } else if (event === 'SIGNED_OUT') {
+                // User explicitly logged out
+                document.getElementById('loginContainer').style.display = 'block';
+                document.getElementById('adminContainer').style.display = 'none';
+                
+                // Optional: Wipe local variables to prevent data bleed
+                State.products = [];
+                State.orders = [];
+                State.categories = [];
+            }
+        });
     </script>
     <div id="universal-lightbox" class="lightbox-overlay">
 
