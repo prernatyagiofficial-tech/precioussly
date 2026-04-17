@@ -34,19 +34,11 @@
             --error-color: #ff4757;
         }
 
-* {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            -webkit-user-select: none; /* Safari */
-            user-select: none; /* Standard */
-        }
-
-        /* Crucial: Allows text selection inside checkout forms and search bars */
-        input, textarea {
-            -webkit-user-select: auto;
-            user-select: auto;
         }
 
         body {
@@ -1255,6 +1247,26 @@ main {
         .product-detail-desc { font-size: 15px; color: var(--text-gray); line-height: 1.8; white-space: pre-wrap; }
         
         .product-bottom-bar { display: flex; gap: 12px; width: calc(100% + 40px); position: sticky; bottom: 0; margin: 20px -20px -20px -20px; padding: 15px 20px; background: #ffffff; box-shadow: 0 -4px 20px rgba(0,0,0,0.06); z-index: 90; border-top: 1px solid var(--border-color); }
+        /* --- TEXT SELECTION FIX --- */
+        /* 1. Disable text selection globally to prevent accidental highlighting on taps */
+        body {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* 2. Re-enable text selection ONLY where long-press copying makes sense */
+        input, 
+        textarea, 
+        .product-detail-desc, 
+        .policy-content-section p, 
+        .policy-content-section li, 
+        .order-address,
+        .user-email-text,
+        .tracking-wrapper p {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        /* --- END TEXT SELECTION FIX --- */
     </style>
 </head>
 <body>
