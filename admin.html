@@ -1340,8 +1340,9 @@ if (session) {
 
 async function loadDashboard() {
     try {
+        // Change: Added .neq('status', 'Pending Payment') so abandoned carts don't inflate order counts
         const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
-            db.from('orders').select('*', { count: 'exact', head: true }),
+            db.from('orders').select('*', { count: 'exact', head: true }).neq('status', 'Pending Payment'),
             db.from('products').select('id'),
             db.from('orders').select('status, total_amount, customer_details'),
             db.from('profiles').select('*', { count: 'exact', head: true })
@@ -1353,6 +1354,9 @@ async function loadDashboard() {
         let totalReceived = 0;
         if (revs) {
             revs.forEach(row => {
+                // Ignore abandoned carts from revenue completely
+                if (row.status === 'Pending Payment') return;
+
                 const c = row.customer_details || {};
                 
                 if (c.paymentMethod === 'cod') {
@@ -3431,7 +3435,8 @@ function calculateTagRevenue() {
     const productStats = {};
 
     // Only count non-cancelled orders
-    const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
+    // Exclude both Cancelled and abandoned (Pending Payment) carts
+const validOrders = State.orders.filter(o => o.status !== 'Cancelled' && o.status !== 'Pending Payment');
 
     validOrders.forEach(order => {
         // Safely parse customer details and items
