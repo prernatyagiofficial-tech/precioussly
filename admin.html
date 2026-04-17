@@ -480,6 +480,66 @@
             .section-header button { width: 100%; }
             .toolbar-flex { flex-direction: column; align-items: stretch; }
         }
+        /* Custom Toast Notification System */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            min-width: 250px;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            background: var(--bg-surface);
+            color: var(--text-main);
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: slideInRight 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            pointer-events: auto;
+        }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.fade-out { animation: fadeOutRight 0.3s forwards; }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOutRight {
+            to { transform: translateX(120%); opacity: 0; }
+        }
+
+        /* Loading Button State */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 16px;
+            height: 16px;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -516,6 +576,7 @@
                 <div class="nav-link" onclick="switchView('settings', this)">Store Settings</div>
                 <div class="nav-link" onclick="switchView('users', this)">Registered Users</div>
                 <div class="nav-link" onclick="switchView('status-checker', this)">Order Status Checker</div>
+                <div class="nav-link" onclick="switchView('monthly-earnings', this)">Monthly Earnings</div>
             </aside>
 
             <main>
@@ -523,7 +584,7 @@
 <div id="view-dashboard" class="view-section active">
     <div class="section-header"><h1>Dashboard Overview</h1></div>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-        <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000;">
+<div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; cursor: pointer;" onclick="switchView('daily-orders'); renderDailyOrderStats();">
             <div style="font-size:11px; text-transform:uppercase; font-weight: 600;">Total Orders</div>
             <div id="statOrders" style="font-size:24px; font-weight:bold; margin-top:5px;">0</div>
         </div>
@@ -542,6 +603,26 @@
     </div>
 </div>
 
+<div id="view-daily-orders" class="view-section">
+    <div class="section-header">
+        <h1>Daily Order Analytics</h1>
+        <button class="outline" onclick="switchView('dashboard')" style="margin-bottom: 0;">BACK TO DASHBOARD</button>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Orders</th>
+                    <th>Total Revenue</th>
+                </tr>
+            </thead>
+            <tbody id="dailyOrdersTableBody">
+                <tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 <div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
                     
@@ -931,6 +1012,32 @@
     </div>
 </div>
 
+<div id="view-monthly-earnings" class="view-section">
+    <div class="section-header">
+        <h1>Monthly Earnings & Tag Analysis</h1>
+        <button class="outline" onclick="renderMonthlyEarnings()">⟳ REFRESH</button>
+    </div>
+
+    <div style="background:#fff; border:1px solid #000; padding:20px; box-shadow: 3px 3px 0px #000; text-align: center; margin-bottom: 24px; max-width: 400px;">
+        <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">All-Time True Revenue</div>
+        <div id="overallEarningsTotal" style="font-size:32px; font-weight:bold; color: #000;">₹0</div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Month & Smart Tag Breakdown</th>
+                    <th style="text-align: right;">Total Monthly Revenue</th>
+                </tr>
+            </thead>
+            <tbody id="monthlyEarningsTableBody">
+                <tr><td colspan="2" style="text-align:center; padding: 20px;">Loading earnings data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 
     <input type="file" id="fileLogo" style="display:none;" onchange="handleDirectUpload(event, 'setLogoUrl')">
     <input type="file" id="fileBanner" style="display:none;" onchange="handleDirectUpload(event, 'setBannerUrl')">
@@ -1007,6 +1114,9 @@
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <button onclick="closeModal('bulkChoiceModal'); openModal('bulkProductModal');">Bulk Add Products</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkPriceModal');">Bulk Update Price</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
+<button class="danger" onclick="closeModal('bulkChoiceModal'); openModal('bulkDeleteModal');">Bulk Delete By Category</button>
         </div>
     </div>
 </div>
@@ -1016,12 +1126,92 @@
         <h3>Bulk Add Description <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkDescModal')">X</button></h3>
         <div class="grid-form">
             <div class="form-group full-width">
-                <label>Universal Product Description</label>
-                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will overwrite the existing description for ALL products currently in your database.</p>
-                <textarea id="bulkUniversalDesc" rows="6" placeholder="Enter the description to apply to all products..."></textarea>
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatDesc">
+                    <option value="">Select Category...</option>
+                </select>
             </div>
             <div class="form-group full-width">
-                <button type="button" id="saveBulkDescBtn" onclick="saveBulkDescription()">APPLY TO ALL PRODUCTS</button>
+                <label>Universal Product Description</label>
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will overwrite the description for ALL products in the selected category.</p>
+                <textarea id="bulkUniversalDesc" rows="6" placeholder="Enter the description to apply..."></textarea>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkDescBtn" onclick="saveBulkDescription()">APPLY TO CATEGORY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<div id="bulkPriceModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Update Price <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkPriceModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatPrice">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Universal Base Price (₹)</label>
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will overwrite the Base Price for ALL products in the selected category.</p>
+                <input type="number" id="bulkUniversalPrice" placeholder="Enter new base price...">
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkPriceBtn" onclick="saveBulkPrice()">APPLY TO CATEGORY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div id="bulkCostPriceModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Update Cost Price <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkCostPriceModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatCostPrice">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Universal Cost Price (₹)</label>
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will overwrite the Cost Price for ALL products in the selected category.</p>
+                <input type="number" id="bulkUniversalCostPrice" placeholder="Enter new cost price...">
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkCostPriceBtn" onclick="saveBulkCostPrice()">APPLY TO CATEGORY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div id="bulkDeleteModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Delete Products <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkDeleteModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category to Empty</label>
+                <select id="bulkTargetCatDelete">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Type "DELETE" to confirm</label>
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This permanently deletes ALL products in the selected category. This cannot be undone.</p>
+                <input type="text" id="bulkDeleteConfirmText" placeholder="DELETE">
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkDeleteBtn" class="danger" onclick="executeBulkDeleteByCategory()">PERMANENTLY DELETE CATEGORY</button>
             </div>
         </div>
     </div>
@@ -1141,6 +1331,56 @@
         let prodCurrentPage = 1;
 const PROD_PAGE_SIZE = 50;
 let productSearchTimeout;
+
+
+// --- 1. Master Toast System ---
+        window.showToast = function(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
+        // --- Overriding Native Alert ---
+        window.alert = function(msg) {
+            // Automatically converts all existing alerts to error/info toasts
+            const type = String(msg).toLowerCase().includes('error') || String(msg).toLowerCase().includes('failed') ? 'error' : 'success';
+            showToast(msg, type);
+        };
+
+        // --- 2. Master Custom Confirm System ---
+        window.customConfirm = function(message, onConfirm, isDanger = true) {
+            const modal = document.getElementById('customConfirmModal');
+            const msgEl = document.getElementById('confirmMessageText');
+            const acceptBtn = document.getElementById('confirmAcceptBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+
+            msgEl.innerText = message;
+            acceptBtn.className = isDanger ? 'danger' : '';
+            
+            modal.classList.add('active');
+
+            // Cleanup function to remove event listeners
+            const cleanup = () => {
+                modal.classList.remove('active');
+                acceptBtn.replaceWith(acceptBtn.cloneNode(true));
+                cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+            };
+
+            document.getElementById('confirmAcceptBtn').addEventListener('click', () => {
+                cleanup();
+                onConfirm();
+            });
+
+            document.getElementById('confirmCancelBtn').addEventListener('click', cleanup);
+        };
 
         const escapeHTML = (str) => {
             if (typeof str !== 'string') return str;
@@ -1442,6 +1682,64 @@ async function loadDashboard() {
     }
 }
 
+window.renderDailyOrderStats = function() {
+    const tbody = document.getElementById('dailyOrdersTableBody');
+    
+    if (!State.orders || State.orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
+        return;
+    }
+
+    const dailyStats = {};
+    const optionsIST = { timeZone: 'Asia/Kolkata' };
+    
+    // Get exact strings for Today and Yesterday in IST
+    const todayStr = new Date().toLocaleDateString('en-IN', optionsIST);
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toLocaleDateString('en-IN', optionsIST);
+
+    // Group orders
+    State.orders.forEach(order => {
+        const orderDateObj = new Date(order.created_at);
+        const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
+
+        if (!dailyStats[dateKey]) {
+            dailyStats[dateKey] = {
+                dateObj: orderDateObj, // Saved for sorting
+                count: 0,
+                revenue: 0
+            };
+        }
+        
+        dailyStats[dateKey].count += 1;
+        // Adding order total (Optional: you can exclude cancelled orders here if needed)
+        dailyStats[dateKey].revenue += (Number(order.total_amount) || 0);
+    });
+
+    // Sort newest dates first
+    const sortedStats = Object.keys(dailyStats).map(dateStr => {
+        return { dateStr, ...dailyStats[dateStr] };
+    }).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+    // Generate HTML
+    let html = '';
+    sortedStats.forEach(stat => {
+        let displayDate = stat.dateStr;
+        if (stat.dateStr === todayStr) displayDate = '<strong style="color: var(--accent);">Today</strong>';
+        else if (stat.dateStr === yesterdayStr) displayDate = '<strong>Yesterday</strong>';
+
+        html += `
+            <tr>
+                <td>${displayDate}</td>
+                <td><span class="badge" style="background: var(--primary); color: #fff;">${stat.count}</span></td>
+                <td><strong>₹${Math.round(stat.revenue).toLocaleString('en-IN')}</strong></td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+};
 // --- UPGRADED USERS LOGIC ---
         let usersCurrentPage = 1;
         const USERS_PAGE_SIZE = 50;
@@ -1963,6 +2261,10 @@ window.addDynamicHomeSection = function() {
                 document.getElementById('categoriesTable').innerHTML = tableHtml || '<tbody><tr><td colspan="4" style="text-align:center;">No categories</td></tr></tbody>';
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
                 document.getElementById('bulkProdCat').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatDesc')) document.getElementById('bulkTargetCatDesc').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatPrice')) document.getElementById('bulkTargetCatPrice').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatCostPrice')) document.getElementById('bulkTargetCatCostPrice').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatDelete')) document.getElementById('bulkTargetCatDelete').innerHTML = prodCatOptions;
                 document.getElementById('catParentId').innerHTML = parentCatOptions;
                 document.getElementById('setBannerAction').innerHTML = bannerOptions;
 
@@ -2068,13 +2370,28 @@ async function loadProducts(page = 1) {
         State.products = data || [];
         renderProductsTable(count, searchQ, catFilter);
         
+
         // Populate category dropdown if empty
         const filterDropdown = document.getElementById('prodCatFilter');
         if (filterDropdown.options.length <= 1 && State.categories.length > 0) {
             let opts = '<option value="">All Categories</option>';
-            State.categories.forEach(c => {
-                opts += `<option value="${c.id}">${escapeHTML(c.name)}</option>`;
+            
+            // 1. Get all main categories (those without a parent)
+            const mainCats = State.categories.filter(c => !c.parent_id);
+            
+            mainCats.forEach(main => {
+                // 2. Add the main category to the dropdown
+                opts += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+                
+                // 3. Find any subcategories that belong to this main category
+                const subCats = State.categories.filter(c => c.parent_id === main.id);
+                
+                // 4. Add subcategories with the arrow and indentation
+                subCats.forEach(sub => {
+                    opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+                });
             });
+
             filterDropdown.innerHTML = opts;
             filterDropdown.value = catFilter; // retain selection
         }
@@ -2473,29 +2790,28 @@ async function saveBulkProducts() {
 
 
 window.saveBulkDescription = async function() {
+    const catId = document.getElementById('bulkTargetCatDesc').value;
     const desc = document.getElementById('bulkUniversalDesc').value.trim();
     
-    // Add a strict confirmation lock since this is a destructive action
-    if (!confirm("Are you ABSOLUTELY sure you want to overwrite the description for ALL products in your database? This action cannot be undone.")) {
+    if (!catId) return alert("Please select a target category first.");
+
+    if (!confirm("Are you ABSOLUTELY sure you want to overwrite the description for ALL products in the selected category? This action cannot be undone.")) {
         return;
     }
 
     const btn = document.getElementById('saveBulkDescBtn');
     btn.disabled = true;
-    btn.innerText = "UPDATING ALL PRODUCTS...";
+    btn.innerText = "UPDATING CATEGORY...";
 
     try {
-        // Blanket update query for all products. 
-        // .gt('id', 0) is required by PostgREST to process a table-wide update safely.
         const { error } = await db.from('products')
             .update({ description: desc })
-            .gt('id', 0); 
+            .eq('cat_id', Number(catId)); 
             
         if (error) throw error;
 
-        alert("Successfully updated descriptions for all products!");
+        alert("Successfully updated descriptions for the category!");
         
-        // Cleanup UI and refresh state
         closeModal('bulkDescModal');
         document.getElementById('bulkUniversalDesc').value = '';
         await loadProducts(prodCurrentPage); 
@@ -2504,7 +2820,116 @@ window.saveBulkDescription = async function() {
         alert("Error updating descriptions: " + err.message);
     } finally {
         btn.disabled = false;
-        btn.innerText = "APPLY TO ALL PRODUCTS";
+        btn.innerText = "APPLY TO CATEGORY";
+    }
+};
+
+window.saveBulkPrice = async function() {
+    const catId = document.getElementById('bulkTargetCatPrice').value;
+    const priceInput = document.getElementById('bulkUniversalPrice').value;
+    
+    if (!catId) return alert("Please select a target category first.");
+    if (priceInput === '') return alert("Please enter a valid price.");
+    
+    const newPrice = Number(priceInput);
+
+    if (!confirm(`Are you ABSOLUTELY sure you want to change the price of ALL products in this category to ₹${newPrice}? This action cannot be undone.`)) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkPriceBtn');
+    btn.disabled = true;
+    btn.innerText = "UPDATING CATEGORY...";
+
+    try {
+        const { error } = await db.from('products')
+            .update({ price: newPrice })
+            .eq('cat_id', Number(catId));
+            
+        if (error) throw error;
+
+        alert("Successfully updated prices for the category!");
+        
+        closeModal('bulkPriceModal');
+        document.getElementById('bulkUniversalPrice').value = '';
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error updating prices: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "APPLY TO CATEGORY";
+    }
+};
+
+window.saveBulkCostPrice = async function() {
+    const catId = document.getElementById('bulkTargetCatCostPrice').value;
+    const costPriceInput = document.getElementById('bulkUniversalCostPrice').value;
+    
+    if (!catId) return alert("Please select a target category first.");
+    if (costPriceInput === '') return alert("Please enter a valid cost price.");
+    
+    const newCostPrice = Number(costPriceInput);
+
+    if (!confirm(`Are you ABSOLUTELY sure you want to change the cost price of ALL products in this category to ₹${newCostPrice}? This action cannot be undone.`)) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkCostPriceBtn');
+    btn.disabled = true;
+    btn.innerText = "UPDATING CATEGORY...";
+
+    try {
+        const { error } = await db.from('products')
+            .update({ cost_price: newCostPrice })
+            .eq('cat_id', Number(catId));
+            
+        if (error) throw error;
+
+        alert("Successfully updated cost prices for the category!");
+        
+        closeModal('bulkCostPriceModal');
+        document.getElementById('bulkUniversalCostPrice').value = '';
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error updating cost prices: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "APPLY TO CATEGORY";
+    }
+};
+
+window.executeBulkDeleteByCategory = async function() {
+    const catId = document.getElementById('bulkTargetCatDelete').value;
+    const confirmText = document.getElementById('bulkDeleteConfirmText').value.trim();
+    
+    if (!catId) return alert("Please select a target category to delete.");
+    if (confirmText !== "DELETE") return alert("You must type exactly 'DELETE' to confirm this action.");
+
+    const btn = document.getElementById('saveBulkDeleteBtn');
+    btn.disabled = true;
+    btn.innerText = "DELETING...";
+
+    try {
+        const { error } = await db.from('products')
+            .delete()
+            .eq('cat_id', Number(catId));
+            
+        if (error) throw error;
+
+        alert("All products in the selected category have been successfully deleted.");
+        
+        closeModal('bulkDeleteModal');
+        document.getElementById('bulkDeleteConfirmText').value = '';
+        await loadProducts(1); 
+
+    } catch (err) {
+        alert("Error deleting products: " + err.message);
+        await loadProducts(prodCurrentPage); 
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "PERMANENTLY DELETE CATEGORY";
     }
 };
 
@@ -2639,6 +3064,7 @@ async function loadOrders() {
         updateTabCounts(); 
         populateStateDropdown(); // New state parsing logic
         renderOrdersTable(currentOrderFilter);
+        if (typeof renderMonthlyEarnings === 'function') renderMonthlyEarnings();
     } catch (err) {
         console.error("Orders load error:", err);
         document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
@@ -2964,21 +3390,46 @@ window.viewOrderItems = async function(orderId) {
     }
 };
 
-window.updateOrderStatus = async function(id, newStatus) {
-    // Add a small visual confirmation
-    if(!confirm(`Change Order ${id} status to ${newStatus}?`)) return;
+window.updateOrderStatus = function(id, newStatus) {
+    customConfirm(`Change Order ${id} status to ${newStatus}?`, async () => {
+        // 1. Optimistic UI Update
+        const orderIndex = State.orders.findIndex(o => o.id === id);
+        let oldStatus = null;
+        if (orderIndex > -1) {
+            oldStatus = State.orders[orderIndex].status;
+            State.orders[orderIndex].status = newStatus;
+        }
 
-    try {
-        const { error } = await db.from('orders').update({ status: newStatus }).eq('id', id);
-        if (error) throw error;
+        // Target the specific dropdown and badge in the DOM
+        const selectEl = document.querySelector(`select[onchange*="updateOrderStatus('${id}'"]`);
+        const row = selectEl ? selectEl.closest('tr') : null;
+        let badgeEl = row ? row.querySelector('td[data-label="Status"] .badge:not(.awb-badge)') : null;
+
+        if (badgeEl) {
+            badgeEl.innerText = newStatus;
+            badgeEl.className = `badge ${newStatus === 'Delivered' || newStatus === 'Confirmed' ? 'success' : newStatus === 'Cancelled' ? 'danger' : 'warning'}`;
+        }
         
-        // Refresh data
-        await loadOrders(); 
-        await loadDashboard(); 
-        alert("Status updated successfully!");
-    } catch (err) {
-        alert("Failed to update status: " + err.message);
-    }
+        updateTabCounts(); // Update tabs immediately
+
+        try {
+            // 2. Network Request
+            const { error } = await db.from('orders').update({ status: newStatus }).eq('id', id);
+            if (error) throw error;
+            showToast(`Order #${id} marked as ${newStatus}`, 'success');
+            
+        } catch (err) {
+            // 3. Rollback
+            if (orderIndex > -1 && oldStatus) State.orders[orderIndex].status = oldStatus;
+            if (selectEl) selectEl.value = oldStatus;
+            if (badgeEl) {
+                badgeEl.innerText = oldStatus;
+                badgeEl.className = `badge ${oldStatus === 'Delivered' || oldStatus === 'Confirmed' ? 'success' : oldStatus === 'Cancelled' ? 'danger' : 'warning'}`;
+            }
+            updateTabCounts();
+            showToast("Failed to update status: " + err.message, 'error');
+        }
+    }, false); // Not a danger action
 };
 
 // NEW REPLACEMENT
@@ -3057,23 +3508,89 @@ window.updateOrderStatus = async function(id, newStatus) {
     link.click();
     document.body.removeChild(link);
 };
-        // Generic Delete
-        window.deleteRecord = async function(table, id) {
-            if(confirm(`Are you sure you want to delete this record from ${table}?`)) {
+// --- Optimistic Master Delete ---
+        window.deleteRecord = function(table, id) {
+            // Capture the specific table row that was clicked
+            const btnEvent = window.event;
+            const row = btnEvent ? (btnEvent.target.closest('tr') || btnEvent.target.closest('tbody.main-cat-group')) : null;
+
+            customConfirm(`Are you sure you want to delete this record from ${table}?`, async () => {
+                // 1. Optimistic UI Update: Hide the row instantly
+                const prevDisplay = row ? row.style.display : '';
+                if (row) row.style.display = 'none';
+
+                // 2. Optimistic State Update
+                let stateBackup = null;
+                if (State[table]) {
+                    stateBackup = [...State[table]];
+                    State[table] = State[table].filter(item => item.id !== id);
+                }
+
                 try {
+                    // 3. Network Request
                     const { error } = await db.from(table).delete().eq('id', id);
                     if (error) throw error;
-
-                    if(table==='products') await loadProducts();
-                    if(table==='categories') await loadCategories();
-                    if(table==='coupons') await loadCoupons();
-                    if(table==='reviews') await loadReviews();
                     
-                    await loadDashboard();
+                    // 4. Success handling
+                    if (row) row.remove(); // Remove from DOM permanently
+                    showToast(`Record deleted from ${table}`, 'success');
+                    
                 } catch (err) {
-                    alert("Delete failed: " + err.message);
+                    // 5. Rollback on Failure
+                    if (row) row.style.display = prevDisplay;
+                    if (stateBackup) State[table] = stateBackup;
+                    showToast("Delete failed: " + err.message, 'error');
                 }
-            }
+            });
+        };
+
+        // --- Optimistic Bulk Action ---
+        window.executeBulkAction = function(action) {
+            const checkedBoxes = Array.from(document.querySelectorAll('.prod-row-cb:checked'));
+            if (checkedBoxes.length === 0) return;
+
+            const ids = checkedBoxes.map(cb => Number(cb.value));
+            const confirmMsg = action === 'delete' 
+                ? `PERMANENTLY DELETE ${ids.length} products? This cannot be undone.` 
+                : `Hide ${ids.length} products from the storefront?`;
+
+            customConfirm(confirmMsg, async () => {
+                // 1. Optimistic UI Patch
+                const rows = checkedBoxes.map(cb => cb.closest('tr'));
+                const originalDisplays = rows.map(r => r.style.display);
+                
+                if (action === 'delete') {
+                    rows.forEach(r => r.style.display = 'none'); // Hide instantly
+                    State.products = State.products.filter(p => !ids.includes(p.id));
+                }
+
+                try {
+                    // 2. Network Request
+                    if (action === 'delete') {
+                        const { error } = await db.from('products').delete().in('id', ids);
+                        if (error) throw error;
+                        rows.forEach(r => r.remove());
+                    } else if (action === 'hide') {
+                        const { error } = await db.from('products').update({ is_hidden: true }).in('id', ids);
+                        if (error) throw error;
+                        // Update local state without full reload
+                        State.products.forEach(p => { if(ids.includes(p.id)) p.is_hidden = true; });
+                        renderProductsTable(State.products.length, false, false);
+                    }
+
+                    document.getElementById('selectAllProds').checked = false;
+                    updateBulkActionBar();
+                    showToast(`Successfully processed ${ids.length} items.`, 'success');
+
+                } catch (err) {
+                    // 3. Rollback
+                    if (action === 'delete') {
+                        rows.forEach((r, idx) => r.style.display = originalDisplays[idx]);
+                        loadProducts(prodCurrentPage); // Re-fetch on major fail to restore state
+                    }
+                    showToast("Bulk action failed: " + err.message, 'error');
+                }
+            }, action === 'delete');
         };
       // Reordering Logic
         window.reorderRecord = async function(table, id, direction, groupColumn, groupId) {
@@ -3536,6 +4053,106 @@ window.syncToSupabase = async function() {
 };
         
 
+window.renderMonthlyEarnings = function() {
+    const tbody = document.getElementById('monthlyEarningsTableBody');
+    if (!tbody) return;
+
+    let overallTotal = 0;
+    const monthlyData = {}; // Format: { "YYYY-MM": { label: "Jan 2026", total: 0, tags: {} } }
+
+    // 1. Filter out Cancelled orders
+    const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
+
+    validOrders.forEach(order => {
+        // 2. Group by Month and Year
+        const dateObj = new Date(order.created_at);
+        const monthYearKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+        const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        if (!monthlyData[monthYearKey]) {
+            monthlyData[monthYearKey] = { label: monthLabel, total: 0, tags: {} };
+        }
+
+        // 3. Calculate True Received Amount
+        let c = {};
+        try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
+
+        let orderReceivedAmount = 0;
+        if (c.paymentMethod === 'cod') {
+            orderReceivedAmount = Number(c.amountPaid || 0); // Advance is always collected
+            if (order.status === 'Delivered') {
+                orderReceivedAmount += Number(c.amountDue || 0); // Due is collected upon delivery
+            }
+        } else {
+            // Online orders are fully paid upfront
+            orderReceivedAmount = Number(order.total_amount || 0);
+        }
+
+        monthlyData[monthYearKey].total += orderReceivedAmount;
+        overallTotal += orderReceivedAmount;
+
+        // 4. Distribute Revenue to Tags
+        let itemsArr = [];
+        try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
+
+        const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+        const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
+
+        itemsArr.forEach(item => {
+            const prodTag = item.smart_tag || 'Uncategorized';
+            const itemGrossValue = (Number(item.price) || 0) * (Number(item.qty) || 1);
+            const itemTrueRevenue = itemGrossValue * revenueRatio;
+
+            if (!monthlyData[monthYearKey].tags[prodTag]) {
+                monthlyData[monthYearKey].tags[prodTag] = 0;
+            }
+            monthlyData[monthYearKey].tags[prodTag] += itemTrueRevenue;
+        });
+    });
+
+    // 5. Render UI
+    document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
+
+    // Sort months descending (newest first)
+    const sortedMonths = Object.keys(monthlyData).sort().reverse();
+
+    let html = '';
+    if (sortedMonths.length === 0) {
+        html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
+    } else {
+        sortedMonths.forEach(monthKey => {
+            const data = monthlyData[monthKey];
+            
+            // Build the Tag Badges HTML
+            let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
+            const sortedTags = Object.keys(data.tags).sort((a, b) => data.tags[b] - data.tags[a]); // Sort tags by highest revenue
+            
+            if (sortedTags.length === 0) {
+                tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
+            } else {
+                sortedTags.forEach(tag => {
+                    tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(data.tags[tag]).toLocaleString()}</span>`;
+                });
+            }
+            tagsHtml += `</div>`;
+
+            html += `
+            <tr style="background: #fff;">
+                <td>
+                    <strong style="font-size: 14px; text-transform: uppercase;">${data.label}</strong>
+                    ${tagsHtml}
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                    <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(data.total).toLocaleString()}</strong>
+                </td>
+            </tr>`;
+        });
+    }
+
+    tbody.innerHTML = html;
+};
+
+
         // --- SMART TAGS & REVENUE LOGIC ---
 State.smartTags = [];
 
@@ -3763,5 +4380,17 @@ window.sendWaConfirmation = function() {
         </div>
     </div>
 </div>
+<div id="toast-container" class="toast-container"></div>
+
+    <div id="customConfirmModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="border: none; margin-bottom: 15px; padding-bottom: 0; font-size: 16px;" id="confirmMessageText">Are you sure?</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;" id="confirmSubtext"></p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="outline" id="confirmCancelBtn" style="width: auto; margin: 0;">CANCEL</button>
+                <button class="danger" id="confirmAcceptBtn" style="width: auto; margin: 0;">CONFIRM</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
