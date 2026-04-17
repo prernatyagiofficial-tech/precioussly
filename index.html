@@ -4205,13 +4205,16 @@ function initiatePayment(btn, totalAmount) {
         }
     }
 
-    let amountToCharge = totalAmount;
-    let amountDueOnDelivery = 0;
+    let amountToCharge = Number(totalAmount) || 0;
+let amountDueOnDelivery = 0;
 
-    if (paymentMethod === 'cod') {
-        amountToCharge = appData.settings.codUpfrontFee;
-        amountDueOnDelivery = totalAmount - appData.settings.codUpfrontFee;
-    }
+if (paymentMethod === 'cod') {
+    // Strictly parse the upfront fee
+    amountToCharge = Number(appData.settings.codUpfrontFee) || 0;
+    
+    // Calculate due amount and prevent it from ever being negative or NaN
+    amountDueOnDelivery = Math.max(0, Number(totalAmount) - amountToCharge);
+}
 
 // UPDATED: Added altPhone to the object
     const orderDetails = {
