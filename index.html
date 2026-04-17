@@ -1683,7 +1683,7 @@ if (session && window.location.href.includes('code=')) {
         
         // --- FILTER STATE ---
 let currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
-let baseCategoryProducts = [];
+let filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
 let currentCategoryName = '';
 let currentSubCategories = [];
 
@@ -1892,13 +1892,13 @@ function mapProduct(row) {
             if (currentFilters.minPrice !== null) query = query.gte('price', currentFilters.minPrice);
             if (currentFilters.maxPrice !== null) query = query.lte('price', currentFilters.maxPrice);
 
-            // 4. Server-Side Sorting
+// 4. Server-Side Sorting (Fixed for 10,000+ products using deterministic secondary sorting)
             switch(currentFilters.sortBy) {
-                case 'best-selling': query = query.order('is_best_seller', { ascending: false }); break;
-                case 'a-z': query = query.order('name', { ascending: true }); break;
-                case 'z-a': query = query.order('name', { ascending: false }); break;
-                case 'low-high': query = query.order('price', { ascending: true }); break;
-                case 'high-low': query = query.order('price', { ascending: false }); break;
+                case 'best-selling': query = query.order('is_best_seller', { ascending: false }).order('id', { ascending: false }); break;
+                case 'a-z': query = query.order('name', { ascending: true }).order('id', { ascending: false }); break;
+                case 'z-a': query = query.order('name', { ascending: false }).order('id', { ascending: false }); break;
+                case 'low-high': query = query.order('price', { ascending: true }).order('id', { ascending: false }); break;
+                case 'high-low': query = query.order('price', { ascending: false }).order('id', { ascending: false }); break;
                 case 'old-new': query = query.order('id', { ascending: true }); break;
                 case 'new-old': query = query.order('id', { ascending: false }); break;
                 case 'featured':
@@ -2381,8 +2381,9 @@ if (appData.settings.instagramUrl) {
             currentCategoryName = `Results for "${query}"`;
             currentSubCategories = [];
             
-            // Reset filters visually without re-triggering the fetch
+// Reset filters visually without re-triggering the fetch
             currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+            filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
             updateFilterUI();
             
             mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div><p style="margin-top:20px; color: var(--text-gray);">Searching catalog...</p></div>`;
@@ -2768,8 +2769,9 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
                 mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div></div>`;
             }
 
-            // Reset filters visually without re-triggering the fetch
+// Reset filters visually without re-triggering the fetch
             currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+            filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
             updateFilterUI();
 
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
@@ -4797,14 +4799,34 @@ function switchFilterView(viewId) {
     document.getElementById('filter-view-' + viewId).classList.add('active');
 }
 
-function updateFilterUI() {
-    const inStockCount = baseCategoryProducts.filter(p => p.stock === null || p.stock > 0).length;
-    const outOfStockCount = baseCategoryProducts.filter(p => p.stock !== null && p.stock <= 0).length;
-    document.getElementById('lblInStock').innerText = `In stock (${inStockCount})`;
-    document.getElementById('lblOutOfStock').innerText = `Out of stock (${outOfStockCount})`;
+async function updateFilterUI() {
+    // Safely calculate aggregates for massive catalogs without loading all products into memory
+    if (filterAggregates.maxPrice === 0) {
+        let aggQuery = db.from('products').select('price, stock').neq('is_hidden', true);
+        
+        if (currentFetchParams.search) {
+            aggQuery = aggQuery.ilike('name', `%${currentFetchParams.search}%`);
+        } else if (currentFetchParams.category && currentFetchParams.category !== 'all' && currentFetchParams.category !== 'bestsellers') {
+            if (currentFetchParams.subCatIds && currentFetchParams.subCatIds.length > 0) {
+                aggQuery = aggQuery.in('cat_id', [currentFetchParams.category, ...currentFetchParams.subCatIds]);
+            } else {
+                aggQuery = aggQuery.eq('cat_id', currentFetchParams.category);
+            }
+        } else if (currentFetchParams.category === 'bestsellers') {
+            aggQuery = aggQuery.eq('is_best_seller', true);
+        }
 
-    const maxP = baseCategoryProducts.length > 0 ? Math.max(...baseCategoryProducts.map(p => p.price)) : 0;
-    document.getElementById('lblMaxPrice').innerText = `The highest price is ${formatPrice(maxP)}`;
+        const { data } = await aggQuery;
+        if (data && data.length > 0) {
+            filterAggregates.inStock = data.filter(p => p.stock === null || p.stock > 0).length;
+            filterAggregates.outOfStock = data.filter(p => p.stock !== null && p.stock <= 0).length;
+            filterAggregates.maxPrice = Math.max(...data.map(p => p.price || 0));
+        }
+    }
+
+    document.getElementById('lblInStock').innerText = `In stock (${filterAggregates.inStock})`;
+    document.getElementById('lblOutOfStock').innerText = `Out of stock (${filterAggregates.outOfStock})`;
+    document.getElementById('lblMaxPrice').innerText = `The highest price is ${formatPrice(filterAggregates.maxPrice)}`;
 
     document.getElementById('chkInStock').checked = currentFilters.inStock;
     document.getElementById('chkOutOfStock').checked = currentFilters.outOfStock;
