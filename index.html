@@ -2711,7 +2711,7 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                     if (bestSellers.length > 0) {
                         html += `
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
-                            <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
+                            <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
                             <a href="javascript:void(0)" onclick="renderCategory('bestsellers')" class="view-all-btn">
     View All 
     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -2734,7 +2734,7 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                     // Flex header for Title + View All
                     html += `
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
-                        <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
+                        <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
                         <a href="javascript:void(0)" onclick="renderCategory('${cat.id}')" class="view-all-btn">
     View All 
     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -2905,7 +2905,7 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
             if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
                 html += `
                 <div class="section-title-wrapper" style="padding-top: 25px; padding-bottom: 5px;">
-                    <h3 style="font-family: 'Playfair Display', serif; font-size: 28px; color: var(--text-dark); font-weight: 600; text-align: center;">${title}</h3>
+                    <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; text-align: center;">${title}</h3>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px 20px;">
                     <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
