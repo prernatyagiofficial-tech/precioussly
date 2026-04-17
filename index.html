@@ -34,11 +34,19 @@
             --error-color: #ff4757;
         }
 
-        * {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none; /* Safari */
+            user-select: none; /* Standard */
+        }
+
+        /* Crucial: Allows text selection inside checkout forms and search bars */
+        input, textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
         }
 
         body {
