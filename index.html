@@ -4179,7 +4179,7 @@ function handleCheckoutClick(btn) {
             return isValid;
         }
 
-async function initiatePayment(btn, totalAmount) {
+function initiatePayment(btn, totalAmount) {
     if (!validateCheckoutForm()) {
         triggerHaptic('pop');
         showToast("Please check the errors in the form");
@@ -4189,7 +4189,7 @@ async function initiatePayment(btn, totalAmount) {
     const name = document.getElementById('chkName').value;
     const email = document.getElementById('chkEmail').value;
     const phone = document.getElementById('chkPhone').value;
-    const altPhone = document.getElementById('chkAltPhone').value;
+    const altPhone = document.getElementById('chkAltPhone').value; // NEW: Capture Alt Phone
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -4206,18 +4206,22 @@ async function initiatePayment(btn, totalAmount) {
     }
 
     let amountToCharge = Number(totalAmount) || 0;
-    let amountDueOnDelivery = 0;
+let amountDueOnDelivery = 0;
 
-    if (paymentMethod === 'cod') {
-        amountToCharge = Number(appData.settings.codUpfrontFee) || 0;
-        amountDueOnDelivery = Math.max(0, Number(totalAmount) - amountToCharge);
-    }
+if (paymentMethod === 'cod') {
+    // Strictly parse the upfront fee
+    amountToCharge = Number(appData.settings.codUpfrontFee) || 0;
+    
+    // Calculate due amount and prevent it from ever being negative or NaN
+    amountDueOnDelivery = Math.max(0, Number(totalAmount) - amountToCharge);
+}
 
+// UPDATED: Added altPhone to the object
     const orderDetails = {
         name: name,
         email: email,
         phone: phone,
-        altPhone: altPhone,
+        altPhone: altPhone, // NEW: Saves to Supabase
         address: document.getElementById('chkAddress').value + ', ' + document.getElementById('chkCity').value + ', ' + document.getElementById('chkState').value + ' - ' + document.getElementById('chkPincode').value,
         paymentMethod: paymentMethod,
         amountPaid: amountToCharge,
@@ -4228,8 +4232,12 @@ async function initiatePayment(btn, totalAmount) {
         couponApplied: appliedCouponStr
     };
 
+    // --- NEW: AUTO-SAVE ADDRESS LOGIC ---
     const saveAddressData = {
-        name: name, email: email, phone: phone, altPhone: altPhone,
+        name: name,
+        email: email,
+        phone: phone,
+        altPhone: altPhone,
         state: document.getElementById('chkState').value.trim(),
         city: document.getElementById('chkCity').value.trim(),
         pincode: document.getElementById('chkPincode').value.trim(),
@@ -4238,58 +4246,41 @@ async function initiatePayment(btn, totalAmount) {
 
     if (state.user) {
         db.from('profiles').update({
-            phone: saveAddressData.phone, alt_phone: saveAddressData.altPhone,
-            state: saveAddressData.state, city: saveAddressData.city,
-            pincode: saveAddressData.pincode, address: saveAddressData.address
+            phone: saveAddressData.phone,
+            alt_phone: saveAddressData.altPhone,
+            state: saveAddressData.state,
+            city: saveAddressData.city,
+            pincode: saveAddressData.pincode,
+            address: saveAddressData.address
         }).eq('id', state.user.id).then(({error}) => {
             if (error) console.error("Failed to auto-save profile address", error);
         });
     } else {
         localStorage.setItem('eco_guest_address', JSON.stringify(saveAddressData));
     }
+    // ------------------------------------
 
     if (amountToCharge > 0) {
         withLoading(btn, async () => {
             try {
-                // 1. Create the Draft Order immediately in the database
-                const draftOrderId = Math.floor(100000 + Math.random() * 900000);
-                const orderData = {
-                    id: draftOrderId,
-                    total_amount: totalAmount,
-                    items: state.cart,
-                    customer_details: orderDetails,
-                    status: paymentMethod === 'cod' ? 'In Progress' : 'Pending Payment',
-                    created_at: new Date().toISOString()
-                };
-
-                const { error: dbError } = await db.from('orders').insert([orderData]);
-                if (dbError) throw new Error("Could not create draft order.");
-
-                if (paymentMethod === 'cod') {
-                    await finalizeOrder(draftOrderId);
-                    return;
-                }
-
-                // 2. Create the Razorpay Order
-                const { data: rzpData, error: rzpError } = await db.functions.invoke('create-rzp-order', {
+                const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
                     body: { amount: amountToCharge }
                 });
 
-                if (rzpError || !rzpData || !rzpData.id) throw new Error("Payment initialization failed.");
+                if (orderError || !orderData || !orderData.id) {
+                    console.error("Backend Order Creation Error:", orderError);
+                    showToast("Failed to initialize secure payment.");
+                    return;
+                }
 
-                // 3. Link Razorpay Order ID to your Draft Order
-                orderData.customer_details.razorpay_order_id = rzpData.id;
-                await db.from('orders').update({ customer_details: orderData.customer_details }).eq('id', draftOrderId);
-
-                // 4. Open the Razorpay Payment Window
                 const options = {
                     "key": "rzp_live_Sc7Dz1pFcekdz3", 
-                    "amount": rzpData.amount,       
+                    "amount": orderData.amount,       
                     "currency": "INR",
-                    "order_id": rzpData.id,         
-                    "name": appData.settings.brandName || "Precioussly",
+                    "order_id": orderData.id,         
+                    "name": appData.settings.brandName,
                     "description": "Payment for Order",
-                    "image": appData.settings.logoUrl || "",
+                    "image": appData.settings.logoUrl,
                     "handler": async function (response) { 
                         showToast("Verifying payment...");
                         try {
@@ -4304,55 +4295,44 @@ async function initiatePayment(btn, totalAmount) {
                             if (verifyError) throw verifyError;
 
                             if (verifyData && verifyData.success) {
-                                await db.from('orders').update({ status: 'In Progress' }).eq('id', draftOrderId);
-                                await finalizeOrder(draftOrderId);
+                                await processOrderPlacement(totalAmount, orderDetails); 
                             } else {
-                                alert("Payment verification failed!");
+                                console.error("Verification Error:", verifyData);
+                                alert("Payment verification failed! Order not placed.");
                             }
                         } catch (err) {
-                            alert("Verification error. If money was deducted, your order will confirm automatically shortly.");
+                            console.error("Verification Exception:", err);
+                            alert("Error verifying payment with server: " + err.message);
                         }
                     },
-                    "prefill": { "name": name, "email": email, "contact": phone },
+                    "prefill": { 
+                        "name": name, 
+                        "email": email, 
+                        "contact": phone 
+                    },
                     "theme": { "color": "#1a1a1a" },
-                    "modal": { "ondismiss": function() { showToast("Payment cancelled"); } }
+                    "modal": { 
+                        "ondismiss": function() { 
+                            showToast("Payment cancelled"); 
+                        } 
+                    }
                 };
                 
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (response) {
+                    console.error("Payment Failed:", response.error);
                     showToast("Payment Failed: " + response.error.description);
                 });
                 rzp.open();
                 
             } catch (e) {
-                console.error(e);
-                showToast(e.message || "Something went wrong.");
+                console.error("Payment Gateway Error:", e);
+                showToast("Payment Gateway Error. Please try again.");
             }
-        });
+        }, 1200); 
     } else {
         withLoading(btn, () => processOrderPlacement(totalAmount, orderDetails), 1200); 
     }
-}
-
-async function finalizeOrder(orderId) {
-    const itemsWithStockKeys = state.cart.map(item => {
-        let key = item.variant || "Default";
-        if (item.size) key += `_${item.size}`;
-        return { ...item, stockKey: key };
-    });
-
-    // Deduct inventory
-    await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
-
-    // Save a placeholder local order so it shows up in "Your Orders" immediately
-    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    localOrders.unshift({ id: orderId, created_at: new Date().toISOString(), status: 'In Progress' }); 
-    localStorage.setItem('shria_orders', JSON.stringify(localOrders));
-
-    state.cart = [];
-    persistUserData(); 
-    updateBadges();
-    renderThankYou(orderId);
 }
 
         async function processOrderPlacement(totalAmount, orderDetails) {
