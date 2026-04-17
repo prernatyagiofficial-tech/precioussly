@@ -4334,7 +4334,7 @@ async function initiatePayment(btn, totalAmount) {
     }
 }
 
-async function finalizeOrder(orderId) {
+async function finalizeOrder(orderData) {
     const itemsWithStockKeys = state.cart.map(item => {
         let key = item.variant || "Default";
         if (item.size) key += `_${item.size}`;
@@ -4344,15 +4344,23 @@ async function finalizeOrder(orderId) {
     // Deduct inventory
     await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
 
-    // Save a placeholder local order so it shows up in "Your Orders" immediately
+    // Save the FULL order locally so "Your Orders" page doesn't crash
+    orderData.status = 'In Progress'; // Update local status to show it's confirmed
     const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    localOrders.unshift({ id: orderId, created_at: new Date().toISOString(), status: 'In Progress' }); 
+    
+    // Check if order already exists locally to prevent duplicates
+    const existingIndex = localOrders.findIndex(o => String(o.id) === String(orderData.id));
+    if (existingIndex === -1) {
+        localOrders.unshift(orderData); 
+    } else {
+        localOrders[existingIndex] = orderData;
+    }
     localStorage.setItem('shria_orders', JSON.stringify(localOrders));
 
     state.cart = [];
     persistUserData(); 
     updateBadges();
-    renderThankYou(orderId);
+    renderThankYou(orderData.id);
 }
 
         async function processOrderPlacement(totalAmount, orderDetails) {
