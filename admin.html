@@ -540,6 +540,68 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        /* --- Smart Bulk Editor Styles --- */
+        .smart-bulk-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+        .smart-bulk-media {
+            width: 180px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .smart-bulk-img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-body);
+        }
+        .smart-bulk-details {
+            flex: 1;
+            min-width: 0;
+        }
+        .smart-variant-box {
+            border: 1px solid var(--border-color);
+            background: var(--bg-body);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            align-items: center;
+        }
+        .smart-variant-media {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: #fff;
+        }
+        .sb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 768px) {
+            .smart-bulk-card { flex-direction: column; padding: 16px; }
+            .smart-bulk-media { width: 100%; flex-direction: row; overflow-x: auto;}
+            .smart-bulk-img { width: 100px; height: 100px; }
+            .smart-variant-box { flex-direction: column; align-items: flex-start; }
+            .smart-variant-media { width: 60px; height: 60px; }
+        }
     </style>
 </head>
 <body>
@@ -726,6 +788,26 @@
         </div>
     </div>
 </div>
+
+
+
+<div id="view-bulk-smart" class="view-section">
+    <div class="section-header" style="position: sticky; top: -30px; background: var(--bg-body); z-index: 10; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-top: -10px; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 16px;">
+        <h1 style="margin: 0;">Smart Bulk Editor</h1>
+        <div style="display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end;">
+            <select id="bulkSmartCatFilter" onchange="renderBulkSmartProducts()" style="margin-bottom: 0; min-width: 250px; max-width: 300px;">
+                <option value="">Select Category to Edit...</option>
+            </select>
+            <button onclick="saveAllBulkSmart()" id="btnSaveBulkSmart" style="margin-bottom: 0; width: auto;">SAVE ALL CHANGES</button>
+        </div>
+    </div>
+    <div id="bulkSmartContainer" style="margin-top: 20px;">
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+            Please select a category from the dropdown above to load products for editing.
+        </div>
+    </div>
+</div>
+
 
 <div id="view-categories" class="view-section">
                     <div class="section-header">
@@ -1121,7 +1203,9 @@
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkPriceModal');">Bulk Update Price</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
+<button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
+
 <button class="danger" onclick="closeModal('bulkChoiceModal'); openModal('bulkDeleteModal');">Bulk Delete By Category</button>
         </div>
     </div>
@@ -1688,39 +1772,13 @@ if (session) {
 
 async function loadDashboard() {
     try {
-        const [ {count: ordCount}, {data: prods}, {data: revs}, {count: userCount} ] = await Promise.all([
-            db.from('orders').select('*', { count: 'exact', head: true }),
-            db.from('products').select('id'),
-            db.from('orders').select('status, total_amount, customer_details'),
-            db.from('profiles').select('*', { count: 'exact', head: true })
-        ]);
-        document.getElementById('statOrders').innerText = ordCount || 0;
-        document.getElementById('statProducts').innerText = prods?.length || 0;
-        document.getElementById('statUsers').innerText = userCount || 0;
+        const { data, error } = await db.rpc('get_dashboard_stats');
+        if (error) throw error;
 
-        let totalReceived = 0;
-        if (revs) {
-            revs.forEach(row => {
-                const c = row.customer_details || {};
-                
-                if (c.paymentMethod === 'cod') {
-                    // For COD: Always add the advance fee paid upfront
-                    totalReceived += (Number(c.amountPaid) || 0);
-                    
-                    // Add the remaining due amount ONLY if the order is marked Delivered
-                    if (row.status === 'Delivered') {
-                        totalReceived += (Number(c.amountDue) || 0);
-                    }
-                } else {
-                    // For Online Payments: The full amount is collected upfront. 
-                    // Exclude cancelled orders to maintain accurate received funds.
-                    if (row.status !== 'Cancelled') {
-                        totalReceived += (Number(row.total_amount) || 0);
-                    }
-                }
-            });
-        }
-        document.getElementById('statReceived').innerText = `₹${totalReceived.toLocaleString()}`;
+        document.getElementById('statOrders').innerText = data.total_orders || 0;
+        document.getElementById('statProducts').innerText = data.total_products || 0;
+        document.getElementById('statUsers').innerText = data.total_users || 0;
+        document.getElementById('statReceived').innerText = `₹${(data.total_received || 0).toLocaleString()}`;
     } catch (err) {
         console.error("Dashboard error:", err);
     }
@@ -4174,109 +4232,62 @@ window.syncToSupabase = async function() {
 };
         
 
-window.fetchAnalyticsData = async function() {
-            try {
-                // Fetch lightweight historical payload (ignoring cancelled orders to speed it up)
-                const { data, error } = await db.from('orders')
-                    .select('created_at, status, total_amount, customer_details, items, actual_shipping_cost')
-                    .neq('status', 'Cancelled');
-                if (error) throw error;
-                return data || [];
-            } catch(e) {
-                console.error("Failed to fetch analytics:", e);
-                return [];
-            }
-        };
+window.renderMonthlyEarnings = async function() {
+    const tbody = document.getElementById('monthlyEarningsTableBody');
+    if (!tbody) return;
 
-        window.renderMonthlyEarnings = async function() {
-            const tbody = document.getElementById('monthlyEarningsTableBody');
-            if (!tbody) return;
-            
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching historical data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching historical data...</td></tr>';
 
-            const historicalOrders = await fetchAnalyticsData();
+    try {
+        const { data, error } = await db.rpc('get_monthly_earnings');
+        if (error) throw error;
 
-            let overallTotal = 0;
-            const monthlyData = {}; 
+        let overallTotal = 0;
+        let html = '';
 
-            historicalOrders.forEach(order => {
-                const dateObj = new Date(order.created_at);
-                const monthYearKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+        if (!data || data.length === 0) {
+            html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
+        } else {
+            const sortedData = data.sort((a, b) => b.month_key.localeCompare(a.month_key));
+
+            sortedData.forEach(monthData => {
+                overallTotal += monthData.total;
+
+                const dateObj = new Date(monthData.month_key + '-01');
                 const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-                if (!monthlyData[monthYearKey]) {
-                    monthlyData[monthYearKey] = { label: monthLabel, total: 0, tags: {} };
-                }
+                let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
+                const tagsObj = monthData.tags || {};
+                const sortedTags = Object.keys(tagsObj).sort((a, b) => tagsObj[b] - tagsObj[a]);
 
-                let c = {};
-                try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
-
-                let orderReceivedAmount = 0;
-                if (c.paymentMethod === 'cod') {
-                    orderReceivedAmount = Number(c.amountPaid || 0); 
-                    if (order.status === 'Delivered') {
-                        orderReceivedAmount += Number(c.amountDue || 0); 
-                    }
+                if (sortedTags.length === 0) {
+                    tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
                 } else {
-                    orderReceivedAmount = Number(order.total_amount || 0);
+                    sortedTags.forEach(tag => {
+                        tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(tagsObj[tag]).toLocaleString()}</span>`;
+                    });
                 }
+                tagsHtml += `</div>`;
 
-                monthlyData[monthYearKey].total += orderReceivedAmount;
-                overallTotal += orderReceivedAmount;
-
-                let itemsArr = [];
-                try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
-
-                const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
-                const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
-
-                itemsArr.forEach(item => {
-                    const prodTag = item.smart_tag || 'Uncategorized';
-                    const itemGrossValue = (Number(item.price) || 0) * (Number(item.qty) || 1);
-                    const itemTrueRevenue = itemGrossValue * revenueRatio;
-
-                    if (!monthlyData[monthYearKey].tags[prodTag]) {
-                        monthlyData[monthYearKey].tags[prodTag] = 0;
-                    }
-                    monthlyData[monthYearKey].tags[prodTag] += itemTrueRevenue;
-                });
+                html += `
+                <tr style="background: #fff;">
+                    <td>
+                        <strong style="font-size: 14px; text-transform: uppercase;">${monthLabel}</strong>
+                        ${tagsHtml}
+                    </td>
+                    <td style="text-align: right; vertical-align: middle;">
+                        <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(monthData.total).toLocaleString()}</strong>
+                    </td>
+                </tr>`;
             });
-
-            document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
-            const sortedMonths = Object.keys(monthlyData).sort().reverse();
-
-            let html = '';
-            if (sortedMonths.length === 0) {
-                html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
-            } else {
-                sortedMonths.forEach(monthKey => {
-                    const data = monthlyData[monthKey];
-                    let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
-                    const sortedTags = Object.keys(data.tags).sort((a, b) => data.tags[b] - data.tags[a]); 
-                    
-                    if (sortedTags.length === 0) {
-                        tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
-                    } else {
-                        sortedTags.forEach(tag => {
-                            tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(data.tags[tag]).toLocaleString()}</span>`;
-                        });
-                    }
-                    tagsHtml += `</div>`;
-
-                    html += `
-                    <tr style="background: #fff;">
-                        <td>
-                            <strong style="font-size: 14px; text-transform: uppercase;">${data.label}</strong>
-                            ${tagsHtml}
-                        </td>
-                        <td style="text-align: right; vertical-align: middle;">
-                            <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(data.total).toLocaleString()}</strong>
-                        </td>
-                    </tr>`;
-                });
-            }
-            tbody.innerHTML = html;
-        };
+        }
+        document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
+        tbody.innerHTML = html;
+    } catch (err) {
+        console.error("Monthly Earnings Error:", err);
+        tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; padding: 20px; color: red;">Failed to load data.</td></tr>`;
+    }
+};
 
     
 
@@ -4336,87 +4347,265 @@ function deleteSmartTag(index) {
     }
 }
 
-// NEW REPLACEMENT
-function calculateTagRevenue() {
+window.calculateTagRevenue = async function() {
     const selectedTag = document.getElementById('revenueTagFilter').value;
     const tbody = document.getElementById('revenueTagsTableBody');
-    let totalRev = 0;
-    let totalProfitGlobal = 0;
-    const productStats = {};
 
-    // Only count non-cancelled orders
-    const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">Calculating revenue...</td></tr>`;
 
-    validOrders.forEach(order => {
-        // Safely parse customer details and items
-        let c = {};
-        try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
-        
-        let itemsArr = [];
-        try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
+    try {
+        const { data, error } = await db.rpc('get_tag_revenue', { target_tag: selectedTag });
+        if (error) throw error;
 
-        // Calculate true received amount for the entire order
-        let orderReceivedAmount = 0;
-        if (c.paymentMethod === 'cod') {
-            orderReceivedAmount = Number(c.amountPaid || 0);
-            if (order.status === 'Delivered') orderReceivedAmount += Number(c.amountDue || 0);
+        let totalRev = 0;
+        let totalProfitGlobal = 0;
+
+        let html = '';
+        if (!data || data.length === 0) {
+            html = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
         } else {
-            orderReceivedAmount = Number(order.total_amount || 0);
+            const sortedData = data.sort((a, b) => b.rev - a.rev);
+
+            sortedData.forEach(stat => {
+                totalRev += stat.rev;
+                totalProfitGlobal += stat.profit;
+
+                html += `
+                <tr>
+                    <td><strong>${escapeHTML(stat.name)}</strong></td>
+                    <td><span class="badge" style="background:#f0f0f0; color:#000; border:1px solid #000;">${escapeHTML(stat.tag)}</span></td>
+                    <td>${stat.units}</td>
+                    <td><strong>₹${Math.round(stat.rev).toLocaleString()}</strong></td>
+                    <td><strong style="color: ${stat.profit >= 0 ? '#2ecc71' : '#ff4757'};">₹${Math.round(stat.profit).toLocaleString()}</strong></td>
+                </tr>`;
+            });
         }
 
-        const actualShipping = Number(order.actual_shipping_cost) || 0;
-        
-        // Safely calculate total items value
-        const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+        document.getElementById('filteredRevenueTotal').innerText = `₹${Math.round(totalRev).toLocaleString()}`;
+        document.getElementById('filteredProfitTotal').innerText = `₹${Math.round(totalProfitGlobal).toLocaleString()}`;
+        tbody.innerHTML = html;
 
-        // Ratio of order revenue available for distribution to individual items
-        const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
-        // Distribute shipping cost proportionally by value
-        const shippingRatio = totalItemsVal > 0 ? (actualShipping / totalItemsVal) : 0;
+    } catch (err) {
+        console.error("Tag Revenue Error:", err);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: red;">Failed to load revenue.</td></tr>`;
+    }
+};
 
-        itemsArr.forEach(item => {
-            const prodTag = item.smart_tag || null;
 
-            if (selectedTag === 'All' || prodTag === selectedTag) {
-                // Item's proportional revenue & shipping
-                const itemQty = Number(item.qty) || 1;
-                const itemGrossValue = (Number(item.price) || 0) * itemQty;
-                
-                const itemTrueRevenue = itemGrossValue * revenueRatio;
-                const itemShippingCost = itemGrossValue * shippingRatio;
-                const itemCost = (Number(item.cost_price) || 0) * itemQty;
-
-                const itemProfit = itemTrueRevenue - itemShippingCost - itemCost;
-
-                totalRev += itemTrueRevenue;
-                totalProfitGlobal += itemProfit;
-
-                if (!productStats[item.id]) {
-                    productStats[item.id] = { name: item.name, tag: prodTag || 'None', units: 0, rev: 0, profit: 0 };
-                }
-                productStats[item.id].units += itemQty;
-                productStats[item.id].rev += itemTrueRevenue;
-                productStats[item.id].profit += itemProfit;
-            }
+// --- SMART BULK EDITOR LOGIC ---
+window.initBulkSmartEditor = function() {
+    switchView('bulk-smart');
+    
+    // Populate the dropdown utilizing the existing State.categories
+    let opts = '<option value="">Select Category to Edit...</option>';
+    const mainCats = State.categories.filter(c => !c.parent_id);
+    mainCats.forEach(main => {
+        opts += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+        const subCats = State.categories.filter(c => c.parent_id === main.id);
+        subCats.forEach(sub => {
+            opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
         });
     });
+    
+    document.getElementById('bulkSmartCatFilter').innerHTML = opts;
+    document.getElementById('bulkSmartContainer').innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
+};
 
-    document.getElementById('filteredRevenueTotal').innerText = `₹${Math.round(totalRev).toLocaleString()}`;
-    document.getElementById('filteredProfitTotal').innerText = `₹${Math.round(totalProfitGlobal).toLocaleString()}`;
+window.renderBulkSmartProducts = async function() {
+    const catId = document.getElementById('bulkSmartCatFilter').value;
+    const container = document.getElementById('bulkSmartContainer');
+    
+    if (!catId) {
+        container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
+        return;
+    }
 
-    const rows = Object.values(productStats).sort((a, b) => b.rev - a.rev).map(stat => `
-        <tr>
-            <td><strong>${escapeHTML(stat.name)}</strong></td>
-            <td><span class="badge" style="background:#f0f0f0; color:#000; border:1px solid #000;">${escapeHTML(stat.tag)}</span></td>
-            <td>${stat.units}</td>
-            <td><strong>₹${Math.round(stat.rev).toLocaleString()}</strong></td>
-            <td><strong style="color: ${stat.profit >= 0 ? '#2ecc71' : '#ff4757'};">₹${Math.round(stat.profit).toLocaleString()}</strong></td>
-        </tr>
-    `).join('');
+    container.innerHTML = `<div style="text-align: center; padding: 40px; font-weight: 600;">Loading Products...</div>`;
 
-    tbody.innerHTML = rows || `<tr><td colspan="5" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
-}
-// END OF NEW REPLACEMENT
+// Fetch fresh data for the selected category
+    try {
+        const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false });
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div style="text-align: center; padding: 40px; border: 1px solid var(--border-color);">No products found in this category.</div>`;
+            return;
+        }
+
+        let html = '';
+        data.forEach(p => {
+            let imagesHtml = '';
+            if (p.media && p.media.length > 0) {
+                p.media.slice(0, 3).forEach(m => {
+                    const isVideo = m.toLowerCase().endsWith('.mp4');
+                    if (isVideo) {
+                        imagesHtml += `<video src="${escapeHTML(m)}" class="smart-bulk-img" muted playsinline loop autoplay></video>`;
+                    } else {
+                        imagesHtml += `<img src="${escapeHTML(m)}" class="smart-bulk-img">`;
+                    }
+                });
+            } else {
+                imagesHtml = `<div class="smart-bulk-img" style="display:flex; align-items:center; justify-content:center; color:#999; font-size:12px; font-weight:600;">NO PIC</div>`;
+            }
+
+            let variantsHtml = '';
+            if (p.variants && p.variants.length > 0) {
+                variantsHtml += `<div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
+                    <label style="font-weight: 600; font-size: 13px; color: var(--text-main);">Product Variants</label>`;
+                
+                p.variants.forEach((v, idx) => {
+                    const vImg = (v.media && v.media.length > 0) ? escapeHTML(v.media[0]) : '';
+                    const vMediaTag = vImg ? (vImg.endsWith('.mp4') ? `<video src="${vImg}" class="smart-variant-media" muted playsinline></video>` : `<img src="${vImg}" class="smart-variant-media">`) : `<div class="smart-variant-media" style="display:flex; align-items:center; justify-content:center; font-size:9px; color:#999;">NO PIC</div>`;
+                    
+                    variantsHtml += `
+                    <div class="smart-variant-box" data-vindex="${idx}">
+                        ${vMediaTag}
+                        <div class="sb-grid" style="margin-bottom:0; flex:1;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label style="font-size: 11px;">Variant Name</label>
+                                <input type="text" class="sb-var-name" value="${escapeHTML(v.name)}" style="margin-bottom:0;">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label style="font-size: 11px;">Selling Price (₹)</label>
+                                <input type="number" class="sb-var-price" value="${v.price !== null && v.price !== undefined ? v.price : ''}" placeholder="Fallback to Base" style="margin-bottom:0;">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label style="font-size: 11px;">Cost Price (₹)</label>
+                                <input type="number" class="sb-var-cost" value="${v.cost_price !== null && v.cost_price !== undefined ? v.cost_price : ''}" placeholder="Fallback to Base" style="margin-bottom:0;">
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                variantsHtml += `</div>`;
+            }
+
+            html += `
+            <div class="smart-bulk-card" data-id="${p.id}">
+                <div class="smart-bulk-media">
+                    ${imagesHtml}
+                </div>
+                <div class="smart-bulk-details">
+                    <div class="sb-grid">
+                        <div class="form-group" style="grid-column: 1 / -1; margin-bottom:0;">
+                            <label>Product Name</label>
+                            <input type="text" class="sb-name" value="${escapeHTML(p.name)}" style="margin-bottom:0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Selling Price (₹)</label>
+                            <input type="number" class="sb-price" value="${p.price}" style="margin-bottom:0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Cost Price (₹)</label>
+                            <input type="number" class="sb-cost" value="${p.cost_price || ''}" style="margin-bottom:0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Global Stock</label>
+                            <input type="number" class="sb-stock" value="${p.stock !== null && p.stock !== undefined ? p.stock : ''}" placeholder="Unlimited" style="margin-bottom:0;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="sb-desc" rows="2" style="margin-bottom:0;">${escapeHTML(p.description || '')}</textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                        <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-bestseller" ${p.is_best_seller ? 'checked' : ''}> Best Seller</label>
+                        <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-alphabet" ${p.is_alphabet ? 'checked' : ''}> Alphabet</label>
+                        <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-hidden" ${p.is_hidden ? 'checked' : ''}> Hide Product</label>
+                        <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-sizechart" ${p.show_size_chart ? 'checked' : ''}> Size Chart</label>
+                    </div>
+
+                    ${variantsHtml}
+                </div>
+            </div>`;
+        });
+
+        // Attach original data to the container securely so we can map variants properly on save
+        container.setAttribute('data-raw', JSON.stringify(data));
+        container.innerHTML = html;
+
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: red;">Error loading products: ${err.message}</div>`;
+    }
+};
+
+window.saveAllBulkSmart = async function() {
+    const btn = document.getElementById('btnSaveBulkSmart');
+    const container = document.getElementById('bulkSmartContainer');
+    const cards = container.querySelectorAll('.smart-bulk-card');
+    
+    if (cards.length === 0) return alert("No products to save.");
+
+    btn.innerText = "SAVING ALL...";
+    btn.disabled = true;
+    showToast("Saving all changes, please wait...", "success");
+
+    try {
+        // Retrieve original data to map variants safely
+        const originalData = JSON.parse(container.getAttribute('data-raw') || '[]');
+        const updates = [];
+
+        cards.forEach(card => {
+            const id = Number(card.getAttribute('data-id'));
+            const origProd = originalData.find(p => p.id === id);
+            if (!origProd) return;
+
+            const payload = {
+                name: card.querySelector('.sb-name').value.trim(),
+                price: Number(card.querySelector('.sb-price').value),
+                cost_price: Number(card.querySelector('.sb-cost').value) || 0,
+                stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
+                description: card.querySelector('.sb-desc').value.trim(),
+                is_best_seller: card.querySelector('.sb-bestseller').checked,
+                is_alphabet: card.querySelector('.sb-alphabet').checked,
+                is_hidden: card.querySelector('.sb-hidden').checked,
+                show_size_chart: card.querySelector('.sb-sizechart').checked
+            };
+
+            // Handle Variants safely
+            if (origProd.variants && origProd.variants.length > 0) {
+                const varBoxes = card.querySelectorAll('.smart-variant-box');
+                const newVariants = [];
+                
+                varBoxes.forEach(vBox => {
+                    const vIdx = Number(vBox.getAttribute('data-vindex'));
+                    const origVar = origProd.variants[vIdx];
+                    
+                    if (origVar) {
+                        const vPriceStr = vBox.querySelector('.sb-var-price').value.trim();
+                        const vCostStr = vBox.querySelector('.sb-var-cost').value.trim();
+                        
+                        newVariants.push({
+                            ...origVar, // Preserve media and other original keys
+                            name: vBox.querySelector('.sb-var-name').value.trim(),
+                            price: vPriceStr !== '' ? Number(vPriceStr) : null,
+                            cost_price: vCostStr !== '' ? Number(vCostStr) : null
+                        });
+                    }
+                });
+                payload.variants = newVariants;
+            }
+
+            updates.push(db.from('products').update(payload).eq('id', id));
+        });
+
+        // Execute all updates concurrently
+        await Promise.all(updates);
+
+        showToast("All products updated successfully!", "success");
+        await loadProducts(prodCurrentPage); // Refresh background state
+        await renderBulkSmartProducts(); // Re-render the smart grid to show fresh saved data
+
+    } catch (err) {
+        alert("Failed to save some products: " + err.message);
+    } finally {
+        btn.innerText = "SAVE ALL CHANGES";
+        btn.disabled = false;
+    }
+};
+
+
 // --- WHATSAPP INTEGRATION LOGIC ---
 let currentWaOrder = null;
 
