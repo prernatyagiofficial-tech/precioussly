@@ -2583,7 +2583,8 @@ if (appData.settings.instagramUrl) {
                 return;
             }
             const isRestoring = isPopState;
-            const savedScroll = history.state ? history.state.scrollY : 0;
+            // FIX: Only use saved scroll if we are going BACK (isRestoring is true). Otherwise, start at 0.
+            const savedScroll = isRestoring && history.state && history.state.scrollY ? history.state.scrollY : 0;
 
             navigate({view: 'search', query: query});
             if(searchContainer.style.display !== 'block') {
@@ -2979,7 +2980,8 @@ if (appData.settings.instagramUrl) {
             if(catId === 'track') return renderTrackOrder();
             
             const isRestoring = isPopState;
-            const savedScroll = history.state ? history.state.scrollY : 0;
+            // FIX: Only use saved scroll if we are going BACK (isRestoring is true). Otherwise, start at 0.
+            const savedScroll = isRestoring && history.state && history.state.scrollY ? history.state.scrollY : 0;
             
             navigate({view: 'category', id: catId});
             searchContainer.style.display = 'none';
