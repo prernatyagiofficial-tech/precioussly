@@ -9,7 +9,8 @@
     <meta property="og:title" content="precioussly">
     <meta property="og:description" content="Shop the best curated collections tailored for elegance.">
     <script type="application/ld+json" id="product-schema">{}</script>
-    
+    <link rel="preconnect" href="https://gahkjnfiltfcqqdjnxnx.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://gahkjnfiltfcqqdjnxnx.supabase.co">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1314,6 +1315,30 @@ main {
 .view-all-btn:hover svg {
     transform: translateX(3px);
 }
+/* --- PREMIUM SKELETON SHIMMER UI --- */
+        .skeleton {
+            background: #f0f0f0;
+            background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.4) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0));
+            background-repeat: no-repeat;
+            background-size: 800px 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 800px 0; }
+        }
+        .skeleton-banner { width: 100%; aspect-ratio: 16/9; margin-bottom: 20px; border-radius: 0; }
+        @media (min-width: 768px) { .skeleton-banner { border-radius: 24px; margin: 40px auto; max-width: 1100px; } }
+        
+        .skeleton-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 20px; max-width: 1100px; margin: 0 auto; width: 100%; }
+        @media (min-width: 768px) { .skeleton-grid { grid-template-columns: repeat(3, 1fr); gap: 30px; padding: 40px; } }
+        @media (min-width: 1024px) { .skeleton-grid { grid-template-columns: repeat(4, 1fr); } }
+        
+        .skeleton-card { display: flex; flex-direction: column; gap: 10px; }
+        .skeleton-card-img { width: 100%; aspect-ratio: 1/1; border-radius: var(--radius-md); }
+        .skeleton-card-text-1 { width: 70%; height: 14px; border-radius: 4px; margin-top: 5px; }
+        .skeleton-card-text-2 { width: 40%; height: 14px; border-radius: 4px; }
+        .skeleton-card-btn { width: 100%; height: 36px; border-radius: 8px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -1762,6 +1787,25 @@ let currentSubCategories = [];
                 try { return JSON.parse(val); } catch(e) { return defaultVal; }
             }
             return defaultVal;
+        }
+        
+        function getSkeletonHTML(showBanner = false) {
+            let html = '';
+            if (showBanner) {
+                html += `<div class="skeleton skeleton-banner"></div>`;
+            }
+            html += `<div class="skeleton-grid">`;
+            for(let i=0; i<8; i++) {
+                html += `
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-card-img"></div>
+                    <div class="skeleton skeleton-card-text-1"></div>
+                    <div class="skeleton skeleton-card-text-2"></div>
+                    <div class="skeleton skeleton-card-btn"></div>
+                </div>`;
+            }
+            html += `</div>`;
+            return html;
         }
 
         function parseBool(val) {
@@ -2317,9 +2361,14 @@ if (appData.settings.instagramUrl) {
 
         
         // --- APP INITIALIZATION ---
+        // --- APP INITIALIZATION ---
         async function initApp() {
+            // 1. Instantly render the Skeleton UI so the screen isn't blank
+            mainContent.innerHTML = getSkeletonHTML(true);
+            window.scrollTo(0, 0);
+
             try {
-                // Fetch in parallel for speed
+                // 2. Fetch data in parallel
                 const [settings, categories, products, coupons, reviews] = await Promise.all([
                     getSettings(), getCategories(), getProducts(), getCoupons(), getReviews()
                 ]);
@@ -2335,16 +2384,15 @@ if (appData.settings.instagramUrl) {
                 updateBadges();
                 renderMenu();
 
-// Read URL parameters to handle direct shared links
+                // 3. Read URL parameters to handle direct shared links
                 const urlParams = new URLSearchParams(window.location.search);
                 const viewParam = urlParams.get('view');
                 const idParam = urlParams.get('id');
-                const productSlug = urlParams.get('product'); // Read the new clean URL parameter
+                const productSlug = urlParams.get('product'); 
                 
-                // NEW: Check if this is a Supabase Auth Redirect
                 const isAuthRedirect = urlParams.has('code') || window.location.hash.includes('access_token');
 
-                // 1. Check for clean product URL (e.g. ?product=blue-tshirt)
+                // 4. Route to the correct view (which will seamlessly overwrite the skeleton)
                 if (productSlug) {
                     const prod = products.find(p => createSlug(p.name) === productSlug);
                     if (prod) {
@@ -2353,72 +2401,68 @@ if (appData.settings.instagramUrl) {
                         updateFabVisibility('product');
                         renderProduct(prod.id);
                     } else {
-                        // Fallback if product not found
                         history.replaceState({view: 'home'}, "", window.location.pathname);
                         isPopState = true;
                         updateFabVisibility('home');
                         renderHome();
                     }
-                } 
-// 2. Standard View Routing for all pages
-        else if (viewParam === 'product' && idParam) {
-            history.replaceState({view: 'product', id: idParam}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('product');
-            renderProduct(idParam);
-        } else if (viewParam === 'category' && idParam) {
-            history.replaceState({view: 'category', id: idParam}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('category');
-            renderCategory(idParam);
-        } else if (viewParam === 'cart') {
-            history.replaceState({view: 'cart'}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('cart');
-            renderCart();
-        } else if (viewParam === 'wishlist') {
-            history.replaceState({view: 'wishlist'}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('wishlist');
-            renderWishlist();
-        } else if (viewParam === 'orders') {
-            history.replaceState({view: 'orders'}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('orders');
-            renderOrders();
-        } else if (viewParam === 'track') {
-            history.replaceState({view: 'track'}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('track');
-            renderTrackOrder();
-        } else if (viewParam === 'checkout') {
-            history.replaceState({view: 'checkout'}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('checkout');
-            renderCheckout();
-        } else if (viewParam === 'policies') {
-            history.replaceState({view: 'policies', id: idParam}, "", window.location.search);
-            isPopState = true;
-            updateFabVisibility('policies');
-            renderPolicies(idParam || 'about');
-        } else if (viewParam === 'login') {
-            // NEW: Explicitly handle returning to the login page after Google Auth
-            const newUrl = isAuthRedirect ? window.location.href : window.location.pathname + '?view=login';
-            history.replaceState({view: 'login'}, "", newUrl);
-            isPopState = true;
-            updateFabVisibility('login');
-            renderLogin();
-        } else {
-            // MODIFIED: ONLY strip URL parameters if it is NOT an active authentication redirect
-            const newUrl = isAuthRedirect ? window.location.href : window.location.pathname;
-            history.replaceState({view: 'home'}, "", newUrl);
-            isPopState = true;
-            updateFabVisibility('home');
-            renderHome();
-        }
+                } else if (viewParam === 'product' && idParam) {
+                    history.replaceState({view: 'product', id: idParam}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('product');
+                    renderProduct(idParam);
+                } else if (viewParam === 'category' && idParam) {
+                    history.replaceState({view: 'category', id: idParam}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('category');
+                    renderCategory(idParam);
+                } else if (viewParam === 'cart') {
+                    history.replaceState({view: 'cart'}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('cart');
+                    renderCart();
+                } else if (viewParam === 'wishlist') {
+                    history.replaceState({view: 'wishlist'}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('wishlist');
+                    renderWishlist();
+                } else if (viewParam === 'orders') {
+                    history.replaceState({view: 'orders'}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('orders');
+                    renderOrders();
+                } else if (viewParam === 'track') {
+                    history.replaceState({view: 'track'}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('track');
+                    renderTrackOrder();
+                } else if (viewParam === 'checkout') {
+                    history.replaceState({view: 'checkout'}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('checkout');
+                    renderCheckout();
+                } else if (viewParam === 'policies') {
+                    history.replaceState({view: 'policies', id: idParam}, "", window.location.search);
+                    isPopState = true;
+                    updateFabVisibility('policies');
+                    renderPolicies(idParam || 'about');
+                } else if (viewParam === 'login') {
+                    const newUrl = isAuthRedirect ? window.location.href : window.location.pathname + '?view=login';
+                    history.replaceState({view: 'login'}, "", newUrl);
+                    isPopState = true;
+                    updateFabVisibility('login');
+                    renderLogin();
+                } else {
+                    const newUrl = isAuthRedirect ? window.location.href : window.location.pathname;
+                    history.replaceState({view: 'home'}, "", newUrl);
+                    isPopState = true;
+                    updateFabVisibility('home');
+                    renderHome();
+                }
             } catch (error) {
                 console.error("Failed to load store data:", error);
                 showToast("Error loading app data.");
+                mainContent.innerHTML = `<div class="empty-state"><p>Error loading store. Please refresh.</p></div>`;
             }
         }
 
@@ -2455,7 +2499,7 @@ if (appData.settings.instagramUrl) {
             filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
             updateFilterUI();
             
-            mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div><p style="margin-top:20px; color: var(--text-gray);">Searching catalog...</p></div>`;
+            mainContent.innerHTML = getSkeletonHTML(false);
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
@@ -2839,9 +2883,9 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
             currentCategoryName = catName;
             currentSubCategories = subCategories;
             
-            // Show loading state if there are no subcategories to show first
+// Show loading state if there are no subcategories to show first
             if (subCategories.length === 0) {
-                mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div></div>`;
+                mainContent.innerHTML = getSkeletonHTML(false);
             }
 
 // Reset filters visually without re-triggering the fetch
@@ -4980,7 +5024,7 @@ async function applyFiltersAndSort() {
             // Server-Side Request Setup for Filters
             currentPage = 0;
             
-            mainContent.innerHTML = `<div style="text-align: center; padding: 80px 20px;"><div class="btn-spinner" style="position:relative; width:40px; height:40px; border-color: var(--border-color); border-top-color: var(--text-dark); margin:0 auto;"></div><p style="margin-top:20px; color: var(--text-gray);">Applying filters...</p></div>`;
+            mainContent.innerHTML = getSkeletonHTML(false);
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
