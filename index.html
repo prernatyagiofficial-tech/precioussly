@@ -3540,22 +3540,23 @@ function changeProductSize(size, btnElement) {
 
         function openSizeChartModal() { sizeChartModal.classList.add('active'); document.body.classList.add('no-scroll'); }
         async function fetchAndDisplayPurchaseCount(prodId) {
-    try {
-        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
-        if (error) throw error;
-        
-        // Only show if the count is strictly greater than 0
-        if (data && data > 0) {
-            const badge = document.getElementById('monthlyPurchaseBadge');
-            if (badge) {
-                badge.innerHTML = `📦 ${data} orders placed recently `;
-                badge.style.display = 'flex';
+            try {
+                const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+                if (error) throw error;
+                
+                // Only show if the count is strictly greater than 0
+                if (data && data > 0) {
+                    const badge = document.getElementById('monthlyPurchaseBadge');
+                    if (badge) {
+                        const orderWord = data === 1 ? 'order' : 'orders';
+                        badge.innerHTML = `📦 ${data} ${orderWord} placed recently `;
+                        badge.style.display = 'flex';
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch purchase count:", err);
             }
         }
-    } catch (err) {
-        console.error("Failed to fetch purchase count:", err);
-    }
-}
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
         
 
