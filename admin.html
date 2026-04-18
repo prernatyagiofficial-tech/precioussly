@@ -448,8 +448,8 @@
         .lightbox-media.is-zoomed { cursor: grab; }
         .lightbox-media.is-zoomed:active { cursor: grabbing; }
         
-        .order-item-thumb, .prod-img-thumb, .wishlist-item-media { cursor: pointer; transition: opacity 0.2s; }
-        .order-item-thumb:hover, .prod-img-thumb:hover, .wishlist-item-media:hover { opacity: 0.8; }
+.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media { cursor: pointer; transition: opacity 0.2s; }
+        .order-item-thumb:hover, .prod-img-thumb:hover, .wishlist-item-media:hover, .smart-bulk-img:hover, .smart-variant-media:hover { opacity: 0.8; }
 
         /* Dashboard Overview Cards */
         #view-dashboard > div > div {
@@ -3798,7 +3798,7 @@ window.updateOrderStatus = function(id, newStatus) {
         window.deleteRecord = function(table, id) {
             // Capture the specific table row that was clicked
             const btnEvent = window.event;
-            const row = btnEvent ? (btnEvent.target.closest('tr') || btnEvent.target.closest('tbody.main-cat-group')) : null;
+            const row = btnEvent ? (btnEvent.target.closest('tr') || btnEvent.target.closest('tbody.main-cat-group') || btnEvent.target.closest('.smart-bulk-card')) : null;
 
             customConfirm(`Are you sure you want to delete this record from ${table}?`, async () => {
                 // 1. Optimistic UI Update: Hide the row instantly
@@ -4077,9 +4077,9 @@ window.updateOrderStatus = function(id, newStatus) {
                 }, 300);
             }
 
-            // 1. Event Delegation for Opening the Lightbox
+// 1. Event Delegation for Opening the Lightbox
             document.addEventListener('click', (e) => {
-                const target = e.target.closest('.order-item-thumb, .prod-img-thumb, .wishlist-item-media');
+                const target = e.target.closest('.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media');
                 if (!target) return;
 
                 const src = target.src || target.getAttribute('src');
@@ -4529,7 +4529,7 @@ window.renderBulkSmartProducts = async function() {
 
     container.innerHTML = `<div style="text-align: center; padding: 40px; font-weight: 600;">Loading Products...</div>`;
 
-// Fetch fresh data for the selected category
+    // Fetch fresh data for the selected category
     try {
         const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false });
         if (error) throw error;
@@ -4587,7 +4587,8 @@ window.renderBulkSmartProducts = async function() {
             }
 
             html += `
-            <div class="smart-bulk-card" data-id="${p.id}">
+            <div class="smart-bulk-card" data-id="${p.id}" style="position: relative;">
+                <button class="danger" style="position: absolute; top: 15px; right: 15px; width: auto; padding: 6px 12px; font-size: 10px; margin: 0; z-index: 10;" onclick="deleteRecord('products', ${p.id})">DELETE PRODUCT</button>
                 <div class="smart-bulk-media">
                     ${imagesHtml}
                 </div>
@@ -4595,7 +4596,7 @@ window.renderBulkSmartProducts = async function() {
                     <div class="sb-grid">
                         <div class="form-group" style="grid-column: 1 / -1; margin-bottom:0;">
                             <label>Product Name</label>
-                            <input type="text" class="sb-name" value="${escapeHTML(p.name)}" style="margin-bottom:0;">
+                            <input type="text" class="sb-name" value="${escapeHTML(p.name)}" style="margin-bottom:0; padding-right: 120px;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Selling Price (₹)</label>
