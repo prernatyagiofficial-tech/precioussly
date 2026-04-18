@@ -410,17 +410,21 @@ main {
             display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 0 20px 20px;
         }
 
-        .category-card {
+.category-card {
             cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center;
         }
         .category-img-box {
             width: 100%; aspect-ratio: 1/1; border-radius: var(--radius-lg); overflow: hidden;
             background: var(--placeholder-bg); margin-bottom: 12px; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-        .category-card:hover .category-img-box { transform: scale(0.98); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        /* Only shrinks slightly when you actively press down on it */
         .category-card:active .category-img-box { transform: scale(0.95); }
         .category-card span { font-size: 14px; font-weight: 500; transition: color 0.3s; }
-        .category-card:hover span { color: var(--brand-color); }
+
+        /* Desktop-only hover effect to prevent sticky dragging on mobile */
+        @media (hover: hover) and (pointer: fine) {
+            .category-card:hover .category-img-box { transform: scale(0.98); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        }
 
 .horizontal-scroll {
     display: flex; overflow-x: auto; gap: 15px; padding: 10px 20px 20px; scrollbar-width: none;
