@@ -1856,7 +1856,8 @@ function mapProduct(row) {
         variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color',
         showSizeChart: parseBool(row.show_size_chart),
-        smart_tag: row.smart_tag || null
+        smart_tag: row.smart_tag || null,
+        show_purchase_count: parseBool(row.show_purchase_count) // <-- YEH LINE ADD KARNI HAI
     };
 }
 // END OF NEW REPLACEMENT
