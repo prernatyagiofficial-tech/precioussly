@@ -1206,6 +1206,7 @@
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
 <button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkMonthlyCountModal');">Bulk Toggle Monthly Count</button>
 
 <button class="danger" onclick="closeModal('bulkChoiceModal'); openModal('bulkDeleteModal');">Bulk Delete By Category</button>
         </div>
@@ -1336,6 +1337,31 @@
     </div>
 </div>
 
+
+<div id="bulkMonthlyCountModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Toggle Monthly Count <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkMonthlyCountModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatMonthlyCount">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Monthly Count Action</label>
+                <select id="bulkMonthlyCountAction">
+                    <option value="true">Turn ON Monthly Count</option>
+                    <option value="false">Turn OFF Monthly Count</option>
+                </select>
+                <p style="font-size: 11px; color: var(--danger); margin-top: 12px; font-weight: 500;">Warning: This will instantly change the monthly count visibility for ALL products in the selected category.</p>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkMonthlyCountBtn" onclick="executeBulkMonthlyCountByCategory()">APPLY MONTHLY COUNT</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
     <div id="bulkProductModal" class="modal-overlay">
@@ -2368,6 +2394,7 @@ window.addDynamicHomeSection = function() {
                 document.getElementById('prodCat').innerHTML = prodCatOptions;
                 document.getElementById('bulkProdCat').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatVisibility')) document.getElementById('bulkTargetCatVisibility').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatMonthlyCount')) document.getElementById('bulkTargetCatMonthlyCount').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatDesc')) document.getElementById('bulkTargetCatDesc').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatPrice')) document.getElementById('bulkTargetCatPrice').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatCostPrice')) document.getElementById('bulkTargetCatCostPrice').innerHTML = prodCatOptions;
@@ -3079,6 +3106,44 @@ window.executeBulkVisibilityByCategory = async function() {
     } finally {
         btn.disabled = false;
         btn.innerText = "APPLY VISIBILITY";
+    }
+};
+
+window.executeBulkMonthlyCountByCategory = async function() {
+    const catId = document.getElementById('bulkTargetCatMonthlyCount').value;
+    const isCountOnStr = document.getElementById('bulkMonthlyCountAction').value;
+    
+    if (!catId) return alert("Please select a target category.");
+
+    const actionText = isCountOnStr === 'true' ? 'TURN ON' : 'TURN OFF';
+    if (!confirm(`Are you ABSOLUTELY sure you want to ${actionText} the monthly count for all products in the selected category?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkMonthlyCountBtn');
+    btn.disabled = true;
+    btn.innerText = "UPDATING...";
+
+    try {
+        const isCountOnBoolean = isCountOnStr === 'true';
+        const { error } = await db.from('products')
+            .update({ show_purchase_count: isCountOnBoolean })
+            .eq('cat_id', Number(catId));
+            
+        if (error) throw error;
+
+        alert(`Monthly count for all products in the selected category has been successfully ${actionText.toLowerCase()}ED.`);
+        
+        closeModal('bulkMonthlyCountModal');
+        document.getElementById('bulkTargetCatMonthlyCount').value = '';
+        document.getElementById('bulkMonthlyCountAction').value = 'true';
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error updating monthly count: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "APPLY MONTHLY COUNT";
     }
 };
 
