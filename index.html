@@ -2233,19 +2233,34 @@ async function getProducts(force = false) {
             }
         });
 
-        // OPTIMIZED REAL-TIME FETCHING
+// OPTIMIZED REAL-TIME FETCHING
         db.channel('public-changes')
           .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
               const table = payload.table;
-              if (table === 'settings') getSettings(true).then(s => { appData.settings = s; applyGlobalSettings(); });
-              else if (table === 'categories') getCategories(true).then(c => { appData.categories = c; generateMenuLinks(); renderMenu(); });
-              else if (table === 'products') getProducts(true).then(p => { 
-                  appData.products = p; 
-                  const currentView = history.state ? history.state.view : 'home';
-                  if (currentView === 'home' || currentView === 'category') renderHome(); 
-              });
-              else if (table === 'coupons') getCoupons(true).then(c => { appData.coupons = c; });
-              else if (table === 'reviews') getReviews(true).then(r => { appData.reviews = r; });
+              
+              if (table === 'settings') {
+                  getSettings(true).then(s => { appData.settings = s; applyGlobalSettings(); });
+              }
+              else if (table === 'categories') {
+                  getCategories(true).then(c => { appData.categories = c; generateMenuLinks(); renderMenu(); });
+              }
+              else if (table === 'products') {
+                  getProducts(true).then(p => { 
+                      appData.products = p; 
+                      const currentView = history.state ? history.state.view : 'home';
+                      
+                      // FIX: Added 'true' to preserve scroll position when real-time update happens!
+                      if (currentView === 'home' || currentView === 'category') {
+                          renderHome(true); 
+                      }
+                  });
+              }
+              else if (table === 'coupons') {
+                  getCoupons(true).then(c => { appData.coupons = c; });
+              }
+              else if (table === 'reviews') {
+                  getReviews(true).then(r => { appData.reviews = r; });
+              }
               else if (table === 'orders') {
                   // If an order status changes in Supabase, sync immediately
                   syncLocalOrdersWithSupabase().then(() => {
@@ -2737,149 +2752,155 @@ if (appData.settings.instagramUrl) {
         }
 
         // --- VIEWS ---
-        function renderHome() {
-            navigate({view: 'home'});
-            searchContainer.style.display = 'none';
+        function renderHome(preserveScroll = false) {
+    const currentScrollY = window.scrollY; // Current position save karo
+    navigate({view: 'home'});
+    searchContainer.style.display = 'none';
             
-            const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
-let bannerContent = `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
+    const bannerConfig = appData.settings.bannerConfig || { target: 'all', imageUrl: '' };
+    let bannerContent = `<div class="img-placeholder" style="aspect-ratio:16/9;">${imageSvg}</div>`;
 
-if (bannerConfig.imageUrl) {
-    // Check if the URL contains .mp4 to identify it as a video
-    const isVideo = bannerConfig.imageUrl.toLowerCase().includes('.mp4');
-    
-    if (isVideo) {
-        // Use video tag for mp4 links (muted is required for autoplay to work on mobile)
-        bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
-    } else {
-        // Use standard image tag for everything else
-        bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
-    }
-}
-
-            let bannerClickAction = `renderCategory('all')`;
-            if (bannerConfig.target === 'bestsellers') {
-                bannerClickAction = `renderCategory('bestsellers')`;
-            } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
-                const catId = bannerConfig.target.split('_')[1];
-                bannerClickAction = `renderCategory('${catId}')`;
-            }
-
-let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:pointer; display:block; line-height:0; font-size:0;">${bannerContent}</div>`;
-
-            const sectionsConfig = appData.settings.homeSectionsConfig || [
-                { id: 'collections', title: 'Explore Collections' },
-                { id: 'bestsellers', title: 'Best Sellers' }
-            ];
-
-            sectionsConfig.forEach(section => {
-                if (section.id === 'collections') {
-                    html += `<div class="section-title-wrapper"><h3>${section.title}</h3></div><div class="grid-container">`;
-                    const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
-                    mainCategories.forEach(cat => {
-                        const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
-                        const imgContent = cat.img 
-                            ? (isVideo 
-                                ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
-                                : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
-                            : `<div class="img-placeholder">${imageSvg}</div>`;
-                        html += `
-                            <div class="category-card" onclick="renderCategory('${cat.id}')">
-                                <div class="category-img-box">${imgContent}</div>
-                                <span>${cat.name}</span>
-                            </div>`;
-                    });
-                    html += `</div>`;
-                } else if (section.id === 'bestsellers') {
-                    const bestSellers = appData.products.filter(p => p.isBestSeller).sort((a, b) => {
-    const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
-    const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
-    return orderA !== orderB ? orderA - orderB : b.id - a.id;
-});
-                    if (bestSellers.length > 0) {
-                        html += `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
-                            <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
-                            <a href="javascript:void(0)" onclick="renderCategory('bestsellers')" class="view-all-btn">
-    View All 
-    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
-                        </div>
-                        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
-                        
-                        bestSellers.slice(0, 10).forEach(prod => {
-                             html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
-                        });
-                        html += `</div>`;
-                    }
-                } else if (section.id.startsWith('cat_')) {
-                    const catId = section.id.replace('cat_', '');
-                    const cat = appData.categories.find(c => String(c.id) === String(catId));
-                    if (!cat) return; // Skip if category was deleted but remains in settings
-
-                    const subCats = appData.categories.filter(c => String(c.parentId) === String(catId));
-                    
-                    // Flex header for Title + View All
-                    html += `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
-                        <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
-                        <a href="javascript:void(0)" onclick="renderCategory('${cat.id}')" class="view-all-btn">
-    View All 
-    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
-                    </div>
-                    <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
-
-                    if (subCats.length > 0) {
-                        // Render Subcategories (Max 10)
-                        const visibleSubCats = subCats.slice(0, 10);
-                        visibleSubCats.forEach(sub => {
-                            const isVideo = sub.img && typeof sub.img === 'string' && sub.img.toLowerCase().endsWith('.mp4');
-                            const imgContent = sub.img 
-                                ? (isVideo 
-                                    ? `<video src="${sub.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
-                                    : `<img src="${sub.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
-                                : `<div class="img-placeholder">${imageSvg}</div>`;
-                            
-                            html += `
-                                <div class="category-card" onclick="renderCategory('${sub.id}')" style="flex: 0 0 120px; min-width: 120px;">
-                                    <div class="category-img-box">${imgContent}</div>
-                                    <span style="font-size: 13px;">${sub.name}</span>
-                                </div>`;
-                        });
-                    } else {
-                        // Render Products (Max 10)
-                        const catProds = appData.products.filter(p => String(p.catId) === String(catId)).sort((a, b) => {
-    const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
-    const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
-    return orderA !== orderB ? orderA - orderB : b.id - a.id;
-}).slice(0, 10);
-                        if (catProds.length === 0) {
-                             html += `<div style="padding: 10px 0; color: #999; font-size: 13px; font-style: italic;">No products added yet.</div>`;
-                        }
-                        catProds.forEach(prod => {
-                            html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
-                        });
-                    }
-                    html += `</div>`;
-                }
-            });
-
-if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
-    html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
-    <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 30px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
-    appData.reviews.forEach(review => {
-        let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-        html += `<div class="review-card" style="flex: 0 0 260px; width: 260px; display: flex; flex-direction: column;">${imgContent}</div>`;
-    });
-    html += `</div>`;
-}
-
-            requestAnimationFrame(() => {
-                mainContent.innerHTML = html;
-                window.scrollTo(0, 0);
-            });
+    if (bannerConfig.imageUrl) {
+        // Check if the URL contains .mp4 to identify it as a video
+        const isVideo = bannerConfig.imageUrl.toLowerCase().includes('.mp4');
+        
+        if (isVideo) {
+            // Use video tag for mp4 links (muted is required for autoplay to work on mobile)
+            bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
+        } else {
+            // Use standard image tag for everything else
+            bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
         }
+    }
+
+    let bannerClickAction = `renderCategory('all')`;
+    if (bannerConfig.target === 'bestsellers') {
+        bannerClickAction = `renderCategory('bestsellers')`;
+    } else if (bannerConfig.target && bannerConfig.target.startsWith('cat_')) {
+        const catId = bannerConfig.target.split('_')[1];
+        bannerClickAction = `renderCategory('${catId}')`;
+    }
+
+    let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:pointer; display:block; line-height:0; font-size:0;">${bannerContent}</div>`;
+
+    const sectionsConfig = appData.settings.homeSectionsConfig || [
+        { id: 'collections', title: 'Explore Collections' },
+        { id: 'bestsellers', title: 'Best Sellers' }
+    ];
+
+    sectionsConfig.forEach(section => {
+        if (section.id === 'collections') {
+            html += `<div class="section-title-wrapper"><h3>${section.title}</h3></div><div class="grid-container">`;
+            const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
+            mainCategories.forEach(cat => {
+                const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
+                const imgContent = cat.img 
+                    ? (isVideo 
+                        ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
+                        : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                    : `<div class="img-placeholder">${imageSvg}</div>`;
+                html += `
+                    <div class="category-card" onclick="renderCategory('${cat.id}')">
+                        <div class="category-img-box">${imgContent}</div>
+                        <span>${cat.name}</span>
+                    </div>`;
+            });
+            html += `</div>`;
+        } else if (section.id === 'bestsellers') {
+            const bestSellers = appData.products.filter(p => p.isBestSeller).sort((a, b) => {
+                const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
+                const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
+                return orderA !== orderB ? orderA - orderB : b.id - a.id;
+            });
+            if (bestSellers.length > 0) {
+                html += `
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
+                    <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
+                    <a href="javascript:void(0)" onclick="renderCategory('bestsellers')" class="view-all-btn">
+    View All 
+    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</a>
+                </div>
+                <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+                
+                bestSellers.slice(0, 10).forEach(prod => {
+                     html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
+                });
+                html += `</div>`;
+            }
+        } else if (section.id.startsWith('cat_')) {
+            const catId = section.id.replace('cat_', '');
+            const cat = appData.categories.find(c => String(c.id) === String(catId));
+            if (!cat) return; // Skip if category was deleted but remains in settings
+
+            const subCats = appData.categories.filter(c => String(c.parentId) === String(catId));
+            
+            // Flex header for Title + View All
+            html += `
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
+                <a href="javascript:void(0)" onclick="renderCategory('${cat.id}')" class="view-all-btn">
+    View All 
+    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</a>
+            </div>
+            <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+
+            if (subCats.length > 0) {
+                // Render Subcategories (Max 10)
+                const visibleSubCats = subCats.slice(0, 10);
+                visibleSubCats.forEach(sub => {
+                    const isVideo = sub.img && typeof sub.img === 'string' && sub.img.toLowerCase().endsWith('.mp4');
+                    const imgContent = sub.img 
+                        ? (isVideo 
+                            ? `<video src="${sub.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
+                            : `<img src="${sub.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                        : `<div class="img-placeholder">${imageSvg}</div>`;
+                    
+                    html += `
+                        <div class="category-card" onclick="renderCategory('${sub.id}')" style="flex: 0 0 120px; min-width: 120px;">
+                            <div class="category-img-box">${imgContent}</div>
+                            <span style="font-size: 13px;">${sub.name}</span>
+                        </div>`;
+                });
+            } else {
+                // Render Products (Max 10)
+                const catProds = appData.products.filter(p => String(p.catId) === String(catId)).sort((a, b) => {
+                    const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
+                    const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
+                    return orderA !== orderB ? orderA - orderB : b.id - a.id;
+                }).slice(0, 10);
+                if (catProds.length === 0) {
+                     html += `<div style="padding: 10px 0; color: #999; font-size: 13px; font-style: italic;">No products added yet.</div>`;
+                }
+                catProds.forEach(prod => {
+                    html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
+                });
+            }
+            html += `</div>`;
+        }
+    });
+
+    if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
+        html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
+        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 30px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+        appData.reviews.forEach(review => {
+            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
+            html += `<div class="review-card" style="flex: 0 0 260px; width: 260px; display: flex; flex-direction: column;">${imgContent}</div>`;
+        });
+        html += `</div>`;
+    }
+
+    requestAnimationFrame(() => {
+        mainContent.innerHTML = html;
+        // Scroll check: preserve if true, else back to top
+        if (preserveScroll) {
+            window.scrollTo(0, currentScrollY);
+        } else {
+            window.scrollTo(0, 0);
+        }
+    });
+}
 
         async function renderCategory(catId) {
             if (catId === 'refresh') return; 
