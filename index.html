@@ -1919,15 +1919,15 @@ function mapProduct(row) {
             }, mapCategory, 300000, force);
         }
 
-// This now ONLY fetches initial top products for the home page to keep load times instant
+// Fetches enough products to populate all homepage category sections properly
         async function getProducts(force = false) {
             return fetchWithCache('products_initial', async () => {
                 const { data } = await db.from('products')
                     .select('*')
                     .neq('is_hidden', true)
-                    .order('is_best_seller', { ascending: false }) // Prioritize bestsellers
-                    .order('id', { ascending: false }) // Fetch the newest items first
-                    .limit(50); // Just enough to paint the home page
+                    .order('is_best_seller', { ascending: false }) 
+                    .order('id', { ascending: false }) 
+                    .limit(300); // Limit increased so category sections don't appear empty
                 return data || [];
             }, mapProduct, 300000, force);
         }
