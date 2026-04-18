@@ -2824,8 +2824,8 @@ if (appData.settings.instagramUrl) {
                 <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
                 
                 bestSellers.slice(0, 10).forEach(prod => {
-                     html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
-                });
+    html += getProductCardHTML(prod);
+});
                 html += `</div>`;
             }
         } else if (section.id.startsWith('cat_')) {
@@ -2874,8 +2874,8 @@ if (appData.settings.instagramUrl) {
                      html += `<div style="padding: 10px 0; color: #999; font-size: 13px; font-style: italic;">No products added yet.</div>`;
                 }
                 catProds.forEach(prod => {
-                    html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
-                });
+    html += getProductCardHTML(prod);
+});
             }
             html += `</div>`;
         }
