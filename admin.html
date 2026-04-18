@@ -627,7 +627,7 @@
                     <div class="section-header"><h1>Manage Orders</h1></div>
                     
 <div class="flex-row" style="margin-bottom: 10px;">
-                        <input type="text" id="orderSearch" placeholder="Search by Order ID, Name, or Phone..." style="flex: 1; margin-bottom: 0;" oninput="applyOrderFilters()">
+                        <input type="text" id="orderSearch" placeholder="Search by Order ID, Name, or Phone..." style="flex: 1; margin-bottom: 0;" oninput="debounceOrderSearch()">
                         <select id="paymentFilter" style="width: auto; margin-bottom: 0;" onchange="applyOrderFilters()">
                             <option value="All">All Payments</option>
                             <option value="cod">COD</option>
@@ -657,8 +657,13 @@
                     <div class="table-responsive">
                         <table>
                             <thead><tr><th>S.No</th><th>ID</th><th>Date</th><th>Customer</th><th>Total & Items</th><th>Status</th><th>Action</th></tr></thead>
-                            <tbody id="ordersTableBody"><tr><td colspan="6" style="text-align:center; padding: 20px;">Loading orders...</td></tr></tbody>
+<tbody id="ordersTableBody"><tr><td colspan="6" style="text-align:center; padding: 20px;">Loading orders...</td></tr></tbody>
                         </table>
+                        <div class="pagination-controls">
+                            <button class="outline" id="btnPrevOrderPage" onclick="loadOrders(ordersCurrentPage - 1)">PREV</button>
+                            <span class="page-info" id="ordersPageInfo">Page 1 of 1</span>
+                            <button class="outline" id="btnNextOrderPage" onclick="loadOrders(ordersCurrentPage + 1)">NEXT</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1358,8 +1363,18 @@
             orders: [], 
         };
         let prodCurrentPage = 1;
-const PROD_PAGE_SIZE = 50;
-let productSearchTimeout;
+        const PROD_PAGE_SIZE = 50;
+        let productSearchTimeout;
+
+        // --- NEW ORDER PAGINATION STATE ---
+        let ordersCurrentPage = 1;
+        const ORDERS_PAGE_SIZE = 100;
+        let orderSearchTimeout;
+
+        function debounceOrderSearch() {
+            clearTimeout(orderSearchTimeout);
+            orderSearchTimeout = setTimeout(() => { loadOrders(1); }, 400);
+        }
 
 
 // --- 1. Master Toast System ---
@@ -1804,12 +1819,16 @@ async function loadUsers(page = 1) {
                         try { wishlistArr = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist); } 
                         catch(e) { wishlistArr = []; }
                     }
+                    // Only count wishlist items that still exist in the products database
+                    wishlistArr = wishlistArr.filter(itemId => State.products.some(p => String(p.id) === String(itemId)));
 
                     let cartArr = [];
                     if (u.cart) {
                         try { cartArr = Array.isArray(u.cart) ? u.cart : JSON.parse(u.cart); } 
                         catch(e) { cartArr = []; }
                     }
+                    // Only count cart items that still exist in the products database
+                    cartArr = cartArr.filter(item => State.products.some(p => String(p.id) === String(item.id)));
                     
                     let cartQtyCount = cartArr.reduce((sum, item) => sum + (item.qty || 1), 0);
 
@@ -1876,12 +1895,12 @@ async function loadUsers(page = 1) {
                 if (paginatedUsersList.length > 0) {
                     paginatedUsersList.forEach(u => {
                         html += `
-                        <tr>
+<tr>
                             <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
                             <td>${escapeHTML(u.email)}</td>
                             <td><span class="badge">${u._orderCount}</span></td>
-                            <td><span class="badge" style="background: #e67e22;">${u._cartCount}</span></td>
-                            <td><span class="badge" style="background: #34495e;">${u._wishlistCount}</span></td>
+                            <td><span class="badge">${u._cartCount}</span></td>
+                            <td><span class="badge">${u._wishlistCount}</span></td>
                             <td>${new Date(u.created_at).toLocaleDateString()}</td>
                             <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
                         </tr>`;
@@ -1918,21 +1937,27 @@ async function loadUsers(page = 1) {
                 } catch(e) { wishlistItems = []; }
             }
 
-            // Parse Cart Array safely
+// Parse Cart Array safely
             let cartItems = [];
             if (user.cart) {
                 try {
                     cartItems = Array.isArray(user.cart) ? user.cart : JSON.parse(user.cart);
                 } catch(e) { cartItems = []; }
             }
+            // Filter out deleted products from the cart detail view
+            cartItems = cartItems.filter(item => State.products.some(p => String(p.id) === String(item.id)));
 
             // Generate Wishlist Grid
             let wishlistHtml = '';
-            if (wishlistItems.length === 0) {
-                wishlistHtml = '<div style="text-align: center; padding: 30px; color: #666; font-weight: 600; border: 1px dashed #000;">User has no items in their wishlist.</div>';
+            
+            // Filter out any products that no longer exist in the database
+            const validWishlistItems = wishlistItems.filter(itemId => State.products.some(p => String(p.id) === String(itemId)));
+            
+            if (validWishlistItems.length === 0) {
+                wishlistHtml = '<div style="text-align: center; padding: 30px; color: #666; font-weight: 600; border: 1px dashed #000;">User has no active items in their wishlist.</div>';
             } else {
                 wishlistHtml = '<div class="wishlist-grid">';
-                wishlistItems.forEach(itemId => {
+                validWishlistItems.forEach(itemId => {
                     const prod = State.products.find(p => String(p.id) === String(itemId));
                     if (prod) {
                         const imgUrl = (prod.media && prod.media.length > 0) ? prod.media[0] : '';
@@ -1950,13 +1975,6 @@ async function loadUsers(page = 1) {
                             ${mediaTag}
                             <div class="wishlist-item-title">${escapeHTML(prod.name)}</div>
                             <div class="wishlist-item-price">₹${prod.price.toLocaleString()}</div>
-                        </div>`;
-                    } else {
-                         wishlistHtml += `
-                        <div class="wishlist-item" style="opacity: 0.6;">
-                            <div style="width:70px; height:70px; background:#eee; border:1px dashed #000; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:20px;">?</div>
-                            <div class="wishlist-item-title">Product Removed</div>
-                            <div class="wishlist-item-price" style="font-size: 10px;">ID: ${itemId}</div>
                         </div>`;
                     }
                 });
@@ -2035,8 +2053,8 @@ async function loadUsers(page = 1) {
                     </div>
                     ${cartHtml}
                 </div>
-                <div>
-                    <h4 style="text-transform: uppercase; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 14px; font-weight: 700;">User Wishlist (${wishlistItems.length})</h4>
+<div>
+                    <h4 style="text-transform: uppercase; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 14px; font-weight: 700;">User Wishlist (${validWishlistItems.length})</h4>
                     ${wishlistHtml}
                 </div>
             `;
@@ -3097,216 +3115,213 @@ window.executeBulkVisibilityByCategory = async function() {
         // --- UPDATED ORDERS MANAGEMENT FOR ADMIN PANEL ---
         let currentOrderFilter = 'All'; 
 
-        function updateTabCounts() {
-            const orders = State.orders || [];
-            document.getElementById('count-all').innerText = `(${orders.length})`;
-            document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
-            document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
-            document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
-            document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
+async function updateTabCounts() {
+            try {
+                // Fetch ONLY the status column to keep the payload incredibly lightweight
+                const { data, error } = await db.from('orders').select('status');
+                if (error) throw error;
+                
+                const orders = data || [];
+                document.getElementById('count-all').innerText = `(${orders.length})`;
+                document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
+                document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
+                document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
+                document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
+            } catch (err) {
+                console.error("Error fetching tab counts:", err);
+            }
         }
 
         window.filterOrders = function(status, btn) {
             currentOrderFilter = status;
-            
-            // Update tab UI
             document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
-            if(btn) btn.classList.add('active');
-            
-            // Re-render table
-            renderOrdersTable(status);
+            if (btn) btn.classList.add('active');
+            loadOrders(1); // Reset to page 1 on tab switch
         };
 
         window.applyOrderFilters = function() {
-            renderOrdersTable(currentOrderFilter);
+            loadOrders(1); // Reset to page 1 on filter change
         };
 
+        async function loadOrders(page = 1) {
+            ordersCurrentPage = page;
+            const searchQ = document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.trim() : '';
+            const paymentFilter = document.getElementById('paymentFilter') ? document.getElementById('paymentFilter').value : 'All';
+            const sortFilter = document.getElementById('sortValueFilter') ? document.getElementById('sortValueFilter').value : 'newest';
+            const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
 
+            try {
+                let query = db.from('orders').select('*', { count: 'exact' });
 
-async function loadOrders() {
-    try {
-        const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
-        if (error) throw error;
-
-        State.orders = data || []; 
-        
-        updateTabCounts(); 
-        populateStateDropdown(); // New state parsing logic
-        renderOrdersTable(currentOrderFilter);
-        if (typeof renderMonthlyEarnings === 'function') renderMonthlyEarnings();
-    } catch (err) {
-        console.error("Orders load error:", err);
-        document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
-    }
-}
-
-function populateStateDropdown() {
-    const stateSelect = document.getElementById('stateFilter');
-    if(!stateSelect) return;
-    const states = new Set();
-    
-    // Rough heuristic to parse state from freeform Indian addresses (grabs text before 6-digit pin)
-    State.orders.forEach(o => {
-        const addr = o.customer_details?.address || '';
-        const match = addr.match(/([a-zA-Z\s]+)(?:,\s*|-)?\d{6}/);
-        if(match && match[1]) states.add(match[1].trim());
-    });
-    
-    let html = '<option value="All">All States</option>';
-    Array.from(states).sort().forEach(s => {
-        if(s.length > 2) html += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
-    });
-    stateSelect.innerHTML = html;
-}
-
-function renderOrdersTable(filterStatus) {
-    let html = '';
-    
-    const searchInput = document.getElementById('orderSearch');
-    const paymentInput = document.getElementById('paymentFilter');
-    const sortInput = document.getElementById('sortValueFilter');
-    const stateInput = document.getElementById('stateFilter');
-    
-    const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const paymentFilter = paymentInput ? paymentInput.value : 'All';
-    const sortFilter = sortInput ? sortInput.value : 'newest';
-    const stateFilter = stateInput ? stateInput.value : 'All';
-
-    // 1. Status Filter
-    let filteredOrders = filterStatus === 'All' 
-        ? State.orders 
-        : State.orders.filter(o => o.status === filterStatus);
-
-    // 2. Text Search
-    if (searchQuery) {
-        filteredOrders = filteredOrders.filter(o => {
-            const orderId = String(o.id).toLowerCase();
-            const custName = (o.customer_details?.name || '').toLowerCase();
-            const custPhone = String(o.customer_details?.phone || '').toLowerCase();
-            return orderId.includes(searchQuery) || custName.includes(searchQuery) || custPhone.includes(searchQuery);
-        });
-    }
-
-    // 3. Payment Filter
-    if (paymentFilter !== 'All') {
-        filteredOrders = filteredOrders.filter(o => {
-            const pMethod = o.customer_details?.paymentMethod || '';
-            if (paymentFilter === 'cod') return pMethod === 'cod';
-            if (paymentFilter === 'online') return pMethod !== 'cod';
-            return true;
-        });
-    }
-
-    // 4. State Filter
-    if (stateFilter !== 'All') {
-        filteredOrders = filteredOrders.filter(o => {
-            const addr = (o.customer_details?.address || '').toLowerCase();
-            return addr.includes(stateFilter.toLowerCase());
-        });
-    }
-
-    // 5. Value & Robust Timestamp Sorting
-    filteredOrders.sort((a, b) => {
-        if (sortFilter === 'high_low') return b.total_amount - a.total_amount;
-        if (sortFilter === 'low_high') return a.total_amount - b.total_amount;
-        
-        // Parse dates safely using .getTime()
-        const timeA = new Date(a.created_at).getTime();
-        const timeB = new Date(b.created_at).getTime();
-        
-        if (sortFilter === 'oldest') return timeA - timeB; // Ascending
-        return timeB - timeA; // Default: Newest First (Descending)
-    });
-
-    window.currentFilteredOrders = filteredOrders; // Save globally for CSV Export
-
-    // Render Rows
-    if (filteredOrders && filteredOrders.length > 0) {
-        let sNo = 1; // Sequential Counter naturally increments top-to-bottom
-        const currentTime = Date.now();
-        const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-        
-        filteredOrders.forEach(o => {
-            const customerName = escapeHTML(o.customer_details?.name || 'Guest');
-            const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
-            const customerAltPhone = o.customer_details?.altPhone ? escapeHTML(o.customer_details.altPhone) : null;
-            const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
-            const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
-            
-            // Format Exact Date & 12-hour Time
-            const dateObj = new Date(o.created_at);
-            const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            
-            // 24-Hour "NEW" Badge Logic
-            const isNew = (currentTime - dateObj.getTime()) < twentyFourHoursMs;
-            const newBadgeHtml = isNew ? `<span class="badge" style="margin-left: 6px; font-size: 9px; vertical-align: middle; padding: 2px 4px;">NEW</span>` : '';
-
-            let badgeClass = '';
-            if (o.status === 'In Progress') badgeClass = 'warning';
-            else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
-            else if (o.status === 'Cancelled') badgeClass = 'danger';
-
-            // Generate Item Thumbnails
-            let itemThumbsHtml = '<div class="order-items-row">';
-            if(o.items && o.items.length > 0) {
-                const maxThumbs = 4;
-                o.items.slice(0, maxThumbs).forEach(item => {
-                    const imgSrc = (item.media && item.media.length > 0) ? item.media[0] : '';
-                    if(imgSrc && !imgSrc.endsWith('.mp4')) {
-                        itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}">`;
-                    } else {
-                        itemThumbsHtml += `<div class="order-item-thumb" style="background:#eee; font-size:7px; display:flex; align-items:center; justify-content:center; color:#999;">PIC</div>`;
-                    }
-                });
-                if(o.items.length > maxThumbs) {
-                    itemThumbsHtml += `<div style="font-size: 10px; font-weight: bold; align-self: center; margin-left: 4px;">+${o.items.length - maxThumbs}</div>`;
+                // 1. Tab Status Filter
+                if (currentOrderFilter !== 'All') {
+                    query = query.eq('status', currentOrderFilter);
                 }
-            }
-            itemThumbsHtml += '</div>';
 
-            // Note the data-label attributes, these are required for the CSS mobile cards
-            html += `
-                <tr>
-                    <td data-label="S.No."><strong>${sNo++}</strong></td>
-                    <td data-label="Order ID" style="white-space: nowrap;"><strong>${o.id}</strong>${newBadgeHtml}</td>
-                    <td data-label="Date/Time"><span style="font-size:11px; color:#333;">${formattedDate}</span></td>
-<td data-label="Customer">
-                        <strong>${customerName}</strong><br>
-                        <span style="font-size:11px; color:#333; word-break: break-all;">✉️ ${customerEmail}</span><br>
-                        <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
-                        ${customerAltPhone ? `<span style="font-size:11px; color:#666;">↳ Alt: ${customerAltPhone}</span><br>` : ''}
-                        <div style="max-width:200px; font-size:10px; line-height:1.2; color:#666; margin-top:4px;">${fullAddress}</div>
-                    </td>
-                    <td data-label="Total & Items">
-                        <strong>₹${o.total_amount.toLocaleString()}</strong>
-                        ${itemThumbsHtml}
-                    </td>
-                    <td data-label="Status">
-                        <span class="badge ${badgeClass}" style="margin-bottom: 4px;">${escapeHTML(o.status)}</span><br>
-                        ${o.awb_number 
-                            ? `<span class="awb-badge" style="cursor:pointer; border-color:#2ecc71; color:#2ecc71;" onclick="updateAWB('${o.id}', '${o.awb_number}')">AWB: ${o.awb_number} ✎</span>` 
-                            : `<span class="awb-badge" style="cursor:pointer;" onclick="updateAWB('${o.id}', '')">+ Add AWB</span>`
+                // 2. Text Search (ID, Name, Phone, Email)
+                if (searchQ) {
+                    if (!isNaN(searchQ)) {
+                        query = query.or(`id.eq.${searchQ},customer_details->>phone.ilike.%${searchQ}%`);
+                    } else {
+                        query = query.or(`customer_details->>name.ilike.%${searchQ}%,customer_details->>email.ilike.%${searchQ}%`);
+                    }
+                }
+
+                // 3. Payment Filter
+                if (paymentFilter === 'cod') query = query.eq('customer_details->>paymentMethod', 'cod');
+                if (paymentFilter === 'online') query = query.neq('customer_details->>paymentMethod', 'cod');
+
+                // 4. State Filter
+                if (stateFilter !== 'All') {
+                    query = query.ilike('customer_details->>address', `%${stateFilter}%`);
+                }
+
+                // 5. Sorting
+                if (sortFilter === 'high_low') query = query.order('total_amount', { ascending: false });
+                else if (sortFilter === 'low_high') query = query.order('total_amount', { ascending: true });
+                else if (sortFilter === 'oldest') query = query.order('created_at', { ascending: true });
+                else query = query.order('created_at', { ascending: false }); // 'newest' default
+
+                // 6. Pagination Range
+                const from = (page - 1) * ORDERS_PAGE_SIZE;
+                const to = from + ORDERS_PAGE_SIZE - 1;
+
+                const { data, count, error } = await query.range(from, to);
+                if (error) throw error;
+
+                State.orders = data || [];
+                
+                updateTabCounts(); // Async fetch counts
+                populateStateDropdown(); 
+                renderOrdersTableHTML(count); // Render table with exact count for pagination
+
+                if (typeof renderMonthlyEarnings === 'function') renderMonthlyEarnings();
+            } catch (err) {
+                console.error("Orders load error:", err);
+                document.getElementById('ordersTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading orders. Check Console.</td></tr>';
+            }
+        }
+
+        function populateStateDropdown() {
+            const stateSelect = document.getElementById('stateFilter');
+            if(!stateSelect) return;
+            const states = new Set();
+            
+            State.orders.forEach(o => {
+                const addr = o.customer_details?.address || '';
+                const match = addr.match(/([a-zA-Z\s]+)(?:,\s*|-)?\d{6}/);
+                if(match && match[1]) states.add(match[1].trim());
+            });
+            
+            let html = '<option value="All">All States</option>';
+            Array.from(states).sort().forEach(s => {
+                if(s.length > 2) html += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+            });
+            
+            // Retain selection
+            const currentVal = stateSelect.value;
+            stateSelect.innerHTML = html;
+            if(Array.from(stateSelect.options).some(opt => opt.value === currentVal)) {
+                stateSelect.value = currentVal;
+            }
+        }
+
+        function renderOrdersTableHTML(totalCount) {
+            let html = '';
+            
+            // Update Pagination UI
+            const totalPages = Math.ceil(totalCount / ORDERS_PAGE_SIZE) || 1;
+            const pageInfo = document.getElementById('ordersPageInfo');
+            const btnPrev = document.getElementById('btnPrevOrderPage');
+            const btnNext = document.getElementById('btnNextOrderPage');
+
+            if(pageInfo) pageInfo.innerText = `Page ${ordersCurrentPage} of ${totalPages} (${totalCount} Total)`;
+            if(btnPrev) btnPrev.disabled = ordersCurrentPage <= 1;
+            if(btnNext) btnNext.disabled = ordersCurrentPage >= totalPages;
+
+            // Render Rows directly from the 100 items in State.orders
+            if (State.orders && State.orders.length > 0) {
+                let sNo = ((ordersCurrentPage - 1) * ORDERS_PAGE_SIZE) + 1; 
+                const currentTime = Date.now();
+                const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+                
+                State.orders.forEach(o => {
+                    const customerName = escapeHTML(o.customer_details?.name || 'Guest');
+                    const customerPhone = escapeHTML(o.customer_details?.phone || 'No Phone');
+                    const customerAltPhone = o.customer_details?.altPhone ? escapeHTML(o.customer_details.altPhone) : null;
+                    const customerEmail = escapeHTML(o.customer_details?.email || 'No Email');
+                    const fullAddress = escapeHTML(o.customer_details?.address || 'No Address Provided');
+                    
+                    const dateObj = new Date(o.created_at);
+                    const formattedDate = dateObj.toLocaleDateString('en-IN') + ', ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    
+                    const isNew = (currentTime - dateObj.getTime()) < twentyFourHoursMs;
+                    const newBadgeHtml = isNew ? `<span class="badge" style="margin-left: 6px; font-size: 9px; vertical-align: middle; padding: 2px 4px;">NEW</span>` : '';
+
+                    let badgeClass = '';
+                    if (o.status === 'In Progress') badgeClass = 'warning';
+                    else if (o.status === 'Confirmed' || o.status === 'Delivered') badgeClass = 'success';
+                    else if (o.status === 'Cancelled') badgeClass = 'danger';
+
+                    let itemThumbsHtml = '<div class="order-items-row">';
+                    if(o.items && o.items.length > 0) {
+                        const maxThumbs = 4;
+                        o.items.slice(0, maxThumbs).forEach(item => {
+                            const imgSrc = (item.media && item.media.length > 0) ? item.media[0] : '';
+                            if(imgSrc && !imgSrc.endsWith('.mp4')) {
+                                itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}">`;
+                            } else {
+                                itemThumbsHtml += `<div class="order-item-thumb" style="background:#eee; font-size:7px; display:flex; align-items:center; justify-content:center; color:#999;">PIC</div>`;
+                            }
+                        });
+                        if(o.items.length > maxThumbs) {
+                            itemThumbsHtml += `<div style="font-size: 10px; font-weight: bold; align-self: center; margin-left: 4px;">+${o.items.length - maxThumbs}</div>`;
                         }
-                    </td>
-<td data-label="Action">
-    <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
-        <button class="outline" onclick="openWaModal('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0; color: #25D366; border-color: #25D366;">WA</button>
-        
-        <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
-                                <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
-                                <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
-                                <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
-                                <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-                            </select>
-                            <button class="outline" onclick="viewOrderItems('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0;">ITEMS</button>
-                        </div>
-                    </td>
-                </tr>`;
-        });
-    }
-    
-    document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:20px;">No orders found matching your filters</td></tr>`;
-}
+                    }
+                    itemThumbsHtml += '</div>';
+
+                    html += `
+                        <tr>
+                            <td data-label="S.No."><strong>${sNo++}</strong></td>
+                            <td data-label="Order ID" style="white-space: nowrap;"><strong>${o.id}</strong>${newBadgeHtml}</td>
+                            <td data-label="Date/Time"><span style="font-size:11px; color:#333;">${formattedDate}</span></td>
+                            <td data-label="Customer">
+                                <strong>${customerName}</strong><br>
+                                <span style="font-size:11px; color:#333; word-break: break-all;">✉️ ${customerEmail}</span><br>
+                                <span style="font-size:11px; color:#333;">📞 ${customerPhone}</span><br>
+                                ${customerAltPhone ? `<span style="font-size:11px; color:#666;">↳ Alt: ${customerAltPhone}</span><br>` : ''}
+                                <div style="max-width:200px; font-size:10px; line-height:1.2; color:#666; margin-top:4px;">${fullAddress}</div>
+                            </td>
+                            <td data-label="Total & Items">
+                                <strong>₹${o.total_amount.toLocaleString()}</strong>
+                                ${itemThumbsHtml}
+                            </td>
+                            <td data-label="Status">
+                                <span class="badge ${badgeClass}" style="margin-bottom: 4px;">${escapeHTML(o.status)}</span><br>
+                                ${o.awb_number 
+                                    ? `<span class="awb-badge" style="cursor:pointer; border-color:#2ecc71; color:#2ecc71;" onclick="updateAWB('${o.id}', '${o.awb_number}')">AWB: ${o.awb_number} ✎</span>` 
+                                    : `<span class="awb-badge" style="cursor:pointer;" onclick="updateAWB('${o.id}', '')">+ Add AWB</span>`
+                                }
+                            </td>
+                            <td data-label="Action">
+                                <div class="flex-row mobile-action-flex" style="margin-bottom:0; gap:5px;">
+                                    <button class="outline" onclick="openWaModal('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0; color: #25D366; border-color: #25D366;">WA</button>
+                                    
+                                    <select onchange="updateOrderStatus('${o.id}', this.value)" style="margin:0; width:auto; padding:4px; font-size:11px; font-weight:600; cursor:pointer;">
+                                        <option value="In Progress" ${o.status==='In Progress'?'selected':''}>In Progress</option>
+                                        <option value="Confirmed" ${o.status==='Confirmed'?'selected':''}>Confirmed</option>
+                                        <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                                        <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                                    </select>
+                                    <button class="outline" onclick="viewOrderItems('${o.id}')" style="padding:4px 8px; font-size:10px; width:auto; margin:0;">ITEMS</button>
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+            }
+            
+            document.getElementById('ordersTableBody').innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:20px;">No orders found matching your filters</td></tr>`;
+        }
 
 window.viewOrderItems = async function(orderId) {
     try {
@@ -3536,47 +3551,84 @@ window.updateOrderStatus = function(id, newStatus) {
             }
         };
 
-        window.exportOrdersCSV = function() {
-// END OF NEW REPLACEMENT
-    if (!window.currentFilteredOrders || window.currentFilteredOrders.length === 0) {
-        return alert("No orders available to export based on current filters.");
-    }
+        
     
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Order ID,Date,Customer Name,Phone,Email,State,City,Pincode,Amount,Payment Method,Status,AWB Number\n";
-    
-    window.currentFilteredOrders.forEach(o => {
-        const dateObj = new Date(o.created_at);
-        const formattedDate = `"${dateObj.toLocaleDateString('en-IN')} ${dateObj.toLocaleTimeString('en-US')}"`;
-        
-        // Safely extract customer details
-        const c = o.customer_details || {};
-        const cName = `"${c.name || ''}"`;
-        const phone = `"${c.phone || ''}"`;
-        const email = `"${c.email || ''}"`;
-        
-        // Extract State, City, Pincode from the address string (best effort based on formatting)
-        const fullAddr = c.address || '';
-        const addrParts = fullAddr.split(',');
-        const stateStr = `"${addrParts.length > 2 ? addrParts[addrParts.length-1].split('-')[0]?.trim() : ''}"`;
-        const cityStr = `"${addrParts.length > 1 ? addrParts[addrParts.length-2]?.trim() : ''}"`;
-        
-        const amount = o.total_amount;
-        const pMethod = `"${c.paymentMethod === 'cod' ? 'COD' : 'Online'}"`;
-        const status = `"${o.status}"`;
-        const awb = `"${o.awb_number || ''}"`;
-        
-        csvContent += `${o.id},${formattedDate},${cName},${phone},${email},${stateStr},${cityStr},"",${amount},${pMethod},${status},${awb}\n`;
-    });
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
+    window.exportOrdersCSV = async function() {
+            const btn = document.querySelector('button[onclick="exportOrdersCSV()"]');
+            if(btn) { btn.innerText = "EXPORTING..."; btn.disabled = true; }
+
+            try {
+                // Reconstruct the active query without pagination (.range)
+                const searchQ = document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.trim() : '';
+                const paymentFilter = document.getElementById('paymentFilter') ? document.getElementById('paymentFilter').value : 'All';
+                const sortFilter = document.getElementById('sortValueFilter') ? document.getElementById('sortValueFilter').value : 'newest';
+                const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
+
+                let query = db.from('orders').select('*');
+
+                if (currentOrderFilter !== 'All') query = query.eq('status', currentOrderFilter);
+                
+                if (searchQ) {
+                    if (!isNaN(searchQ)) query = query.or(`id.eq.${searchQ},customer_details->>phone.ilike.%${searchQ}%`);
+                    else query = query.or(`customer_details->>name.ilike.%${searchQ}%,customer_details->>email.ilike.%${searchQ}%`);
+                }
+
+                if (paymentFilter === 'cod') query = query.eq('customer_details->>paymentMethod', 'cod');
+                if (paymentFilter === 'online') query = query.neq('customer_details->>paymentMethod', 'cod');
+
+                if (stateFilter !== 'All') query = query.ilike('customer_details->>address', `%${stateFilter}%`);
+
+                if (sortFilter === 'high_low') query = query.order('total_amount', { ascending: false });
+                else if (sortFilter === 'low_high') query = query.order('total_amount', { ascending: true });
+                else if (sortFilter === 'oldest') query = query.order('created_at', { ascending: true });
+                else query = query.order('created_at', { ascending: false });
+
+                const { data: fullFilteredOrders, error } = await query;
+                if (error) throw error;
+
+                if (!fullFilteredOrders || fullFilteredOrders.length === 0) {
+                    return alert("No orders available to export based on current filters.");
+                }
+                
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Order ID,Date,Customer Name,Phone,Email,State,City,Pincode,Amount,Payment Method,Status,AWB Number\n";
+                
+                fullFilteredOrders.forEach(o => {
+                    const dateObj = new Date(o.created_at);
+                    const formattedDate = `"${dateObj.toLocaleDateString('en-IN')} ${dateObj.toLocaleTimeString('en-US')}"`;
+                    
+                    const c = o.customer_details || {};
+                    const cName = `"${c.name || ''}"`;
+                    const phone = `"${c.phone || ''}"`;
+                    const email = `"${c.email || ''}"`;
+                    
+                    const fullAddr = c.address || '';
+                    const addrParts = fullAddr.split(',');
+                    const stateStr = `"${addrParts.length > 2 ? addrParts[addrParts.length-1].split('-')[0]?.trim() : ''}"`;
+                    const cityStr = `"${addrParts.length > 1 ? addrParts[addrParts.length-2]?.trim() : ''}"`;
+                    
+                    const amount = o.total_amount;
+                    const pMethod = `"${c.paymentMethod === 'cod' ? 'COD' : 'Online'}"`;
+                    const status = `"${o.status}"`;
+                    const awb = `"${o.awb_number || ''}"`;
+                    
+                    csvContent += `${o.id},${formattedDate},${cName},${phone},${email},${stateStr},${cityStr},"",${amount},${pMethod},${status},${awb}\n`;
+                });
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (err) {
+                alert("Export failed: " + err.message);
+            } finally {
+                if(btn) { btn.innerText = "EXPORT CSV"; btn.disabled = false; }
+            }
+        };
 // --- Optimistic Master Delete ---
         window.deleteRecord = function(table, id) {
             // Capture the specific table row that was clicked
@@ -4122,104 +4174,111 @@ window.syncToSupabase = async function() {
 };
         
 
-window.renderMonthlyEarnings = function() {
-    const tbody = document.getElementById('monthlyEarningsTableBody');
-    if (!tbody) return;
-
-    let overallTotal = 0;
-    const monthlyData = {}; // Format: { "YYYY-MM": { label: "Jan 2026", total: 0, tags: {} } }
-
-    // 1. Filter out Cancelled orders
-    const validOrders = State.orders.filter(o => o.status !== 'Cancelled');
-
-    validOrders.forEach(order => {
-        // 2. Group by Month and Year
-        const dateObj = new Date(order.created_at);
-        const monthYearKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-        const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-        if (!monthlyData[monthYearKey]) {
-            monthlyData[monthYearKey] = { label: monthLabel, total: 0, tags: {} };
-        }
-
-        // 3. Calculate True Received Amount
-        let c = {};
-        try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
-
-        let orderReceivedAmount = 0;
-        if (c.paymentMethod === 'cod') {
-            orderReceivedAmount = Number(c.amountPaid || 0); // Advance is always collected
-            if (order.status === 'Delivered') {
-                orderReceivedAmount += Number(c.amountDue || 0); // Due is collected upon delivery
+window.fetchAnalyticsData = async function() {
+            try {
+                // Fetch lightweight historical payload (ignoring cancelled orders to speed it up)
+                const { data, error } = await db.from('orders')
+                    .select('created_at, status, total_amount, customer_details, items, actual_shipping_cost')
+                    .neq('status', 'Cancelled');
+                if (error) throw error;
+                return data || [];
+            } catch(e) {
+                console.error("Failed to fetch analytics:", e);
+                return [];
             }
-        } else {
-            // Online orders are fully paid upfront
-            orderReceivedAmount = Number(order.total_amount || 0);
-        }
+        };
 
-        monthlyData[monthYearKey].total += orderReceivedAmount;
-        overallTotal += orderReceivedAmount;
-
-        // 4. Distribute Revenue to Tags
-        let itemsArr = [];
-        try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
-
-        const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
-        const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
-
-        itemsArr.forEach(item => {
-            const prodTag = item.smart_tag || 'Uncategorized';
-            const itemGrossValue = (Number(item.price) || 0) * (Number(item.qty) || 1);
-            const itemTrueRevenue = itemGrossValue * revenueRatio;
-
-            if (!monthlyData[monthYearKey].tags[prodTag]) {
-                monthlyData[monthYearKey].tags[prodTag] = 0;
-            }
-            monthlyData[monthYearKey].tags[prodTag] += itemTrueRevenue;
-        });
-    });
-
-    // 5. Render UI
-    document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
-
-    // Sort months descending (newest first)
-    const sortedMonths = Object.keys(monthlyData).sort().reverse();
-
-    let html = '';
-    if (sortedMonths.length === 0) {
-        html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
-    } else {
-        sortedMonths.forEach(monthKey => {
-            const data = monthlyData[monthKey];
+        window.renderMonthlyEarnings = async function() {
+            const tbody = document.getElementById('monthlyEarningsTableBody');
+            if (!tbody) return;
             
-            // Build the Tag Badges HTML
-            let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
-            const sortedTags = Object.keys(data.tags).sort((a, b) => data.tags[b] - data.tags[a]); // Sort tags by highest revenue
-            
-            if (sortedTags.length === 0) {
-                tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching historical data...</td></tr>';
+
+            const historicalOrders = await fetchAnalyticsData();
+
+            let overallTotal = 0;
+            const monthlyData = {}; 
+
+            historicalOrders.forEach(order => {
+                const dateObj = new Date(order.created_at);
+                const monthYearKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+                const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                if (!monthlyData[monthYearKey]) {
+                    monthlyData[monthYearKey] = { label: monthLabel, total: 0, tags: {} };
+                }
+
+                let c = {};
+                try { c = typeof order.customer_details === 'string' ? JSON.parse(order.customer_details) : (order.customer_details || {}); } catch(e) {}
+
+                let orderReceivedAmount = 0;
+                if (c.paymentMethod === 'cod') {
+                    orderReceivedAmount = Number(c.amountPaid || 0); 
+                    if (order.status === 'Delivered') {
+                        orderReceivedAmount += Number(c.amountDue || 0); 
+                    }
+                } else {
+                    orderReceivedAmount = Number(order.total_amount || 0);
+                }
+
+                monthlyData[monthYearKey].total += orderReceivedAmount;
+                overallTotal += orderReceivedAmount;
+
+                let itemsArr = [];
+                try { itemsArr = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) {}
+
+                const totalItemsVal = itemsArr.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+                const revenueRatio = totalItemsVal > 0 ? (orderReceivedAmount / totalItemsVal) : 0;
+
+                itemsArr.forEach(item => {
+                    const prodTag = item.smart_tag || 'Uncategorized';
+                    const itemGrossValue = (Number(item.price) || 0) * (Number(item.qty) || 1);
+                    const itemTrueRevenue = itemGrossValue * revenueRatio;
+
+                    if (!monthlyData[monthYearKey].tags[prodTag]) {
+                        monthlyData[monthYearKey].tags[prodTag] = 0;
+                    }
+                    monthlyData[monthYearKey].tags[prodTag] += itemTrueRevenue;
+                });
+            });
+
+            document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
+            const sortedMonths = Object.keys(monthlyData).sort().reverse();
+
+            let html = '';
+            if (sortedMonths.length === 0) {
+                html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
             } else {
-                sortedTags.forEach(tag => {
-                    tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(data.tags[tag]).toLocaleString()}</span>`;
+                sortedMonths.forEach(monthKey => {
+                    const data = monthlyData[monthKey];
+                    let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
+                    const sortedTags = Object.keys(data.tags).sort((a, b) => data.tags[b] - data.tags[a]); 
+                    
+                    if (sortedTags.length === 0) {
+                        tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
+                    } else {
+                        sortedTags.forEach(tag => {
+                            tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(data.tags[tag]).toLocaleString()}</span>`;
+                        });
+                    }
+                    tagsHtml += `</div>`;
+
+                    html += `
+                    <tr style="background: #fff;">
+                        <td>
+                            <strong style="font-size: 14px; text-transform: uppercase;">${data.label}</strong>
+                            ${tagsHtml}
+                        </td>
+                        <td style="text-align: right; vertical-align: middle;">
+                            <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(data.total).toLocaleString()}</strong>
+                        </td>
+                    </tr>`;
                 });
             }
-            tagsHtml += `</div>`;
+            tbody.innerHTML = html;
+        };
 
-            html += `
-            <tr style="background: #fff;">
-                <td>
-                    <strong style="font-size: 14px; text-transform: uppercase;">${data.label}</strong>
-                    ${tagsHtml}
-                </td>
-                <td style="text-align: right; vertical-align: middle;">
-                    <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(data.total).toLocaleString()}</strong>
-                </td>
-            </tr>`;
-        });
-    }
-
-    tbody.innerHTML = html;
-};
+    
 
 
         // --- SMART TAGS & REVENUE LOGIC ---
