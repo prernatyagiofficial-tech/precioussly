@@ -1913,11 +1913,13 @@ function mapProduct(row) {
         isAlphabet: parseBool(row.is_alphabet), 
         variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color',
-        showSizeChart: parseBool(row.show_size_chart),
-        smart_tag: row.smart_tag || null,
-        show_purchase_count: parseBool(row.show_purchase_count) // <-- YEH LINE ADD KARNI HAI
-    };
-}
+            showSizeChart: parseBool(row.show_size_chart),
+            smart_tag: row.smart_tag || null,
+            show_purchase_count: parseBool(row.show_purchase_count), 
+            sort_order: row.sort_order // <-- NEW ADDITION
+        };
+    }
+
 // END OF NEW REPLACEMENT
 
         function mapCoupon(row) {
@@ -1977,18 +1979,19 @@ function mapProduct(row) {
             }, mapCategory, 300000, force);
         }
 
-// Fetches enough products to populate all homepage category sections properly
-        async function getProducts(force = false) {
-            return fetchWithCache('products_initial', async () => {
-                const { data } = await db.from('products')
-                    .select('*')
-                    .neq('is_hidden', true)
-                    .order('is_best_seller', { ascending: false }) 
-                    .order('id', { ascending: false }) 
-                    .limit(300); // Limit increased so category sections don't appear empty
-                return data || [];
-            }, mapProduct, 300000, force);
-        }
+
+        // Fetches enough products to populate all homepage category sections properly
+async function getProducts(force = false) {
+    return fetchWithCache('products_initial', async () => {
+        const { data } = await db.from('products')
+            .select('*')
+            .neq('is_hidden', true)
+            .order('sort_order', { ascending: true }) // <-- FIXED: Now respects your drag-and-drop order
+            .order('id', { ascending: false }) 
+            .limit(300); // Limit increased so category sections don't appear empty
+        return data || [];
+    }, mapProduct, 300000, force);
+}
 
         // --- NEW: SUPABASE SERVER-SIDE QUERY ENGINE ---
         async function fetchServerProducts(page = 0, params = {}) {
@@ -2788,7 +2791,11 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                     });
                     html += `</div>`;
                 } else if (section.id === 'bestsellers') {
-                    const bestSellers = appData.products.filter(p => p.isBestSeller).sort((a, b) => b.id - a.id);
+                    const bestSellers = appData.products.filter(p => p.isBestSeller).sort((a, b) => {
+    const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
+    const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
+    return orderA !== orderB ? orderA - orderB : b.id - a.id;
+});
                     if (bestSellers.length > 0) {
                         html += `
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
@@ -2842,7 +2849,11 @@ let html = `<div class="banner" onclick="${bannerClickAction}" style="cursor:poi
                         });
                     } else {
                         // Render Products (Max 10)
-                        const catProds = appData.products.filter(p => String(p.catId) === String(catId)).sort((a, b) => b.id - a.id).slice(0, 10);
+                        const catProds = appData.products.filter(p => String(p.catId) === String(catId)).sort((a, b) => {
+    const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
+    const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
+    return orderA !== orderB ? orderA - orderB : b.id - a.id;
+}).slice(0, 10);
                         if (catProds.length === 0) {
                              html += `<div style="padding: 10px 0; color: #999; font-size: 13px; font-style: italic;">No products added yet.</div>`;
                         }
