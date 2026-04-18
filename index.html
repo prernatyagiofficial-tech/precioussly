@@ -1353,6 +1353,46 @@ main {
         .skeleton-card-text-1 { width: 70%; height: 14px; border-radius: 4px; margin-top: 5px; }
         .skeleton-card-text-2 { width: 40%; height: 14px; border-radius: 4px; }
         .skeleton-card-btn { width: 100%; height: 36px; border-radius: 8px; margin-top: 10px; }
+        /* --- VIEW TOGGLE & LIST VIEW STYLES --- */
+        .view-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-gray);
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease, transform 0.2s ease;
+            outline: none;
+        }
+        .view-toggle-btn:active { transform: scale(0.9); }
+        .view-toggle-btn.active { color: var(--text-dark); }
+        .view-toggle-btn svg { width: 22px; height: 22px; stroke-width: 1.5; stroke: currentColor; fill: none; }
+        
+        /* Single Column (List View) Modifier */
+        .grid-container.list-view {
+            grid-template-columns: 1fr !important;
+            max-width: 550px; /* Constrains width on laptops for a premium feed look */
+            margin: 0 auto;
+            width: 100%;
+            gap: 35px; /* Adds breathing room between large stacked cards */
+        }
+        .grid-container.list-view .product-card .img-wrapper {
+            border-radius: var(--radius-lg); /* Slightly more curve for large images */
+        }
+        .grid-container.list-view .product-title {
+            font-size: 16px;
+            margin-top: 8px;
+        }
+        .grid-container.list-view .product-price {
+            font-size: 18px;
+        }
+        .grid-container.list-view .product-card button.btn-secondary {
+            padding: 12px 14px;
+            font-size: 14px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -1994,7 +2034,7 @@ async function getProducts(force = false) {
 }
 
         // --- NEW: SUPABASE SERVER-SIDE QUERY ENGINE ---
-        async function fetchServerProducts(page = 0, params = {}) {
+        async function fetchServerProducts(page = 0, params = {}, isRestoring = false) {
             let query = db.from('products').select('*', { count: 'exact' }).neq('is_hidden', true);
 
             // 1. Server-Side Search
@@ -2035,9 +2075,10 @@ async function getProducts(force = false) {
                 default: query = query.order('sort_order', { ascending: true }).order('id', { ascending: false }); break;
             }
 
-            // 5. Pagination
-            const from = page * ITEMS_PER_PAGE;
-            const to = from + ITEMS_PER_PAGE - 1;
+// 5. Pagination
+            // If navigating back, fetch all items up to the current page to prevent empty spaces
+            const from = isRestoring ? 0 : page * ITEMS_PER_PAGE;
+            const to = (page * ITEMS_PER_PAGE) + ITEMS_PER_PAGE - 1;
             query = query.range(from, to);
 
             const { data, count, error } = await query;
@@ -2105,7 +2146,29 @@ async function getProducts(force = false) {
         let selectedProductVariantIndex = 0;
         let selectedProductSize = null;
         let selectedAlphabet = null;
+let currentProductView = localStorage.getItem('eco_product_view') || 'grid';
 
+        function switchProductView(mode) {
+            triggerHaptic('light');
+            currentProductView = mode;
+            localStorage.setItem('eco_product_view', mode);
+            
+            const grid = document.getElementById('dynamic-product-grid');
+            const gridBtn = document.getElementById('btnViewGrid');
+            const listBtn = document.getElementById('btnViewList');
+            
+            if (grid) {
+                if (mode === 'list') {
+                    grid.classList.add('list-view');
+                    if (gridBtn) gridBtn.classList.remove('active');
+                    if (listBtn) listBtn.classList.add('active');
+                } else {
+                    grid.classList.remove('list-view');
+                    if (gridBtn) gridBtn.classList.add('active');
+                    if (listBtn) listBtn.classList.remove('active');
+                }
+            }
+        }
         const mainContent = document.getElementById('main-content');
         const searchContainer = document.getElementById('searchContainer');
         const searchInput = document.getElementById('searchInput');
@@ -2151,6 +2214,11 @@ async function getProducts(force = false) {
         function navigate(stateObj) {
     if (!isPopState) {
         const current = history.state;
+        // Save current scroll position before navigating away
+        if (current) {
+            current.scrollY = window.scrollY;
+            history.replaceState(current, "", window.location.search || window.location.pathname);
+        }
         let queryParams = ""; // Start empty
         
         // Generate the correct URL string based on the view
@@ -2514,6 +2582,9 @@ if (appData.settings.instagramUrl) {
                 if(!isPopState) renderHome();
                 return;
             }
+            const isRestoring = isPopState;
+            const savedScroll = history.state ? history.state.scrollY : 0;
+
             navigate({view: 'search', query: query});
             if(searchContainer.style.display !== 'block') {
                 searchContainer.style.display = 'block';
@@ -2521,22 +2592,23 @@ if (appData.settings.instagramUrl) {
             }
             
             // Server-Side Request Setup
-            currentPage = 0;
+            if (!isRestoring) currentPage = 0;
             currentFetchParams = { search: query };
             currentCategoryName = `Results for "${query}"`;
             currentSubCategories = [];
             
 // Reset filters visually without re-triggering the fetch
-            currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
-            filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
-            updateFilterUI();
+            if (!isRestoring) {
+                currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+                filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
+                updateFilterUI();
+                mainContent.innerHTML = getSkeletonHTML(false);
+            }
             
-            mainContent.innerHTML = getSkeletonHTML(false);
-            
-            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
+            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams, isRestoring);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
             
-            renderProductList(currentCategoryName, data, currentSubCategories, count);
+            renderProductList(currentCategoryName, data, currentSubCategories, count, savedScroll);
             document.getElementById('filterTotalCount').innerText = `${count} products`;
         }
 
@@ -2906,6 +2978,9 @@ if (appData.settings.instagramUrl) {
             if (catId === 'refresh') return; 
             if(catId === 'track') return renderTrackOrder();
             
+            const isRestoring = isPopState;
+            const savedScroll = history.state ? history.state.scrollY : 0;
+            
             navigate({view: 'category', id: catId});
             searchContainer.style.display = 'none';
 
@@ -2921,7 +2996,7 @@ if (appData.settings.instagramUrl) {
             }
 
             // Server-Side Request Setup
-            currentPage = 0;
+            if (!isRestoring) currentPage = 0;
             currentFetchParams = { 
                 category: catId, 
                 subCatIds: subCategories.map(c => String(c.id)) 
@@ -2930,19 +3005,21 @@ if (appData.settings.instagramUrl) {
             currentSubCategories = subCategories;
             
 // Show loading state if there are no subcategories to show first
-            if (subCategories.length === 0) {
+            if (subCategories.length === 0 && !isRestoring) {
                 mainContent.innerHTML = getSkeletonHTML(false);
             }
 
 // Reset filters visually without re-triggering the fetch
-            currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
-            filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
-            updateFilterUI();
+            if (!isRestoring) {
+                currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+                filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
+                updateFilterUI();
+            }
 
-            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
+            const { data, count } = await fetchServerProducts(currentPage, currentFetchParams, isRestoring);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
             
-            renderProductList(currentCategoryName, data, currentSubCategories, count);
+            renderProductList(currentCategoryName, data, currentSubCategories, count, savedScroll);
             document.getElementById('filterTotalCount').innerText = `${count} products`;
         }
 
@@ -2983,7 +3060,7 @@ if (appData.settings.instagramUrl) {
             isFetchingProducts = false;
         }
 
-        function renderProductList(title, products, subCats = [], totalCount = 0) {
+        function renderProductList(title, products, subCats = [], totalCount = 0, savedScroll = 0) {
             let html = ``;
 
             if (subCats && subCats.length > 0) {
@@ -3010,15 +3087,25 @@ if (appData.settings.instagramUrl) {
                 
                 requestAnimationFrame(() => {
                     mainContent.innerHTML = html;
-                    window.scrollTo(0, 0);
+                    if (savedScroll > 0) window.scrollTo(0, savedScroll);
+                    else window.scrollTo(0, 0);
                 });
                 return; 
             }
 
-            if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+                const gridActive = currentProductView === 'grid' ? 'active' : '';
+                const listActive = currentProductView === 'list' ? 'active' : '';
+                
                 html += `
-                <div class="section-title-wrapper" style="padding-top: 25px; padding-bottom: 5px;">
-                    <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; text-align: center;">${title}</h3>
+                <div class="section-title-wrapper" style="padding-top: 25px; padding-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 20px;">
+                    <button id="btnViewGrid" class="view-toggle-btn ${gridActive}" onclick="switchProductView('grid')" title="Grid View">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    </button>
+                    <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; text-align: center; margin: 0;">${title}</h3>
+                    <button id="btnViewList" class="view-toggle-btn ${listActive}" onclick="switchProductView('list')" title="List View">
+                        <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="7" rx="1"></rect><rect x="4" y="14" width="16" height="7" rx="1"></rect></svg>
+                    </button>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px 20px;">
                     <button onclick="openFilterModal()" style="display: flex; align-items: center; gap: 8px; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer; font-family: inherit;">
@@ -3030,7 +3117,8 @@ if (appData.settings.instagramUrl) {
                 `;
             }
 
-            html += `<div class="grid-container" id="dynamic-product-grid">`;
+            const viewClass = currentProductView === 'list' ? 'list-view' : '';
+            html += `<div class="grid-container ${viewClass}" id="dynamic-product-grid">`;
             if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
             else products.forEach(prod => html += getProductCardHTML(prod));
             html += `</div>`;
@@ -3042,7 +3130,9 @@ if (appData.settings.instagramUrl) {
             
             requestAnimationFrame(() => {
                 mainContent.innerHTML = html;
-                window.scrollTo(0, 0);
+                
+                if (savedScroll > 0) window.scrollTo(0, savedScroll);
+                else window.scrollTo(0, 0);
                 
                 // Attach observer
                 const anchor = document.getElementById('infinite-scroll-anchor');
