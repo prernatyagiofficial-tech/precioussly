@@ -1898,6 +1898,7 @@ let currentSubCategories = [];
         function mapSettings(row) {
     if (!row) row = {};
     return {
+        defaultProductView: row.default_product_view || 'grid',
         brandName: row.brand_name || 'My Store',
         logoUrl: row.logo_url || '',
         logoWidth: Number(row.logo_width) || 60,
@@ -2146,7 +2147,7 @@ async function getProducts(force = false) {
         let selectedProductVariantIndex = 0;
         let selectedProductSize = null;
         let selectedAlphabet = null;
-let currentProductView = localStorage.getItem('eco_product_view') || 'grid';
+let currentProductView = localStorage.getItem('eco_product_view') || null;
 
         function switchProductView(mode) {
             triggerHaptic('light');
@@ -2360,6 +2361,11 @@ let currentProductView = localStorage.getItem('eco_product_view') || 'grid';
 
     document.getElementById('footerBrandName').innerText = appData.settings.brandName;
     document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+    
+    if (!currentProductView) {
+        currentProductView = appData.settings.defaultProductView || 'grid';
+    }
+
     // START: Replace your current document.title line in applyGlobalSettings with this:
     document.title = `${appData.settings.brandName} - E-Commerce`;
     document.querySelector('meta[name="description"]')?.setAttribute("content", appData.settings.aboutUsText || "Welcome to our store.");
