@@ -578,6 +578,27 @@ main {
 /* General specific views (Product Details) */
 .product-hero { position: relative; width: 100%; aspect-ratio: 1 / 1; background: var(--placeholder-bg); overflow: hidden; }
 
+.purchase-count-badge {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none; /* Ensures users can still swipe the carousel under the badge */
+    animation: fadeIn 0.4s ease;
+}
+
 .carousel-track { 
     display: flex; 
     width: 100%; 
@@ -3328,6 +3349,23 @@ function changeProductSize(size, btnElement) {
         }
 
         function openSizeChartModal() { sizeChartModal.classList.add('active'); document.body.classList.add('no-scroll'); }
+        async function fetchAndDisplayPurchaseCount(prodId) {
+    try {
+        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+        if (error) throw error;
+        
+        // Only show if the count is strictly greater than 0
+        if (data && data > 0) {
+            const badge = document.getElementById('monthlyPurchaseBadge');
+            if (badge) {
+                badge.innerHTML = `📦 ${data} purchased this month`;
+                badge.style.display = 'flex';
+            }
+        }
+    } catch (err) {
+        console.error("Failed to fetch purchase count:", err);
+    }
+}
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
         
 
@@ -3528,8 +3566,9 @@ let sizeHtml = '';
 
           let html = `
                 <div class="product-layout-wrapper">
-                    <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-                        <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
+<div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
+    <div id="monthlyPurchaseBadge" class="purchase-count-badge" style="display: none;"></div>
+    <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
                             ${getHeartSvg(prod.id)}
                         </button>
                         <div class="carousel-track" id="carouselTrack" style="transform: ${totalSlides > 1 ? 'translateX(-100%)' : 'translateX(0)'};">${slidesHtml}</div>
@@ -3578,12 +3617,17 @@ let sizeHtml = '';
 ${relatedProductsHtml}
             `;
             requestAnimationFrame(() => {
-                mainContent.innerHTML = html;
-                window.scrollTo(0, 0);
-                
-                // NEW: Check stock immediately when the product page loads to disable buttons if needed
-                updateStockUI(prod); 
-            });
+    mainContent.innerHTML = html;
+    window.scrollTo(0, 0);
+    
+    // Check stock immediately when the product page loads
+    updateStockUI(prod); 
+    
+    // Trigger the optimized purchase count fetch asynchronously so it doesn't block the UI load
+    if (prod.show_purchase_count) {
+        fetchAndDisplayPurchaseCount(prod.id);
+    }
+});
         }
 
 // --- CART LOGIC ---
