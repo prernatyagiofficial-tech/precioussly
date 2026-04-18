@@ -1181,6 +1181,7 @@
                 <label class="checkbox-label"><input type="checkbox" id="prodAlphabet"> Has Alphabet Selection</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodShowSizeChart"> Show Size Chart</label>
+                <label class="checkbox-label"><input type="checkbox" id="prodShowPurchaseCount"> Show Monthly Count</label>
             </div>
             
             <div class="form-group full-width">
@@ -2741,6 +2742,7 @@ window.executeBulkAction = async function(action) {
         document.getElementById('prodAlphabet').checked = !!p.is_alphabet;
         document.getElementById('prodHidden').checked = !!p.is_hidden;
         document.getElementById('prodShowSizeChart').checked = !!p.show_size_chart;
+        document.getElementById('prodShowPurchaseCount').checked = !!p.show_purchase_count;
         window._tempVariantStock = p.variant_stock || {};
         window._tempVariantPrices = p.variant_prices || {};
         setTimeout(() => generateStockGrid(), 50);
@@ -2808,6 +2810,7 @@ window.executeBulkAction = async function(action) {
 is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
             show_size_chart: document.getElementById('prodShowSizeChart').checked,
+            show_purchase_count: document.getElementById('prodShowPurchaseCount').checked,
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
         };
 
