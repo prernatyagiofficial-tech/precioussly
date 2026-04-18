@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2541,7 +2542,11 @@ async function loadProducts(page = 1) {
         if (error) throw error;
 
         State.products = data || [];
-        renderProductsTable(count, searchQ, catFilter);
+        const isDangerousFilterActive = (tagFilter && tagFilter !== 'uncategorized') || (stockFilter && stockFilter !== '');
+        renderProductsTable(count, searchQ !== '', isDangerousFilterActive);
+        
+
+        // Populate category dropdown if empty
         
 
         // Populate category dropdown if empty
@@ -2596,10 +2601,16 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
         if(p.is_alphabet) badges.push('<span class="badge">Alphabet</span>');
         if(p.is_hidden) badges.push('<span class="badge danger">Hidden</span>');
 
-        // Note: SortableJS requires a data-id attribute on the row
+        // Note: Added ▲ and ▼ buttons directly above and below the drag handle
         html += `<tr data-id="${p.id}">
             <td style="text-align: center;"><input type="checkbox" class="prod-row-cb" value="${p.id}" onchange="updateBulkActionBar()"></td>
-            <td><div class="drag-handle">⋮⋮</div></td>
+            <td style="text-align: center; width: 50px;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <button class="outline move-btn" style="padding: 0px 6px; font-size: 12px; margin: 0; border: none; box-shadow: none; color: var(--text-muted); cursor: pointer;" onclick="moveProductPosition(this, 'up')" title="Move Up">▲</button>
+                    <div class="drag-handle" style="margin: 2px 0; font-size: 14px;">⋮⋮</div>
+                    <button class="outline move-btn" style="padding: 0px 6px; font-size: 12px; margin: 0; border: none; box-shadow: none; color: var(--text-muted); cursor: pointer;" onclick="moveProductPosition(this, 'down')" title="Move Down">▼</button>
+                </div>
+            </td>
             <td>${img}</td>
             <td>
                 <div class="inline-edit-container" id="inline-name-${p.id}">
@@ -2623,12 +2634,63 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
         </tr>`;
     });
     
-    // Updated colspan to 9 to account for the newly added Stock column
     document.getElementById('productsTableBody').innerHTML = html || '<tr><td colspan="9" style="text-align:center;">No products match your criteria</td></tr>';
     
-    // Initialize Drag and Drop (Disable if filtering/searching to prevent global sort corruption)
+    // Initialize Drag and Drop
     initSortable(isSearching || isFiltering);
 }
+
+
+// NEW FUNCTION: Handles the click-to-move logic
+window.moveProductPosition = async function(btn, direction) {
+    // Prevent moving if search/filters are active (Category filtering is ALLOWED)
+    const searchQ = document.getElementById('prodSearchFilter').value.trim();
+    const tagFilter = document.getElementById('prodSmartTagFilter').value;
+    const stockFilter = document.getElementById('prodStockFilter').value;
+    
+    if (searchQ || (tagFilter && tagFilter !== 'uncategorized') || stockFilter) {
+        return showToast("Please clear text search, tag, and stock filters before reordering.", "error");
+    }
+
+    const row = btn.closest('tr');
+    const tbody = row.parentNode;
+
+    // Find the adjacent row
+    const sibling = direction === 'up' ? row.previousElementSibling : row.nextElementSibling;
+    if (!sibling || !sibling.getAttribute('data-id')) return; // Reached the top or bottom of the list
+
+    // Optimistic DOM Swap (Instantly updates visually)
+    if (direction === 'up') {
+        tbody.insertBefore(row, sibling);
+    } else {
+        tbody.insertBefore(sibling, row); // Effectively moves row down
+    }
+
+    // Map the new physical DOM order to sequentially updated sort_order
+    const rows = Array.from(tbody.querySelectorAll('tr[data-id]'));
+    const baseSort = (prodCurrentPage - 1) * PROD_PAGE_SIZE;
+
+    const updates = rows.map((r, index) => ({
+        id: Number(r.getAttribute('data-id')),
+        sort_order: baseSort + index
+    }));
+
+    try {
+        // Disable buttons temporarily to prevent spam clicking
+        const buttons = tbody.querySelectorAll('.move-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        // Update Supabase concurrently (re-using your exact drag-and-drop logic)
+        await Promise.all(updates.map(u => 
+            db.from('products').update({ sort_order: u.sort_order }).eq('id', u.id)
+        ));
+
+        buttons.forEach(b => b.disabled = false);
+    } catch (err) {
+        alert("Sorting update failed: " + err.message);
+        loadProducts(prodCurrentPage); // Revert UI on failure
+    }
+};
 
 function debounceProductSearch() {
     clearTimeout(productSearchTimeout);
