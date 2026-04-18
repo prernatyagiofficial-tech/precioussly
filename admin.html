@@ -666,25 +666,31 @@
 </div>
 
 <div id="view-daily-orders" class="view-section">
-    <div class="section-header">
-        <h1>Daily Order Analytics</h1>
-        <button class="outline" onclick="switchView('dashboard')" style="margin-bottom: 0;">BACK TO DASHBOARD</button>
-    </div>
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Total Orders</th>
-                    <th>Total Revenue</th>
-                </tr>
-            </thead>
-            <tbody id="dailyOrdersTableBody">
-                <tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats...</td></tr>
-            </tbody>
-        </table>
-    </div>
+    <div class="section-header">
+        <h1>Daily Order Analytics</h1>
+        <button class="outline" onclick="switchView('dashboard')" style="margin-bottom: 0;">BACK TO DASHBOARD</button>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Orders</th>
+                    <th>Total Revenue</th>
+                </tr>
+            </thead>
+            <tbody id="dailyOrdersTableBody">
+                <tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats...</td></tr>
+            </tbody>
+        </table>
+        <div class="pagination-controls">
+            <button class="outline" id="btnPrevDailyPage" onclick="loadDailyStatsPage(dailyStatsCurrentPage - 1)">PREV</button>
+            <span class="page-info" id="dailyStatsPageInfo">Page 1 of 1</span>
+            <button class="outline" id="btnNextDailyPage" onclick="loadDailyStatsPage(dailyStatsCurrentPage + 1)">NEXT</button>
+        </div>
+    </div>
 </div>
+
 <div id="view-orders" class="view-section">
                     <div class="section-header"><h1>Manage Orders</h1></div>
                     
@@ -1811,6 +1817,11 @@ async function loadDashboard() {
     }
 }
 
+// --- NEW DAILY STATS PAGINATION STATE ---
+let dailyStatsCurrentPage = 1;
+const DAILY_STATS_PAGE_SIZE = 15;
+let cachedDailyStats = []; // Stores grouped data so we don't recalculate on every page turn
+
 window.renderDailyOrderStats = function() {
     const tbody = document.getElementById('dailyOrdersTableBody');
     
@@ -1821,39 +1832,67 @@ window.renderDailyOrderStats = function() {
 
     const dailyStats = {};
     const optionsIST = { timeZone: 'Asia/Kolkata' };
-    
-    // Get exact strings for Today and Yesterday in IST
-    const todayStr = new Date().toLocaleDateString('en-IN', optionsIST);
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayStr = yesterdayDate.toLocaleDateString('en-IN', optionsIST);
 
-    // Group orders
+    // 1. Group all orders by date
     State.orders.forEach(order => {
         const orderDateObj = new Date(order.created_at);
         const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
 
         if (!dailyStats[dateKey]) {
             dailyStats[dateKey] = {
-                dateObj: orderDateObj, // Saved for sorting
+                dateObj: orderDateObj, // Saved for accurate chronological sorting
                 count: 0,
                 revenue: 0
             };
         }
         
         dailyStats[dateKey].count += 1;
-        // Adding order total (Optional: you can exclude cancelled orders here if needed)
         dailyStats[dateKey].revenue += (Number(order.total_amount) || 0);
     });
 
-    // Sort newest dates first
-    const sortedStats = Object.keys(dailyStats).map(dateStr => {
+    // 2. Sort newest dates first and cache it in memory
+    cachedDailyStats = Object.keys(dailyStats).map(dateStr => {
         return { dateStr, ...dailyStats[dateStr] };
     }).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
 
-    // Generate HTML
+    // 3. Load the first page
+    loadDailyStatsPage(1);
+};
+
+// --- NEW FUNCTION TO HANDLE PAGE TURNS ---
+window.loadDailyStatsPage = function(page) {
+    dailyStatsCurrentPage = page;
+    const tbody = document.getElementById('dailyOrdersTableBody');
+    
+    // Calculate Pagination bounds
+    const totalItems = cachedDailyStats.length;
+    const totalPages = Math.ceil(totalItems / DAILY_STATS_PAGE_SIZE) || 1;
+    
+    if (dailyStatsCurrentPage > totalPages) dailyStatsCurrentPage = totalPages;
+    if (dailyStatsCurrentPage < 1) dailyStatsCurrentPage = 1;
+
+    // Update Pagination UI Buttons and Text
+    const pageInfo = document.getElementById('dailyStatsPageInfo');
+    const btnPrev = document.getElementById('btnPrevDailyPage');
+    const btnNext = document.getElementById('btnNextDailyPage');
+
+    if (pageInfo) pageInfo.innerText = `Page ${dailyStatsCurrentPage} of ${totalPages}`;
+    if (btnPrev) btnPrev.disabled = dailyStatsCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = dailyStatsCurrentPage >= totalPages;
+
+    // Slice the chunk of data we need for this specific page
+    const startIndex = (dailyStatsCurrentPage - 1) * DAILY_STATS_PAGE_SIZE;
+    const paginatedStats = cachedDailyStats.slice(startIndex, startIndex + DAILY_STATS_PAGE_SIZE);
+
+    const optionsIST = { timeZone: 'Asia/Kolkata' };
+    const todayStr = new Date().toLocaleDateString('en-IN', optionsIST);
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toLocaleDateString('en-IN', optionsIST);
+
+    // Generate HTML for the slice
     let html = '';
-    sortedStats.forEach(stat => {
+    paginatedStats.forEach(stat => {
         let displayDate = stat.dateStr;
         if (stat.dateStr === todayStr) displayDate = '<strong style="color: var(--accent);">Today</strong>';
         else if (stat.dateStr === yesterdayStr) displayDate = '<strong>Yesterday</strong>';
