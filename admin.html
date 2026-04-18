@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1723,9 +1722,11 @@ if (session) {
             }
         });
 
-        async function logout() { 
-            await db.auth.signOut(); 
-            await checkSession(); 
+        function logout() { 
+            customConfirm("Are you sure you want to log out?", async () => {
+                await db.auth.signOut(); 
+                await checkSession(); 
+            }, false); 
         }
 
         // Layout Navigation
@@ -4503,16 +4504,15 @@ function addSmartTag() {
 }
 
 function deleteSmartTag(index) {
-    // Get the name of the tag so we can show it in the popup
     const tagName = State.smartTags[index];
+    const userInput = prompt(`To delete this smart tag, please type its exact name: "${tagName}"`);
     
-    // Show the confirmation popup
-    const userConfirmed = confirm(`Are you sure you want to delete the smart tag "${tagName}"?`);
-    
-    // Only delete if the user clicks "OK"
-    if (userConfirmed) {
+    if (userInput === tagName) {
         State.smartTags.splice(index, 1);
         renderSmartTagsUI();
+        showToast(`Smart tag "${tagName}" deleted successfully.`, 'success');
+    } else if (userInput !== null) {
+        showToast("Name did not match. Deletion cancelled.", "error");
     }
 }
 
@@ -4668,15 +4668,24 @@ window.renderBulkSmartProducts = async function() {
                             <label>Cost Price (₹)</label>
                             <input type="number" class="sb-cost" value="${p.cost_price || ''}" style="margin-bottom:0;">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
+
+                    <div class="form-group" style="margin-bottom:0;">
                             <label>Global Stock</label>
                             <input type="number" class="sb-stock" value="${p.stock !== null && p.stock !== undefined ? p.stock : ''}" placeholder="Unlimited" style="margin-bottom:0;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Smart Tag</label>
+                            <select class="sb-smart-tag" style="margin-bottom:0;">
+                                <option value="">None</option>
+                                ${State.smartTags.map(tag => `<option value="${escapeHTML(tag)}" ${p.smart_tag === tag ? 'selected' : ''}>${escapeHTML(tag)}</option>`).join('')}
+                            </select>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Description</label>
                         <textarea class="sb-desc" rows="2" style="margin-bottom:0;">${escapeHTML(p.description || '')}</textarea>
+
                     </div>
 
                     <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
@@ -4722,12 +4731,13 @@ window.saveAllBulkSmart = async function() {
             if (!origProd) return;
 
             const payload = {
-                name: card.querySelector('.sb-name').value.trim(),
-                price: Number(card.querySelector('.sb-price').value),
-                cost_price: Number(card.querySelector('.sb-cost').value) || 0,
-                stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
-                description: card.querySelector('.sb-desc').value.trim(),
-                is_best_seller: card.querySelector('.sb-bestseller').checked,
+                    smart_tag: card.querySelector('.sb-smart-tag').value || null,
+                    name: card.querySelector('.sb-name').value.trim(),
+                    price: Number(card.querySelector('.sb-price').value),
+                    cost_price: Number(card.querySelector('.sb-cost').value) || 0,
+                    stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
+                    description: card.querySelector('.sb-desc').value.trim(),
+                    is_best_seller: card.querySelector('.sb-bestseller').checked,
                 is_alphabet: card.querySelector('.sb-alphabet').checked,
                 is_hidden: card.querySelector('.sb-hidden').checked,
                 show_size_chart: card.querySelector('.sb-sizechart').checked
