@@ -3328,21 +3328,22 @@ window.executeBulkMonthlyCountByCategory = async function() {
         let currentOrderFilter = 'All'; 
 
 async function updateTabCounts() {
-            try {
-                // Fetch ONLY the status column to keep the payload incredibly lightweight
-                const { data, error } = await db.from('orders').select('status');
-                if (error) throw error;
-                
-                const orders = data || [];
-                document.getElementById('count-all').innerText = `(${orders.length})`;
-                document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
-                document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
-                document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
-                document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
-            } catch (err) {
-                console.error("Error fetching tab counts:", err);
-            }
+    try {
+        // Direct backend se sirf numbers mangwa rahe hain (Zero data wastage)
+        const { data, error } = await db.rpc('get_order_tab_counts');
+        if (error) throw error;
+        
+        if (data) {
+            document.getElementById('count-all').innerText = `(${data.all})`;
+            document.getElementById('count-inprogress').innerText = `(${data.inprogress})`;
+            document.getElementById('count-confirmed').innerText = `(${data.confirmed})`;
+            document.getElementById('count-delivered').innerText = `(${data.delivered})`;
+            document.getElementById('count-cancelled').innerText = `(${data.cancelled})`;
         }
+    } catch (err) {
+        console.error("Error fetching tab counts:", err);
+    }
+}
 
         window.filterOrders = function(status, btn) {
             currentOrderFilter = status;
