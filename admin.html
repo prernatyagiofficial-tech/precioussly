@@ -1685,11 +1685,13 @@ window.generateStockGrid = function() {
 // Listen for live order updates from Supabase
 db.channel('live-orders')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-        // If the admin is looking at the orders page, refresh it
-        if (document.getElementById('view-orders').classList.contains('active')) {
-            loadOrders();
+        // Data transfer bachane ke liye hum sirf notification dikhayenge
+        if (payload.eventType === 'INSERT') {
+            showToast("🛒 Naya order aaya hai! View karne ke liye page refresh karein.", "success");
+        } else {
+            showToast("🔄 Kisi order ka status update hua hai.", "success");
         }
-        // Always refresh the dashboard to update the "Total Orders" count
+        // Dashboard numbers chote hote hain, unko update hone dein
         loadDashboard(); 
     })
     .subscribe();
@@ -1801,13 +1803,13 @@ db.channel('live-orders')
                 renderStatusCheckerTable();
             }
 
-            // --- SMART LOADING LOGIC ADDED HERE ---
-            // Data tabhi load hoga jab aap us tab pe pehli baar jaoge
-            if (viewId === 'products' && State.products.length === 0) loadProducts();
-            if (viewId === 'orders' && State.orders.length === 0) loadOrders();
-            if (viewId === 'users') loadUsers(); // Har baar load karenge taaki active carts fresh rahein
-            if (viewId === 'coupons') loadCoupons();
-            if (viewId === 'reviews') loadReviews();
+// --- SMART LOADING LOGIC ADDED HERE ---
+            // Data tabhi load hoga jab aap us tab pe pehli baar jaoge
+            if (viewId === 'products' && State.products.length === 0) loadProducts();
+            if (viewId === 'orders' && State.orders.length === 0) loadOrders();
+            if (viewId === 'users' && loadedUsersList.length === 0) loadUsers(); // FIXED: Ab sirf pehli baar load hoga
+            if (viewId === 'coupons') loadCoupons();
+            if (viewId === 'reviews') loadReviews();
             // --------------------------------------
 
             document.getElementById('view-' + viewId).classList.add('active');
@@ -1980,128 +1982,47 @@ window.loadDailyStatsPage = function(page) {
         let paginatedUsersList = []; // Holds the current page's sliced data
 
 async function loadUsers(page = 1) {
-            usersCurrentPage = page;
-            const searchQ = document.getElementById('userSearchFilter') ? document.getElementById('userSearchFilter').value.trim() : '';
-            const sortVal = document.getElementById('userSortFilter') ? document.getElementById('userSortFilter').value : 'date_desc';
+    usersCurrentPage = page;
+    const searchQ = document.getElementById('userSearchFilter')
+        ? document.getElementById('userSearchFilter').value.trim()
+        : '';
 
-            try {
-                // 1. Fetch data from Supabase (omitting .range() to allow in-memory sorting)
-                let query = db.from('profiles').select('*', { count: 'exact' });
+    // Calculate Limit for Pagination
+    const from = (page - 1) * USERS_PAGE_SIZE;
+    const to = from + USERS_PAGE_SIZE - 1;
 
-                if (searchQ) {
-                    query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
-                }
-
-                const { data, count, error } = await query;
-                if (error) throw error;
-
-                let usersData = data || [];
-
-                // 2. Attach frontend calculated data for accurate sorting
-                usersData = usersData.map(u => {
-                    const userEmail = (u.email || '').toLowerCase();
-                    const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
-                    
-                    let wishlistArr = [];
-                    if (u.wishlist) {
-                        try { wishlistArr = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist); } 
-                        catch(e) { wishlistArr = []; }
-                    }
-                    // Only count wishlist items that still exist in the products database
-                    wishlistArr = wishlistArr.filter(itemId => State.products.some(p => String(p.id) === String(itemId)));
-
-                    let cartArr = [];
-                    if (u.cart) {
-                        try { cartArr = Array.isArray(u.cart) ? u.cart : JSON.parse(u.cart); } 
-                        catch(e) { cartArr = []; }
-                    }
-                    // Only count cart items that still exist in the products database
-                    cartArr = cartArr.filter(item => State.products.some(p => String(p.id) === String(item.id)));
-                    
-                    let cartQtyCount = cartArr.reduce((sum, item) => sum + (item.qty || 1), 0);
-
-                    // Calculate activity timestamps
-                    let latestOrderTime = 0;
-                    if (userOrders.length > 0) {
-                        latestOrderTime = Math.max(...userOrders.map(o => new Date(o.created_at).getTime()));
-                    }
-
-                    return {
-                        ...u,
-                        _orderCount: userOrders.length,
-                        _latestOrderTime: latestOrderTime,
-                        _cartCount: cartQtyCount,
-                        _wishlistCount: wishlistArr.length,
-                        _wishlistUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
-                        _joinedTime: new Date(u.created_at).getTime()
-                    };
-                });
-
-                // 3. Apply In-Memory Sorting based on dropdown selection
-                usersData.sort((a, b) => {
-                    switch (sortVal) {
-                        case 'orders_desc': return b._orderCount - a._orderCount;
-                        case 'orders_asc': return a._orderCount - b._orderCount;
-                        case 'orders_activity': return b._latestOrderTime - a._latestOrderTime;
-                        case 'cart_desc': return b._cartCount - a._cartCount;
-                        case 'cart_asc': return a._cartCount - b._cartCount;
-                        case 'cart_activity': return b._wishlistUpdated - a._wishlistUpdated;
-                        case 'wishlist_desc': return b._wishlistCount - a._wishlistCount;
-                        case 'wishlist_asc': return a._wishlistCount - b._wishlistCount;
-                        case 'wishlist_activity': return b._wishlistUpdated - a._wishlistUpdated;
-                        case 'date_desc': 
-                        default: return b._joinedTime - a._joinedTime;
-                    }
-                });
-
-                loadedUsersList = usersData; // Cache the sorted full list
-
-                // 4. Apply In-Memory Pagination
-                const totalItems = usersData.length;
-                const totalPages = Math.ceil(totalItems / USERS_PAGE_SIZE) || 1;
-                
-                if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
-                if (usersCurrentPage < 1) usersCurrentPage = 1;
-
-                const startIndex = (usersCurrentPage - 1) * USERS_PAGE_SIZE;
-                paginatedUsersList = usersData.slice(startIndex, startIndex + USERS_PAGE_SIZE);
-
-                // 5. Update DOM elements (Counts & Pagination)
-                const countDisp = document.getElementById('totalUsersCountDisp');
-                if (countDisp) countDisp.innerText = `Total Users: ${count}`;
-
-                const pageInfo = document.getElementById('usersPageInfo');
-                const btnPrev = document.getElementById('btnPrevUserPage');
-                const btnNext = document.getElementById('btnNextUserPage');
-
-                if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages}`;
-                if (btnPrev) btnPrev.disabled = usersCurrentPage <= 1;
-                if (btnNext) btnNext.disabled = usersCurrentPage >= totalPages;
-
-                // 6. Render Table HTML
-                let html = '';
-                if (paginatedUsersList.length > 0) {
-                    paginatedUsersList.forEach(u => {
-                        html += `
-<tr>
-                            <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
-                            <td>${escapeHTML(u.email)}</td>
-                            <td><span class="badge">${u._orderCount}</span></td>
-                            <td><span class="badge">${u._cartCount}</span></td>
-                            <td><span class="badge">${u._wishlistCount}</span></td>
-                            <td>${new Date(u.created_at).toLocaleDateString()}</td>
-                            <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
-                        </tr>`;
-                    });
-                }
-                
-                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
-
-            } catch (err) {
-                console.error("Error loading users:", err);
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
-            }
+    try {
+        let query = db.from('profiles').select('id, full_name, email, phone, alt_phone, address, city, state, pincode, created_at, wishlist, cart', { count: 'exact' });
+        
+        if (searchQ) {
+            query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
         }
+
+        const { data, error, count } = await query.range(from, to);
+
+        if (error) throw error;
+
+        loadedUsersList = data || [];
+        document.getElementById('usersTableBody').innerHTML = loadedUsersList.length
+            ? loadedUsersList.map(user => `
+                <tr>
+                    <td>${escapeHTML(user.full_name || 'N/A')}</td>
+                    <td>${escapeHTML(user.email || 'N/A')}</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td><button class="outline" onclick="openUserDetails('${user.id}')">VIEW</button></td>
+                </tr>
+            `).join('')
+            : '<tr><td colspan="7" style="text-align:center; padding:20px;">No users found</td></tr>';
+    } catch (err) {
+        console.error("Error loading users:", err);
+        document.getElementById('usersTableBody').innerHTML =
+            `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
+    }
+}
+
 
         function debounceUserSearch() {
             clearTimeout(userSearchTimeout);
@@ -2659,7 +2580,7 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
 
     State.products.forEach(p => {
         const catName = State.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
-        const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb">` : '-';
+        const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb" loading="lazy">` : '-';
         let badges = [];
         
         if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
@@ -3443,7 +3364,7 @@ async function updateTabCounts() {
             const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
 
             try {
-                let query = db.from('orders').select('*', { count: 'exact' });
+                let query = db.from('orders').select('id, created_at, customer_details, total_amount, status, awb_number, items', { count: 'exact' });
 
                 // 1. Tab Status Filter
                 if (currentOrderFilter !== 'All') {
@@ -3561,7 +3482,7 @@ async function updateTabCounts() {
                         o.items.slice(0, maxThumbs).forEach(item => {
                             const imgSrc = (item.media && item.media.length > 0) ? item.media[0] : '';
                             if(imgSrc && !imgSrc.endsWith('.mp4')) {
-                                itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}">`;
+                                itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}" loading="lazy">`;
                             } else {
                                 itemThumbsHtml += `<div class="order-item-thumb" style="background:#eee; font-size:7px; display:flex; align-items:center; justify-content:center; color:#999;">PIC</div>`;
                             }
