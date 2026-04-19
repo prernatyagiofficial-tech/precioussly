@@ -1975,7 +1975,8 @@ allowTransactions: row.accepting_payments !== false,
         homeSectionsConfig: safeParseJSON(row.home_sections_config, [
             { id: 'collections', title: 'Explore Collections' },
             { id: 'bestsellers', title: 'Best Sellers' }
-        ])
+        ]),
+        subcatLayoutConfig: safeParseJSON(row.subcat_layout_config, { layout: 'Vertical Grid', aspectRatio: '1:1 (Square)' })
     };
 }
 
@@ -3210,12 +3211,30 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
             let html = ``;
 
             if (subCats && subCats.length > 0) {
+                // Fetch dynamic layout rules from settings
+                const layoutConfig = appData.settings.subcatLayoutConfig || { layout: 'Vertical Grid', aspectRatio: '1:1 (Square)' };
+                
+                const isGrid = layoutConfig.layout === 'Vertical Grid';
+                const wrapperClass = isGrid ? 'grid-container' : 'horizontal-scroll';
+                const wrapperStyle = isGrid 
+                    ? 'padding-bottom: 20px;' 
+                    : 'display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;';
+
+                let imgBoxStyle = '';
+                if (layoutConfig.aspectRatio === '3:4 (Portrait)') {
+                    imgBoxStyle = 'aspect-ratio: 3/4; border-radius: var(--radius-lg);';
+                } else if (layoutConfig.aspectRatio === 'Circle') {
+                    imgBoxStyle = 'aspect-ratio: 1/1; border-radius: 50%;';
+                } else {
+                    imgBoxStyle = 'aspect-ratio: 1/1; border-radius: var(--radius-lg);'; // 1:1 Default
+                }
+
                 html += `
                 <div class="section-title-wrapper" style="padding-top: 30px; padding-bottom: 15px;">
                     <h3 style="font-family: 'Roboto Slab', serif; font-size: 20px; font-weight: 400; letter-spacing: 0.5px;">${title}</h3>
                 </div>`;
                 
-                html += `<div class="grid-container" style="padding-bottom: 20px;">`;
+                html += `<div class="${wrapperClass}" style="${wrapperStyle}">`;
                 subCats.forEach(cat => {
                     const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
                     const imgContent = cat.img 
@@ -3223,11 +3242,14 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
                             ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
                             : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
                         : `<div class="img-placeholder">${imageSvg}</div>`;
+                    
                     html += `
+                        ${isGrid ? '' : '<div style="flex: 0 0 120px; min-width: 120px;">'}
                         <div class="category-card" onclick="renderCategory('${cat.id}')">
-                            <div class="category-img-box">${imgContent}</div>
+                            <div class="category-img-box" style="${imgBoxStyle}">${imgContent}</div>
                             <span style="font-family: 'Roboto Slab', serif; font-size: 13px; font-weight: 400;">${cat.name}</span>
-                        </div>`;
+                        </div>
+                        ${isGrid ? '' : '</div>'}`;
                 });
                 html += `</div>`;
                 
