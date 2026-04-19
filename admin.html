@@ -1234,6 +1234,7 @@
             <button onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-add-products'; openModal('bulkProductModal');">Bulk Add Products</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-checker'; initBulkChecker();" style="font-family: 'Roboto Slab', serif;">Bulk (Description/Name Checker)</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-add-description'; openModal('bulkDescModal');">Bulk Add Description</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-remove-description'; openModal('bulkRemoveDescModal');" style="color: var(--danger); border-color: var(--danger);">Bulk Remove Description</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-price'; openModal('bulkPriceModal');">Bulk Update Price</button>
             
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-cost-price'; openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
@@ -1269,6 +1270,25 @@
 </div>
 
 
+<div id="bulkRemoveDescModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <h3>Bulk Remove Description <button class="outline" style="padding: 2px 8px;" onclick="closeModal('bulkRemoveDescModal')">X</button></h3>
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>Select Target Category</label>
+                <select id="bulkTargetCatRemoveDesc">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <p style="font-size: 11px; color: var(--danger); margin-bottom: 12px; font-weight: 500;">Warning: This will permanently erase the description for ALL products in the selected category.</p>
+            </div>
+            <div class="form-group full-width">
+                <button type="button" id="saveBulkRemoveDescBtn" class="danger" onclick="executeBulkRemoveDescription()">REMOVE ALL DESCRIPTIONS</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="bulkPriceModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 400px;">
@@ -1719,6 +1739,7 @@ db.channel('live-orders')
                     const bulkModals = {
                         'bulk-add-products': 'bulkProductModal',
                         'bulk-add-description': 'bulkDescModal',
+                        'bulk-remove-description': 'bulkRemoveDescModal',
                         'bulk-update-price': 'bulkPriceModal',
                         'bulk-update-cost-price': 'bulkCostPriceModal',
                         'bulk-visibility': 'bulkVisibilityModal',
@@ -2495,6 +2516,7 @@ window.addDynamicHomeSection = function() {
                 if(document.getElementById('bulkTargetCatVisibility')) document.getElementById('bulkTargetCatVisibility').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatMonthlyCount')) document.getElementById('bulkTargetCatMonthlyCount').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatDesc')) document.getElementById('bulkTargetCatDesc').innerHTML = prodCatOptions;
+                if(document.getElementById('bulkTargetCatRemoveDesc')) document.getElementById('bulkTargetCatRemoveDesc').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatPrice')) document.getElementById('bulkTargetCatPrice').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatCostPrice')) document.getElementById('bulkTargetCatCostPrice').innerHTML = prodCatOptions;
                 if(document.getElementById('bulkTargetCatDelete')) document.getElementById('bulkTargetCatDelete').innerHTML = prodCatOptions;
@@ -3119,6 +3141,42 @@ window.saveBulkDescription = async function() {
         btn.innerText = "APPLY TO CATEGORY";
     }
 };
+
+
+window.executeBulkRemoveDescription = async function() {
+    const catId = document.getElementById('bulkTargetCatRemoveDesc').value;
+    
+    if (!catId) return alert("Please select a target category first.");
+
+    if (!confirm("Are you ABSOLUTELY sure you want to erase the description for ALL products in the selected category? This action cannot be undone.")) {
+        return;
+    }
+
+    const btn = document.getElementById('saveBulkRemoveDescBtn');
+    btn.disabled = true;
+    btn.innerText = "REMOVING DESCRIPTIONS...";
+
+    try {
+        const { error } = await db.from('products')
+            .update({ description: '' })
+            .eq('cat_id', Number(catId)); 
+            
+        if (error) throw error;
+
+        alert("Successfully removed descriptions for the category!");
+        
+        closeModal('bulkRemoveDescModal');
+        await loadProducts(prodCurrentPage); 
+
+    } catch (err) {
+        alert("Error removing descriptions: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "REMOVE ALL DESCRIPTIONS";
+    }
+};
+
+
 
 window.saveBulkPrice = async function() {
     const catId = document.getElementById('bulkTargetCatPrice').value;
