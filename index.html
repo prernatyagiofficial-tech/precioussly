@@ -462,17 +462,55 @@ main {
             .product-card:hover .product-title { color: var(--brand-color); }
         }
 
-      /* Review Card Styling */
+/* Review Card & Marquee Styling */
         .review-card {
-            min-width: 220px;
-            height: max-content; /* Tells the card to only be as tall as the image */
+            width: 120px; /* Shrunk width based on requirements */
+            height: max-content; 
             background: var(--placeholder-bg);
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-sm); /* Sharper corners */
             overflow: hidden;
             flex: 0 0 auto;
-            border: 1px solid var(--border-color);
+            border: 1px solid #000; /* Crisp black border */
             position: relative;
             transition: transform 0.3s;
+            box-shadow: none; /* Removed heavy shadows */
+        }
+        .review-card:hover { transform: scale(1.02); }
+        .review-card img, .review-card video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .reviews-marquee-wrapper {
+            display: flex;
+            overflow: hidden;
+            width: 100%;
+            padding: 10px 0 30px;
+        }
+        .reviews-marquee-track {
+            display: flex;
+            gap: 16px;
+            width: max-content;
+            padding-left: 16px; /* Matches gap for a seamless loop */
+        }
+        .reviews-marquee-track.scroll-left {
+            animation: marqueeLeft 25s linear infinite;
+        }
+        .reviews-marquee-track.scroll-right {
+            animation: marqueeRight 25s linear infinite;
+        }
+        .reviews-marquee-wrapper:hover .reviews-marquee-track {
+            animation-play-state: paused; /* Pauses on hover */
+        }
+        
+        @keyframes marqueeLeft {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); } /* Shifts exactly half the duplicated track */
+        }
+        @keyframes marqueeRight {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0); }
         }
         .review-card:hover { transform: scale(1.02); }
         .review-card img, .review-card video {
@@ -1393,6 +1431,7 @@ main {
             font-size: 14px;
             margin-top: 15px;
         }
+        
     </style>
 </head>
 <body>
@@ -1931,6 +1970,8 @@ allowTransactions: row.accepting_payments !== false,
         showReviewsSection: row.show_reviews_section !== false,
 
         bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' }),
+        reviewsAutoScroll: row.reviews_auto_scroll !== false,
+        reviewsScrollDirection: row.reviews_scroll_direction || 'left',
         homeSectionsConfig: safeParseJSON(row.home_sections_config, [
             { id: 'collections', title: 'Explore Collections' },
             { id: 'bestsellers', title: 'Best Sellers' }
@@ -3008,14 +3049,31 @@ if (appData.settings.instagramUrl) {
         }
     });
 
-    if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
-        html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>
-        <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 30px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.length > 0) {
+        html += `<div class="section-title-wrapper" style="padding-bottom: 10px;"><h3>${appData.settings.reviewsTitle}</h3></div>`;
+        
+        let reviewCardsHtml = '';
         appData.reviews.forEach(review => {
             let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
-            html += `<div class="review-card" style="flex: 0 0 260px; width: 260px; display: flex; flex-direction: column;">${imgContent}</div>`;
+            // Removed the inline widths so the new CSS handles the 120px sizing
+            reviewCardsHtml += `<div class="review-card" style="display: flex; flex-direction: column;">${imgContent}</div>`;
         });
-        html += `</div>`;
+
+        if (appData.settings.reviewsAutoScroll) {
+            const directionClass = appData.settings.reviewsScrollDirection === 'right' ? 'scroll-right' : 'scroll-left';
+            html += `
+            <div class="reviews-marquee-wrapper" style="max-width: 1100px; margin: 0 auto;">
+                <div class="reviews-marquee-track ${directionClass}">
+                    ${reviewCardsHtml}
+                    ${reviewCardsHtml} </div>
+            </div>`;
+        } else {
+            // Standard scroll fallback
+            html += `
+            <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 30px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">
+                ${reviewCardsHtml}
+            </div>`;
+        }
     }
 
     requestAnimationFrame(() => {
