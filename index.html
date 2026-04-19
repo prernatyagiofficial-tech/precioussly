@@ -1691,8 +1691,13 @@ main {
     </div>
 </div>
 <script>
+        // Prevent the browser from fighting our custom scroll restoration (Fixes the footer flash)
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+
         // --- INITIALIZE SUPABASE ---
-        const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co'; 
+        const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM'; 
         
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -2300,14 +2305,19 @@ let currentProductView = localStorage.getItem('eco_product_view') || null;
                 // --- NEW: INSTANT RESTORATION LOGIC ---
                 const cacheKey = s.view + (s.id ? '_' + s.id : (s.query ? '_' + s.query : ''));
                 
-                if (domCache[cacheKey]) {
+if (domCache[cacheKey]) {
                     // 1. Instantly inject the cached HTML synchronously
                     document.getElementById('main-content').innerHTML = domCache[cacheKey];
                     
-                    // 2. Instantly restore scroll position
-                    window.scrollTo(0, s.scrollY || 0);
+                    // 2. Force the browser to calculate the new layout immediately
+                    void document.getElementById('main-content').offsetHeight;
+
+                    // 3. Instantly restore scroll position (wrapped in animation frame for perfect timing)
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, s.scrollY || 0);
+                    });
                     
-                    // 3. Re-attach the intersection observer for infinite scroll
+                    // 4. Re-attach the intersection observer for infinite scroll
                     const anchor = document.getElementById('infinite-scroll-anchor');
                     if (anchor) scrollObserver.observe(anchor);
                     
