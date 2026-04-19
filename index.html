@@ -1454,6 +1454,19 @@ main {
                 max-width: 1200px !important;
             }
         }
+        /* --- iPhone & iOS Optimizations --- */
+        .app-container, .horizontal-scroll, .color-options-scroll, .alphabet-options, .filter-content { 
+            -webkit-overflow-scrolling: touch !important; 
+        }
+        .product-card .img-wrapper img, .product-card .img-wrapper video, .category-img-box img, .category-img-box video { 
+            transform: translateZ(0); 
+            will-change: transform, opacity; 
+            -webkit-backface-visibility: hidden; 
+            -webkit-perspective: 1000; 
+        }
+        a, button, .product-card, .category-card { 
+            touch-action: manipulation !important; 
+        }
     </style>
 </head>
 <body>
@@ -2868,12 +2881,12 @@ if (appData.settings.instagramUrl) {
             const isVideo = displayMediaStr && typeof displayMediaStr === 'string' && displayMediaStr.toLowerCase().endsWith('.mp4');
             let mediaContent = `<div class="img-placeholder">${imageSvg}</div>`;
             
-            // Added loading="lazy" for performance
+            // Added decoding="async" for performance
             if (displayMediaStr) {
                 if (isVideo) {
-                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline loading="lazy"></video>`;
+                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline decoding="async"></video>`;
                 } else {
-                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}" loading="lazy">`;
+                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}" decoding="async">`;
                 }
             }
 
@@ -2960,7 +2973,7 @@ if (appData.settings.instagramUrl) {
             bannerContent = `<video src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" autoplay loop muted playsinline></video>`;
         } else {
             // Use standard image tag for everything else
-            bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" loading="lazy">`;
+            bannerContent = `<img src="${bannerConfig.imageUrl}" style="width:100%; height:auto; display:block;" decoding="async">`;
         }
     }
 
@@ -3009,7 +3022,7 @@ if (appData.settings.instagramUrl) {
                 const imgContent = cat.img 
                     ? (isVideo 
                         ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
-                        : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                        : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`) 
                     : `<div class="img-placeholder">${imageSvg}</div>`;
                 html += `
                     ${isGrid ? '' : '<div class="scroll-item-wrapper">'}
@@ -3064,7 +3077,7 @@ if (appData.settings.instagramUrl) {
                     const imgContent = sub.img 
                         ? (isVideo 
                             ? `<video src="${sub.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
-                            : `<img src="${sub.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                            : `<img src="${sub.img}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`) 
                         : `<div class="img-placeholder">${imageSvg}</div>`;
                     
                     html += `
@@ -3098,7 +3111,7 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
         
         let reviewCardsHtml = '';
         appData.reviews.forEach(review => {
-            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" loading="lazy">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
+            let imgContent = review.image ? `<img src="${review.image}" alt="Review" style="width: 100%; height: auto; display: block;" decoding="async">` : `<div class="img-placeholder" style="aspect-ratio: 3/4;">${imageSvg}</div>`;
             reviewCardsHtml += `<div class="review-card" style="display: flex; flex-direction: column;">${imgContent}</div>`;
         });
 
@@ -3261,7 +3274,7 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
                     const imgContent = cat.img 
                         ? (isVideo 
                             ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
-                            : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
+                            : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`) 
                         : `<div class="img-placeholder">${imageSvg}</div>`;
                     
                     html += `
@@ -3884,7 +3897,7 @@ function changeProductSize(size, btnElement) {
                         if(isVid) {
                             thumbContent = `<video src="${v.media[0]}" muted playsinline style="width:100%; height:100%; object-fit:cover; border-radius: var(--radius-md); display: block;"></video>`;
                             hasVideoClass = 'has-video';
-                        } else thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}" loading="lazy">`;
+                        } else thumbContent = `<img src="${v.media[0]}" alt="${v.name || ''}" decoding="async">`;
                     }
                     // FIX: Uses the dynamically selected index
                     const selectedClass = idx === selectedProductVariantIndex ? 'selected' : '';
@@ -4254,7 +4267,7 @@ async function renderCart(preserveScroll = false, isQuietUpdate = false) {
         
         if (firstMedia) {
             if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-            else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+            else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`;
         }
 
         let displaySpecs = [];
@@ -4907,7 +4920,7 @@ async function renderOrders() {
                 let imgContent = `<div class="img-placeholder" style="background:#fff;">${imageSvg}</div>`;
                 if (firstMedia) {
                     if (isVideo) imgContent = `<video src="${firstMedia}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`;
-                    else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+                    else imgContent = `<img src="${firstMedia}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`;
                 }
 
                 let displaySpecs = [];
