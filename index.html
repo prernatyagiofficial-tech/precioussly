@@ -2317,12 +2317,15 @@ if (domCache[cacheKey]) {
                         window.scrollTo(0, s.scrollY || 0);
                     });
                     
-                    // 4. Re-attach the intersection observer for infinite scroll
+// 4. Re-attach the intersection observer for infinite scroll
                     const anchor = document.getElementById('infinite-scroll-anchor');
                     if (anchor) scrollObserver.observe(anchor);
                     
-                    // 4. Quiet update: refresh cart badges without destroying the DOM
+                    // 5. Quiet update: refresh cart badges without destroying the DOM
                     updateBadges();
+                    
+                    // 6. Reset isPopState so future clicks record history properly
+                    isPopState = false;
                     
                     // Stop execution here to prevent async renders from causing layout shifts!
                     return; 
