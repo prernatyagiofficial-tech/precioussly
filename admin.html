@@ -1685,13 +1685,11 @@ window.generateStockGrid = function() {
 // Listen for live order updates from Supabase
 db.channel('live-orders')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-        // Data transfer bachane ke liye hum sirf notification dikhayenge
-        if (payload.eventType === 'INSERT') {
-            showToast("🛒 Naya order aaya hai! View karne ke liye page refresh karein.", "success");
-        } else {
-            showToast("🔄 Kisi order ka status update hua hai.", "success");
+        // If the admin is looking at the orders page, refresh it
+        if (document.getElementById('view-orders').classList.contains('active')) {
+            loadOrders();
         }
-        // Dashboard numbers chote hote hain, unko update hone dein
+        // Always refresh the dashboard to update the "Total Orders" count
         loadDashboard(); 
     })
     .subscribe();
@@ -1793,26 +1791,16 @@ db.channel('live-orders')
         }
         
         function switchView(viewId, element) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             // Trigger table render if opening status checker
-            if (viewId === 'status-checker') {
-                window.fetchedDelhiveryStatuses = {};
-                document.getElementById('btnSyncSupabase').disabled = true;
-                document.getElementById('btnSyncSupabase').style.background = '#ccc';
-                renderStatusCheckerTable();
-            }
-
-// --- SMART LOADING LOGIC ADDED HERE ---
-            // Data tabhi load hoga jab aap us tab pe pehli baar jaoge
-            if (viewId === 'products' && State.products.length === 0) loadProducts();
-            if (viewId === 'orders' && State.orders.length === 0) loadOrders();
-            if (viewId === 'users' && loadedUsersList.length === 0) loadUsers(); // FIXED: Ab sirf pehli baar load hoga
-            if (viewId === 'coupons') loadCoupons();
-            if (viewId === 'reviews') loadReviews();
-            // --------------------------------------
-
-            document.getElementById('view-' + viewId).classList.add('active');
+            if (viewId === 'status-checker') {
+                // Clear any previous fetched statuses when reopening the tab
+                window.fetchedDelhiveryStatuses = {};
+                document.getElementById('btnSyncSupabase').disabled = true;
+                document.getElementById('btnSyncSupabase').style.background = '#ccc';
+                renderStatusCheckerTable();
+            }
+            document.getElementById('view-' + viewId).classList.add('active');
             
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
             
@@ -1855,19 +1843,23 @@ db.channel('live-orders')
             if (document.getElementById('couponModalTitle')) document.getElementById('couponModalTitle').innerText = 'Add Coupon';
         }
 
-// Data Loading (SMART LOAD)
-        async function loadAllData() {
-            try {
-                // Sirf zaroori cheezein load karenge start mein. Baki tab click hone par.
-                await Promise.all([
-                    loadDashboard(),
-                    loadCategories(), 
-                    loadSettings()
-                ]);
-            } catch (err) {
-                console.error("Error loading master data:", err);
-            }
-        }
+        // Data Loading
+        async function loadAllData() {
+            try {
+                await Promise.all([
+                    loadDashboard(),
+                    loadCategories(), 
+                    loadSettings(),         
+                    loadProducts(),
+                    loadCoupons(),
+                    loadReviews(),
+                    loadOrders(),
+                    loadUsers()
+                ]);
+            } catch (err) {
+                console.error("Error loading master data:", err);
+            }
+        }
 
 async function loadDashboard() {
     try {
@@ -1888,40 +1880,41 @@ let dailyStatsCurrentPage = 1;
 const DAILY_STATS_PAGE_SIZE = 15;
 let cachedDailyStats = []; // Stores grouped data so we don't recalculate on every page turn
 
-window.renderDailyOrderStats = async function() {
+window.renderDailyOrderStats = function() {
     const tbody = document.getElementById('dailyOrdersTableBody');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats from database...</td></tr>';
-
-    try {
-        // Backend se direct calculated data mangwa rahe hain (Zero egress waste!)
-        const { data, error } = await db.rpc('get_daily_order_stats');
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
-            return;
-        }
-
-        const optionsIST = { timeZone: 'Asia/Kolkata' };
-
-        // Data ko format karke cachedDailyStats mein daal rahe hain taaki aapki existing pagination chalti rahe
-        cachedDailyStats = data.map(stat => {
-            const dateObj = new Date(stat.date_key);
-            return {
-                dateStr: dateObj.toLocaleDateString('en-IN', optionsIST),
-                dateObj: dateObj,
-                count: stat.total_orders,
-                revenue: Number(stat.total_revenue)
-            };
-        });
-
-        // Pehla page load karein
-        loadDailyStatsPage(1);
-
-    } catch (err) {
-        console.error("Daily Stats Error:", err);
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:red; padding: 20px;">Error: ${err.message}</td></tr>`;
+    
+    if (!State.orders || State.orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
+        return;
     }
+
+    const dailyStats = {};
+    const optionsIST = { timeZone: 'Asia/Kolkata' };
+
+    // 1. Group all orders by date
+    State.orders.forEach(order => {
+        const orderDateObj = new Date(order.created_at);
+        const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
+
+        if (!dailyStats[dateKey]) {
+            dailyStats[dateKey] = {
+                dateObj: orderDateObj, // Saved for accurate chronological sorting
+                count: 0,
+                revenue: 0
+            };
+        }
+        
+        dailyStats[dateKey].count += 1;
+        dailyStats[dateKey].revenue += (Number(order.total_amount) || 0);
+    });
+
+    // 2. Sort newest dates first and cache it in memory
+    cachedDailyStats = Object.keys(dailyStats).map(dateStr => {
+        return { dateStr, ...dailyStats[dateStr] };
+    }).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+    // 3. Load the first page
+    loadDailyStatsPage(1);
 };
 
 // --- NEW FUNCTION TO HANDLE PAGE TURNS ---
@@ -1981,47 +1974,128 @@ window.loadDailyStatsPage = function(page) {
         let paginatedUsersList = []; // Holds the current page's sliced data
 
 async function loadUsers(page = 1) {
-    usersCurrentPage = page;
-    const searchQ = document.getElementById('userSearchFilter')
-        ? document.getElementById('userSearchFilter').value.trim()
-        : '';
+            usersCurrentPage = page;
+            const searchQ = document.getElementById('userSearchFilter') ? document.getElementById('userSearchFilter').value.trim() : '';
+            const sortVal = document.getElementById('userSortFilter') ? document.getElementById('userSortFilter').value : 'date_desc';
 
-    // Calculate Limit for Pagination
-    const from = (page - 1) * USERS_PAGE_SIZE;
-    const to = from + USERS_PAGE_SIZE - 1;
+            try {
+                // 1. Fetch data from Supabase (omitting .range() to allow in-memory sorting)
+                let query = db.from('profiles').select('*', { count: 'exact' });
 
-    try {
-        let query = db.from('profiles').select('id, full_name, email, phone, alt_phone, address, city, state, pincode, created_at, wishlist, cart', { count: 'exact' });
-        
-        if (searchQ) {
-            query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
+                if (searchQ) {
+                    query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
+                }
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+
+                let usersData = data || [];
+
+                // 2. Attach frontend calculated data for accurate sorting
+                usersData = usersData.map(u => {
+                    const userEmail = (u.email || '').toLowerCase();
+                    const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
+                    
+                    let wishlistArr = [];
+                    if (u.wishlist) {
+                        try { wishlistArr = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist); } 
+                        catch(e) { wishlistArr = []; }
+                    }
+                    // Only count wishlist items that still exist in the products database
+                    wishlistArr = wishlistArr.filter(itemId => State.products.some(p => String(p.id) === String(itemId)));
+
+                    let cartArr = [];
+                    if (u.cart) {
+                        try { cartArr = Array.isArray(u.cart) ? u.cart : JSON.parse(u.cart); } 
+                        catch(e) { cartArr = []; }
+                    }
+                    // Only count cart items that still exist in the products database
+                    cartArr = cartArr.filter(item => State.products.some(p => String(p.id) === String(item.id)));
+                    
+                    let cartQtyCount = cartArr.reduce((sum, item) => sum + (item.qty || 1), 0);
+
+                    // Calculate activity timestamps
+                    let latestOrderTime = 0;
+                    if (userOrders.length > 0) {
+                        latestOrderTime = Math.max(...userOrders.map(o => new Date(o.created_at).getTime()));
+                    }
+
+                    return {
+                        ...u,
+                        _orderCount: userOrders.length,
+                        _latestOrderTime: latestOrderTime,
+                        _cartCount: cartQtyCount,
+                        _wishlistCount: wishlistArr.length,
+                        _wishlistUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
+                        _joinedTime: new Date(u.created_at).getTime()
+                    };
+                });
+
+                // 3. Apply In-Memory Sorting based on dropdown selection
+                usersData.sort((a, b) => {
+                    switch (sortVal) {
+                        case 'orders_desc': return b._orderCount - a._orderCount;
+                        case 'orders_asc': return a._orderCount - b._orderCount;
+                        case 'orders_activity': return b._latestOrderTime - a._latestOrderTime;
+                        case 'cart_desc': return b._cartCount - a._cartCount;
+                        case 'cart_asc': return a._cartCount - b._cartCount;
+                        case 'cart_activity': return b._wishlistUpdated - a._wishlistUpdated;
+                        case 'wishlist_desc': return b._wishlistCount - a._wishlistCount;
+                        case 'wishlist_asc': return a._wishlistCount - b._wishlistCount;
+                        case 'wishlist_activity': return b._wishlistUpdated - a._wishlistUpdated;
+                        case 'date_desc': 
+                        default: return b._joinedTime - a._joinedTime;
+                    }
+                });
+
+                loadedUsersList = usersData; // Cache the sorted full list
+
+                // 4. Apply In-Memory Pagination
+                const totalItems = usersData.length;
+                const totalPages = Math.ceil(totalItems / USERS_PAGE_SIZE) || 1;
+                
+                if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
+                if (usersCurrentPage < 1) usersCurrentPage = 1;
+
+                const startIndex = (usersCurrentPage - 1) * USERS_PAGE_SIZE;
+                paginatedUsersList = usersData.slice(startIndex, startIndex + USERS_PAGE_SIZE);
+
+                // 5. Update DOM elements (Counts & Pagination)
+                const countDisp = document.getElementById('totalUsersCountDisp');
+                if (countDisp) countDisp.innerText = `Total Users: ${count}`;
+
+                const pageInfo = document.getElementById('usersPageInfo');
+                const btnPrev = document.getElementById('btnPrevUserPage');
+                const btnNext = document.getElementById('btnNextUserPage');
+
+                if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages}`;
+                if (btnPrev) btnPrev.disabled = usersCurrentPage <= 1;
+                if (btnNext) btnNext.disabled = usersCurrentPage >= totalPages;
+
+                // 6. Render Table HTML
+                let html = '';
+                if (paginatedUsersList.length > 0) {
+                    paginatedUsersList.forEach(u => {
+                        html += `
+<tr>
+                            <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
+                            <td>${escapeHTML(u.email)}</td>
+                            <td><span class="badge">${u._orderCount}</span></td>
+                            <td><span class="badge">${u._cartCount}</span></td>
+                            <td><span class="badge">${u._wishlistCount}</span></td>
+                            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                            <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
+                        </tr>`;
+                    });
+                }
+                
+                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
+
+            } catch (err) {
+                console.error("Error loading users:", err);
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
+            }
         }
-
-        const { data, error, count } = await query.range(from, to);
-
-        if (error) throw error;
-
-        loadedUsersList = data || [];
-        document.getElementById('usersTableBody').innerHTML = loadedUsersList.length
-            ? loadedUsersList.map(user => `
-                <tr>
-                    <td>${escapeHTML(user.full_name || 'N/A')}</td>
-                    <td>${escapeHTML(user.email || 'N/A')}</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
-                    <td><button class="outline" onclick="openUserDetails('${user.id}')">VIEW</button></td>
-                </tr>
-            `).join('')
-            : '<tr><td colspan="7" style="text-align:center; padding:20px;">No users found</td></tr>';
-    } catch (err) {
-        console.error("Error loading users:", err);
-        document.getElementById('usersTableBody').innerHTML =
-            `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
-    }
-}
-
 
         function debounceUserSearch() {
             clearTimeout(userSearchTimeout);
@@ -2579,7 +2653,7 @@ function renderProductsTable(totalCount, isSearching, isFiltering) {
 
     State.products.forEach(p => {
         const catName = State.categories.find(c => c.id === p.cat_id)?.name || 'Unknown';
-        const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb" loading="lazy">` : '-';
+        const img = p.media && p.media.length > 0 ? `<img src="${escapeHTML(p.media[0])}" class="prod-img-thumb">` : '-';
         let badges = [];
         
         if(p.is_best_seller) badges.push('<span class="badge success">Best Seller</span>');
@@ -3328,22 +3402,21 @@ window.executeBulkMonthlyCountByCategory = async function() {
         let currentOrderFilter = 'All'; 
 
 async function updateTabCounts() {
-    try {
-        // Direct backend se sirf numbers mangwa rahe hain (Zero data wastage)
-        const { data, error } = await db.rpc('get_order_tab_counts');
-        if (error) throw error;
-        
-        if (data) {
-            document.getElementById('count-all').innerText = `(${data.all})`;
-            document.getElementById('count-inprogress').innerText = `(${data.inprogress})`;
-            document.getElementById('count-confirmed').innerText = `(${data.confirmed})`;
-            document.getElementById('count-delivered').innerText = `(${data.delivered})`;
-            document.getElementById('count-cancelled').innerText = `(${data.cancelled})`;
+            try {
+                // Fetch ONLY the status column to keep the payload incredibly lightweight
+                const { data, error } = await db.from('orders').select('status');
+                if (error) throw error;
+                
+                const orders = data || [];
+                document.getElementById('count-all').innerText = `(${orders.length})`;
+                document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
+                document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
+                document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
+                document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
+            } catch (err) {
+                console.error("Error fetching tab counts:", err);
+            }
         }
-    } catch (err) {
-        console.error("Error fetching tab counts:", err);
-    }
-}
 
         window.filterOrders = function(status, btn) {
             currentOrderFilter = status;
@@ -3364,7 +3437,7 @@ async function updateTabCounts() {
             const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
 
             try {
-                let query = db.from('orders').select('id, created_at, customer_details, total_amount, status, awb_number, items', { count: 'exact' });
+                let query = db.from('orders').select('*', { count: 'exact' });
 
                 // 1. Tab Status Filter
                 if (currentOrderFilter !== 'All') {
@@ -3482,7 +3555,7 @@ async function updateTabCounts() {
                         o.items.slice(0, maxThumbs).forEach(item => {
                             const imgSrc = (item.media && item.media.length > 0) ? item.media[0] : '';
                             if(imgSrc && !imgSrc.endsWith('.mp4')) {
-                                itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}" loading="lazy">`;
+                                itemThumbsHtml += `<img src="${escapeHTML(imgSrc)}" class="order-item-thumb" title="${escapeHTML(item.name)}">`;
                             } else {
                                 itemThumbsHtml += `<div class="order-item-thumb" style="background:#eee; font-size:7px; display:flex; align-items:center; justify-content:center; color:#999;">PIC</div>`;
                             }
