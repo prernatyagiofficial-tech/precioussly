@@ -2834,7 +2834,7 @@ if (appData.settings.instagramUrl) {
     return `<svg class="${className}" viewBox="0 0 24 24" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
 }
 
-        function getProductCardHTML(prod) {
+        function getProductCardHTML(prod, customImageStyle = 'aspect-ratio: 1 / 1; border-radius: var(--radius-md);') {
             let displayMediaStr = "";
             if (prod.variants && prod.variants.length > 0 && prod.variants[0].media && prod.variants[0].media.length > 0) {
                 displayMediaStr = prod.variants[0].media[0];
@@ -2854,7 +2854,7 @@ if (appData.settings.instagramUrl) {
                 }
             }
 
-// 1. "Sold Out" Logic (Total Inventory Check)
+            // 1. "Sold Out" Logic (Total Inventory Check)
             let isSoldOut = false;
             if (prod.variant_stock && Object.keys(prod.variant_stock).length > 0) {
                 let allVariantsSoldOut = true;
@@ -2887,7 +2887,7 @@ if (appData.settings.instagramUrl) {
                         <span class="btn-text">Sold Out</span>
                     </button>
                 `;
-} else if (hasVariants) {
+            } else if (hasVariants) {
                 // In Stock WITH variants -> Route to Product Details Page
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation(); renderProduct('${prod.id}');">
@@ -2905,7 +2905,7 @@ if (appData.settings.instagramUrl) {
 
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
-                    <div class="img-wrapper" style="width: 100%; aspect-ratio: 1 / 1;">
+                    <div class="img-wrapper" style="width: 100%; ${customImageStyle}">
                         ${mediaContent}
                     </div>
                     <div class="product-info" style="display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
@@ -2957,8 +2957,29 @@ if (appData.settings.instagramUrl) {
     ];
 
     sectionsConfig.forEach(section => {
+        // Dynamic Layout Config
+        const isGrid = section.layout === 'Vertical Grid';
+        const wrapperClass = isGrid ? 'grid-container' : 'horizontal-scroll';
+        const wrapperStyle = isGrid 
+            ? 'padding-bottom: 20px;' 
+            : 'display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;';
+
+        // Dynamic Aspect Ratio Config
+        let imgBoxStyle = '';
+        if (section.aspectRatio === '3:4 (Portrait)') {
+            imgBoxStyle = 'aspect-ratio: 3/4; border-radius: var(--radius-lg);';
+        } else if (section.aspectRatio === 'Circle') {
+            imgBoxStyle = 'aspect-ratio: 1/1; border-radius: 50%;';
+        } else {
+            imgBoxStyle = 'aspect-ratio: 1/1; border-radius: var(--radius-lg);'; // 1:1 Default
+        }
+
+        // Flex wrappers needed ONLY for horizontal scroll
+        const itemWrapperOpen = isGrid ? '<div>' : '<div style="flex: 0 0 130px; min-width: 130px;">';
+        const itemWrapperClose = '</div>';
+
         if (section.id === 'collections') {
-            html += `<div class="section-title-wrapper"><h3>${section.title}</h3></div><div class="grid-container">`;
+            html += `<div class="section-title-wrapper"><h3>${section.title}</h3></div><div class="${wrapperClass}" style="${wrapperStyle}">`;
             const mainCategories = appData.categories.filter(cat => !cat.parentId && cat.id !== 'all');
             mainCategories.forEach(cat => {
                 const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
@@ -2968,10 +2989,12 @@ if (appData.settings.instagramUrl) {
                         : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`) 
                     : `<div class="img-placeholder">${imageSvg}</div>`;
                 html += `
+                    ${isGrid ? '' : '<div style="flex: 0 0 120px; min-width: 120px;">'}
                     <div class="category-card" onclick="renderCategory('${cat.id}')">
-                        <div class="category-img-box">${imgContent}</div>
+                        <div class="category-img-box" style="${imgBoxStyle}">${imgContent}</div>
                         <span>${cat.name}</span>
-                    </div>`;
+                    </div>
+                    ${isGrid ? '' : '</div>'}`;
             });
             html += `</div>`;
         } else if (section.id === 'bestsellers') {
@@ -2985,37 +3008,33 @@ if (appData.settings.instagramUrl) {
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
                     <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
                     <a href="javascript:void(0)" onclick="renderCategory('bestsellers')" class="view-all-btn">
-    View All 
-    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
+                        View All <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </a>
                 </div>
-                <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+                <div class="${wrapperClass}" style="${wrapperStyle}">`;
                 
                 bestSellers.slice(0, 10).forEach(prod => {
-                     html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
+                     html += `${itemWrapperOpen}${getProductCardHTML(prod, imgBoxStyle)}${itemWrapperClose}`;
                 });
                 html += `</div>`;
             }
         } else if (section.id.startsWith('cat_')) {
             const catId = section.id.replace('cat_', '');
             const cat = appData.categories.find(c => String(c.id) === String(catId));
-            if (!cat) return; // Skip if category was deleted but remains in settings
+            if (!cat) return;
 
             const subCats = appData.categories.filter(c => String(c.parentId) === String(catId));
             
-            // Flex header for Title + View All
             html += `
             <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 40px 20px 10px; max-width: 1100px; margin: 0 auto; width: 100%;">
                 <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; margin:0;">${section.title}</h3>
                 <a href="javascript:void(0)" onclick="renderCategory('${cat.id}')" class="view-all-btn">
-    View All 
-    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
+                    View All <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
             </div>
-            <div class="horizontal-scroll" style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; padding: 10px 20px 20px; scrollbar-width: none; max-width: 1100px; margin: 0 auto; width: 100%;">`;
+            <div class="${wrapperClass}" style="${wrapperStyle}">`;
 
             if (subCats.length > 0) {
-                // Render Subcategories (Max 10)
                 const visibleSubCats = subCats.slice(0, 10);
                 visibleSubCats.forEach(sub => {
                     const isVideo = sub.img && typeof sub.img === 'string' && sub.img.toLowerCase().endsWith('.mp4');
@@ -3026,23 +3045,25 @@ if (appData.settings.instagramUrl) {
                         : `<div class="img-placeholder">${imageSvg}</div>`;
                     
                     html += `
-                        <div class="category-card" onclick="renderCategory('${sub.id}')" style="flex: 0 0 120px; min-width: 120px;">
-                            <div class="category-img-box">${imgContent}</div>
+                        ${isGrid ? '' : '<div style="flex: 0 0 120px; min-width: 120px;">'}
+                        <div class="category-card" onclick="renderCategory('${sub.id}')">
+                            <div class="category-img-box" style="${imgBoxStyle}">${imgContent}</div>
                             <span style="font-size: 13px;">${sub.name}</span>
-                        </div>`;
+                        </div>
+                        ${isGrid ? '' : '</div>'}`;
                 });
             } else {
-                // Render Products (Max 10)
                 const catProds = appData.products.filter(p => String(p.catId) === String(catId)).sort((a, b) => {
                     const orderA = a.sort_order !== undefined && a.sort_order !== null ? a.sort_order : 999999;
                     const orderB = b.sort_order !== undefined && b.sort_order !== null ? b.sort_order : 999999;
                     return orderA !== orderB ? orderA - orderB : b.id - a.id;
                 }).slice(0, 10);
+
                 if (catProds.length === 0) {
                      html += `<div style="padding: 10px 0; color: #999; font-size: 13px; font-style: italic;">No products added yet.</div>`;
                 }
                 catProds.forEach(prod => {
-                    html += `<div style="flex: 0 0 130px; min-width: 130px;">${getProductCardHTML(prod)}</div>`;
+                    html += `${itemWrapperOpen}${getProductCardHTML(prod, imgBoxStyle)}${itemWrapperClose}`;
                 });
             }
             html += `</div>`;
