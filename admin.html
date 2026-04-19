@@ -1888,41 +1888,40 @@ let dailyStatsCurrentPage = 1;
 const DAILY_STATS_PAGE_SIZE = 15;
 let cachedDailyStats = []; // Stores grouped data so we don't recalculate on every page turn
 
-window.renderDailyOrderStats = function() {
+window.renderDailyOrderStats = async function() {
     const tbody = document.getElementById('dailyOrdersTableBody');
-    
-    if (!State.orders || State.orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
-        return;
-    }
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats from database...</td></tr>';
 
-    const dailyStats = {};
-    const optionsIST = { timeZone: 'Asia/Kolkata' };
+    try {
+        // Backend se direct calculated data mangwa rahe hain (Zero egress waste!)
+        const { data, error } = await db.rpc('get_daily_order_stats');
+        if (error) throw error;
 
-    // 1. Group all orders by date
-    State.orders.forEach(order => {
-        const orderDateObj = new Date(order.created_at);
-        const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
-
-        if (!dailyStats[dateKey]) {
-            dailyStats[dateKey] = {
-                dateObj: orderDateObj, // Saved for accurate chronological sorting
-                count: 0,
-                revenue: 0
-            };
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
+            return;
         }
-        
-        dailyStats[dateKey].count += 1;
-        dailyStats[dateKey].revenue += (Number(order.total_amount) || 0);
-    });
 
-    // 2. Sort newest dates first and cache it in memory
-    cachedDailyStats = Object.keys(dailyStats).map(dateStr => {
-        return { dateStr, ...dailyStats[dateStr] };
-    }).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+        const optionsIST = { timeZone: 'Asia/Kolkata' };
 
-    // 3. Load the first page
-    loadDailyStatsPage(1);
+        // Data ko format karke cachedDailyStats mein daal rahe hain taaki aapki existing pagination chalti rahe
+        cachedDailyStats = data.map(stat => {
+            const dateObj = new Date(stat.date_key);
+            return {
+                dateStr: dateObj.toLocaleDateString('en-IN', optionsIST),
+                dateObj: dateObj,
+                count: stat.total_orders,
+                revenue: Number(stat.total_revenue)
+            };
+        });
+
+        // Pehla page load karein
+        loadDailyStatsPage(1);
+
+    } catch (err) {
+        console.error("Daily Stats Error:", err);
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:red; padding: 20px;">Error: ${err.message}</td></tr>`;
+    }
 };
 
 // --- NEW FUNCTION TO HANDLE PAGE TURNS ---
