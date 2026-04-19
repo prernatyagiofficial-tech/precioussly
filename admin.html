@@ -1555,6 +1555,7 @@
             products: [],
             orders: [], 
             homeSectionsConfig: [], // ADDED FOR SMART LAYOUTS
+            subcatLayoutConfig: null, // ADDED FOR SUBCATEGORIES
         };
         let prodCurrentPage = 1;
         const PROD_PAGE_SIZE = 50;
@@ -2349,6 +2350,7 @@ renderSmartTagsUI();
             
             const sections = data.home_sections_config || defaultSections;
             State.homeSectionsConfig = sections; // SAVE TO STATE
+            State.subcatLayoutConfig = data.subcat_layout_config || { layout: 'Vertical Grid', aspectRatio: '1:1 (Square)' };
             let sectionsHtml = '';
             sections.forEach(sec => {
                 // Do not allow deleting the core default sections
@@ -5265,41 +5267,68 @@ window.sendWaConfirmation = function() {
 
 
 
-// --- SMART LAYOUT LOGIC ---
+
+        // --- SMART LAYOUT LOGIC ---
         window.renderSmartLayoutsUI = function() {
             const container = document.getElementById('smartLayoutsContainer');
-            if (!State.homeSectionsConfig || State.homeSectionsConfig.length === 0) {
-                container.innerHTML = '<p style="grid-column: 1/-1; padding: 20px;">No sections found. Add sections in Store Settings first.</p>';
-                return;
-            }
-
-            let html = '';
-            State.homeSectionsConfig.forEach((sec, index) => {
-                const layout = sec.layout || 'Horizontal Swipe';
-                const ar = sec.aspectRatio || '1:1 (Square)';
-
-                html += `
-                <div class="settings-card">
-                    <h3 style="margin-bottom: 15px;">${escapeHTML(sec.title)}</h3>
+            
+            // 1. Generate the Subcategory Card (Always at the top)
+            const subcatConfig = State.subcatLayoutConfig || { layout: 'Vertical Grid', aspectRatio: '1:1 (Square)' };
+            let html = `
+                <div class="settings-card" style="border: 2px solid var(--text-main); background: #fdfdfd;">
+                    <h3 style="margin-bottom: 15px; color: var(--text-main);">Subcategories (Category Pages)</h3>
                     <div class="grid-form">
                         <div class="form-group full-width">
                             <label>Layout Style</label>
-                            <select id="sl_layout_${index}">
-                                <option value="Horizontal Swipe" ${layout === 'Horizontal Swipe' ? 'selected' : ''}>Horizontal Swipe</option>
-                                <option value="Vertical Grid" ${layout === 'Vertical Grid' ? 'selected' : ''}>Vertical Grid</option>
+                            <select id="subcat_global_layout">
+                                <option value="Horizontal Swipe" ${subcatConfig.layout === 'Horizontal Swipe' ? 'selected' : ''}>Horizontal Swipe</option>
+                                <option value="Vertical Grid" ${subcatConfig.layout === 'Vertical Grid' ? 'selected' : ''}>Vertical Grid</option>
                             </select>
                         </div>
                         <div class="form-group full-width" style="margin-bottom: 0;">
                             <label>Thumbnail Aspect Ratio</label>
-                            <select id="sl_ar_${index}">
-                                <option value="1:1 (Square)" ${ar === '1:1 (Square)' ? 'selected' : ''}>1:1 (Square)</option>
-                                <option value="3:4 (Portrait)" ${ar === '3:4 (Portrait)' ? 'selected' : ''}>3:4 (Portrait)</option>
-                                <option value="Circle" ${ar === 'Circle' ? 'selected' : ''}>Circle</option>
+                            <select id="subcat_global_ar">
+                                <option value="1:1 (Square)" ${subcatConfig.aspectRatio === '1:1 (Square)' ? 'selected' : ''}>1:1 (Square)</option>
+                                <option value="3:4 (Portrait)" ${subcatConfig.aspectRatio === '3:4 (Portrait)' ? 'selected' : ''}>3:4 (Portrait)</option>
+                                <option value="Circle" ${subcatConfig.aspectRatio === 'Circle' ? 'selected' : ''}>Circle</option>
                             </select>
                         </div>
                     </div>
-                </div>`;
-            });
+                </div>
+            `;
+
+            // 2. Generate the Homepage Section Cards
+            if (!State.homeSectionsConfig || State.homeSectionsConfig.length === 0) {
+                html += '<p style="grid-column: 1/-1; padding: 20px;">No homepage sections found.</p>';
+            } else {
+                State.homeSectionsConfig.forEach((sec, index) => {
+                    const layout = sec.layout || 'Horizontal Swipe';
+                    const ar = sec.aspectRatio || '1:1 (Square)';
+
+                    html += `
+                    <div class="settings-card">
+                        <h3 style="margin-bottom: 15px;">Homepage: ${escapeHTML(sec.title)}</h3>
+                        <div class="grid-form">
+                            <div class="form-group full-width">
+                                <label>Layout Style</label>
+                                <select id="sl_layout_${index}">
+                                    <option value="Horizontal Swipe" ${layout === 'Horizontal Swipe' ? 'selected' : ''}>Horizontal Swipe</option>
+                                    <option value="Vertical Grid" ${layout === 'Vertical Grid' ? 'selected' : ''}>Vertical Grid</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width" style="margin-bottom: 0;">
+                                <label>Thumbnail Aspect Ratio</label>
+                                <select id="sl_ar_${index}">
+                                    <option value="1:1 (Square)" ${ar === '1:1 (Square)' ? 'selected' : ''}>1:1 (Square)</option>
+                                    <option value="3:4 (Portrait)" ${ar === '3:4 (Portrait)' ? 'selected' : ''}>3:4 (Portrait)</option>
+                                    <option value="Circle" ${ar === 'Circle' ? 'selected' : ''}>Circle</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            }
+            
             container.innerHTML = html;
         };
 
@@ -5309,7 +5338,12 @@ window.sendWaConfirmation = function() {
             btn.disabled = true;
 
             try {
-                // Update State from DOM
+                // 1. Grab the Subcategory Settings
+                const subcatLayout = document.getElementById('subcat_global_layout').value;
+                const subcatAR = document.getElementById('subcat_global_ar').value;
+                State.subcatLayoutConfig = { layout: subcatLayout, aspectRatio: subcatAR };
+
+                // 2. Grab the Homepage Sections Settings
                 State.homeSectionsConfig.forEach((sec, index) => {
                     const layoutEl = document.getElementById(`sl_layout_${index}`);
                     const arEl = document.getElementById(`sl_ar_${index}`);
@@ -5317,7 +5351,12 @@ window.sendWaConfirmation = function() {
                     if (arEl) sec.aspectRatio = arEl.value;
                 });
 
-                const { error } = await db.from('settings').update({ home_sections_config: State.homeSectionsConfig }).eq('id', 1);
+                // 3. Save EVERYTHING to Supabase
+                const { error } = await db.from('settings').update({ 
+                    home_sections_config: State.homeSectionsConfig,
+                    subcat_layout_config: State.subcatLayoutConfig 
+                }).eq('id', 1);
+                
                 if (error) throw error;
                 showToast("Smart Layouts saved successfully!", "success");
             } catch (err) {
