@@ -3033,40 +3033,51 @@ if (appData.settings.instagramUrl) {
 
         // --- INFINITE SCROLL OBSERVER ---
         const scrollObserver = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && hasMoreProducts && !isFetchingProducts) {
-                loadNextPage();
-            }
-        }, { rootMargin: '300px' });
+    if (entries[0].isIntersecting && hasMoreProducts && !isFetchingProducts) {
+        loadNextPage();
+    }
+}, { rootMargin: '800px' }); // Changed from 300px to 800px
 
         async function loadNextPage() {
-            if (!hasMoreProducts || isFetchingProducts) return;
-            isFetchingProducts = true;
-            currentPage++;
+    if (!hasMoreProducts || isFetchingProducts) return;
+    isFetchingProducts = true;
+    currentPage++;
 
-            const anchor = document.getElementById('infinite-scroll-anchor');
-            if (anchor) anchor.innerHTML = '<div class="btn-spinner" style="position:relative; width: 30px; height: 30px; border-color: var(--border-color); border-top-color: var(--text-dark); margin: 0 auto;"></div>';
+    const anchor = document.getElementById('infinite-scroll-anchor');
+    if (anchor) anchor.innerHTML = '<div class="btn-spinner" style="position:relative; width: 30px; height: 30px; border-color: var(--border-color); border-top-color: var(--text-dark); margin: 0 auto;"></div>';
 
-            const { data } = await fetchServerProducts(currentPage, currentFetchParams);
+    const { data } = await fetchServerProducts(currentPage, currentFetchParams);
 
-            if (data.length > 0) {
-                const grid = document.getElementById('dynamic-product-grid');
-                if (grid) {
-                    data.forEach(prod => {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = getProductCardHTML(prod);
-                        grid.appendChild(tempDiv.firstElementChild);
-                    });
-                }
-            }
-
-            if (data.length < ITEMS_PER_PAGE) {
-                hasMoreProducts = false;
-                if (anchor) anchor.innerHTML = '<p style="text-align:center; color: var(--text-gray); margin-top:20px; font-size: 13px;">End of results</p>';
-            } else {
-                if (anchor) anchor.innerHTML = '';
-            }
-            isFetchingProducts = false;
+    if (data.length > 0) {
+        const grid = document.getElementById('dynamic-product-grid');
+        if (grid) {
+            data.forEach(prod => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = getProductCardHTML(prod);
+                grid.appendChild(tempDiv.firstElementChild);
+            });
         }
+    }
+
+    if (data.length < ITEMS_PER_PAGE) {
+        hasMoreProducts = false;
+        if (anchor) anchor.innerHTML = '<p style="text-align:center; color: var(--text-gray); margin-top:20px; font-size: 13px;">End of results</p>';
+    } else {
+        if (anchor) anchor.innerHTML = '';
+    }
+    
+    isFetchingProducts = false;
+
+    // --- THE FIX ---
+    // Render hone ke baad check karein ki kya anchor abhi bhi viewport ke kareeb hai
+    if (hasMoreProducts && anchor) {
+        const rect = anchor.getBoundingClientRect();
+        // Agar anchor viewport ke andar ya 800px niche tak hai, agla page turant load karein
+        if (rect.top <= window.innerHeight + 800) {
+            loadNextPage();
+        }
+    }
+}
 
         function renderProductList(title, products, subCats = [], totalCount = 0, savedScroll = 0) {
             let html = ``;
