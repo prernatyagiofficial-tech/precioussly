@@ -1722,8 +1722,9 @@ db.channel('live-orders')
             btn.disabled = true;
             
             try {
+                // Yahan par .trim() add kiya hai email ke aage
                 const { error } = await db.auth.signInWithPassword({ 
-                    email: document.getElementById('email').value, 
+                    email: document.getElementById('email').value.trim(), 
                     password: document.getElementById('password').value 
                 });
                 
@@ -1841,91 +1842,49 @@ let dailyStatsCurrentPage = 1;
 const DAILY_STATS_PAGE_SIZE = 15;
 let cachedDailyStats = []; // Stores grouped data so we don't recalculate on every page turn
 
-window.renderDailyOrderStats = function() {
+window.renderDailyOrderStats = async function() {
     const tbody = document.getElementById('dailyOrdersTableBody');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">Loading daily stats...</td></tr>';
     
-    if (!State.orders || State.orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
-        return;
-    }
-
-    const dailyStats = {};
-    const optionsIST = { timeZone: 'Asia/Kolkata' };
-
-    // 1. Group all orders by date
-    State.orders.forEach(order => {
-        const orderDateObj = new Date(order.created_at);
-        const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
-
-        if (!dailyStats[dateKey]) {
-            dailyStats[dateKey] = {
-                dateObj: orderDateObj, // Saved for accurate chronological sorting
-                count: 0,
-                revenue: 0
-            };
-        }
+    try {
+        const { data, error } = await db.rpc('get_daily_order_stats');
+        if (error) throw error;
         
-        dailyStats[dateKey].count += 1;
-        dailyStats[dateKey].revenue += (Number(order.total_amount) || 0);
-    });
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px;">No orders found.</td></tr>';
+            return;
+        }
 
-    // 2. Sort newest dates first and cache it in memory
-    cachedDailyStats = Object.keys(dailyStats).map(dateStr => {
-        return { dateStr, ...dailyStats[dateStr] };
-    }).sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+        const optionsIST = { timeZone: 'Asia/Kolkata' };
+        const todayStr = new Date().toLocaleDateString('en-IN', optionsIST);
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toLocaleDateString('en-IN', optionsIST);
 
-    // 3. Load the first page
-    loadDailyStatsPage(1);
-};
+        let html = '';
+        data.forEach(stat => {
+            let displayDate = stat.date_str;
+            if (stat.date_str === todayStr) displayDate = '<strong style="color: var(--accent);">Today</strong>';
+            else if (stat.date_str === yesterdayStr) displayDate = '<strong>Yesterday</strong>';
 
-// --- NEW FUNCTION TO HANDLE PAGE TURNS ---
-window.loadDailyStatsPage = function(page) {
-    dailyStatsCurrentPage = page;
-    const tbody = document.getElementById('dailyOrdersTableBody');
-    
-    // Calculate Pagination bounds
-    const totalItems = cachedDailyStats.length;
-    const totalPages = Math.ceil(totalItems / DAILY_STATS_PAGE_SIZE) || 1;
-    
-    if (dailyStatsCurrentPage > totalPages) dailyStatsCurrentPage = totalPages;
-    if (dailyStatsCurrentPage < 1) dailyStatsCurrentPage = 1;
+            html += `
+                <tr>
+                    <td>${displayDate}</td>
+                    <td><span class="badge" style="background: var(--primary); color: #fff;">${stat.order_count}</span></td>
+                    <td><strong>₹${Math.round(stat.total_revenue).toLocaleString('en-IN')}</strong></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        
+        // Hide pagination as it's handled naturally by scrolling now
+        const pagination = document.querySelector('#view-daily-orders .pagination-controls');
+        if (pagination) pagination.style.display = 'none';
 
-    // Update Pagination UI Buttons and Text
-    const pageInfo = document.getElementById('dailyStatsPageInfo');
-    const btnPrev = document.getElementById('btnPrevDailyPage');
-    const btnNext = document.getElementById('btnNextDailyPage');
-
-    if (pageInfo) pageInfo.innerText = `Page ${dailyStatsCurrentPage} of ${totalPages}`;
-    if (btnPrev) btnPrev.disabled = dailyStatsCurrentPage <= 1;
-    if (btnNext) btnNext.disabled = dailyStatsCurrentPage >= totalPages;
-
-    // Slice the chunk of data we need for this specific page
-    const startIndex = (dailyStatsCurrentPage - 1) * DAILY_STATS_PAGE_SIZE;
-    const paginatedStats = cachedDailyStats.slice(startIndex, startIndex + DAILY_STATS_PAGE_SIZE);
-
-    const optionsIST = { timeZone: 'Asia/Kolkata' };
-    const todayStr = new Date().toLocaleDateString('en-IN', optionsIST);
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayStr = yesterdayDate.toLocaleDateString('en-IN', optionsIST);
-
-    // Generate HTML for the slice
-    let html = '';
-    paginatedStats.forEach(stat => {
-        let displayDate = stat.dateStr;
-        if (stat.dateStr === todayStr) displayDate = '<strong style="color: var(--accent);">Today</strong>';
-        else if (stat.dateStr === yesterdayStr) displayDate = '<strong>Yesterday</strong>';
-
-        html += `
-            <tr>
-                <td>${displayDate}</td>
-                <td><span class="badge" style="background: var(--primary); color: #fff;">${stat.count}</span></td>
-                <td><strong>₹${Math.round(stat.revenue).toLocaleString('en-IN')}</strong></td>
-            </tr>
-        `;
-    });
-
-    tbody.innerHTML = html;
+    } catch (err) {
+        console.error("Daily stats error:", err);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color: red;">Failed to load daily stats.</td></tr>';
+    }
 };
 // --- UPGRADED USERS LOGIC ---
         let usersCurrentPage = 1;
@@ -1935,128 +1894,174 @@ window.loadDailyStatsPage = function(page) {
         let paginatedUsersList = []; // Holds the current page's sliced data
 
 async function loadUsers(page = 1) {
-            usersCurrentPage = page;
-            const searchQ = document.getElementById('userSearchFilter') ? document.getElementById('userSearchFilter').value.trim() : '';
-            const sortVal = document.getElementById('userSortFilter') ? document.getElementById('userSortFilter').value : 'date_desc';
+    usersCurrentPage = page;
 
+    const searchQ = document.getElementById('userSearchFilter')
+        ? document.getElementById('userSearchFilter').value.trim().toLowerCase()
+        : '';
+
+    const sortVal = document.getElementById('userSortFilter')
+        ? document.getElementById('userSortFilter').value
+        : 'date_desc';
+
+    try {
+        // IMPORTANT:
+        // If your actual user table is not "profiles",
+        // replace "profiles" below with your real table name.
+        const { data: users, error: usersError } = await db
+            .from('profiles')
+            .select('*');
+
+        if (usersError) throw usersError;
+
+        const { data: orders, error: ordersError } = await db
+            .from('orders')
+            .select('id, created_at, total_amount, customer_details');
+
+        if (ordersError) throw ordersError;
+
+        const safeArray = (value) => {
+            if (!value) return [];
+            if (Array.isArray(value)) return value;
             try {
-                // 1. Fetch data from Supabase (omitting .range() to allow in-memory sorting)
-                let query = db.from('profiles').select('*', { count: 'exact' });
-
-                if (searchQ) {
-                    query = query.or(`full_name.ilike.%${searchQ}%,email.ilike.%${searchQ}%`);
-                }
-
-                const { data, count, error } = await query;
-                if (error) throw error;
-
-                let usersData = data || [];
-
-                // 2. Attach frontend calculated data for accurate sorting
-                usersData = usersData.map(u => {
-                    const userEmail = (u.email || '').toLowerCase();
-                    const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
-                    
-                    let wishlistArr = [];
-                    if (u.wishlist) {
-                        try { wishlistArr = Array.isArray(u.wishlist) ? u.wishlist : JSON.parse(u.wishlist); } 
-                        catch(e) { wishlistArr = []; }
-                    }
-                    // Only count wishlist items that still exist in the products database
-                    wishlistArr = wishlistArr.filter(itemId => State.products.some(p => String(p.id) === String(itemId)));
-
-                    let cartArr = [];
-                    if (u.cart) {
-                        try { cartArr = Array.isArray(u.cart) ? u.cart : JSON.parse(u.cart); } 
-                        catch(e) { cartArr = []; }
-                    }
-                    // Only count cart items that still exist in the products database
-                    cartArr = cartArr.filter(item => State.products.some(p => String(p.id) === String(item.id)));
-                    
-                    let cartQtyCount = cartArr.reduce((sum, item) => sum + (item.qty || 1), 0);
-
-                    // Calculate activity timestamps
-                    let latestOrderTime = 0;
-                    if (userOrders.length > 0) {
-                        latestOrderTime = Math.max(...userOrders.map(o => new Date(o.created_at).getTime()));
-                    }
-
-                    return {
-                        ...u,
-                        _orderCount: userOrders.length,
-                        _latestOrderTime: latestOrderTime,
-                        _cartCount: cartQtyCount,
-                        _wishlistCount: wishlistArr.length,
-                        _wishlistUpdated: u.updated_at ? new Date(u.updated_at).getTime() : 0,
-                        _joinedTime: new Date(u.created_at).getTime()
-                    };
-                });
-
-                // 3. Apply In-Memory Sorting based on dropdown selection
-                usersData.sort((a, b) => {
-                    switch (sortVal) {
-                        case 'orders_desc': return b._orderCount - a._orderCount;
-                        case 'orders_asc': return a._orderCount - b._orderCount;
-                        case 'orders_activity': return b._latestOrderTime - a._latestOrderTime;
-                        case 'cart_desc': return b._cartCount - a._cartCount;
-                        case 'cart_asc': return a._cartCount - b._cartCount;
-                        case 'cart_activity': return b._wishlistUpdated - a._wishlistUpdated;
-                        case 'wishlist_desc': return b._wishlistCount - a._wishlistCount;
-                        case 'wishlist_asc': return a._wishlistCount - b._wishlistCount;
-                        case 'wishlist_activity': return b._wishlistUpdated - a._wishlistUpdated;
-                        case 'date_desc': 
-                        default: return b._joinedTime - a._joinedTime;
-                    }
-                });
-
-                loadedUsersList = usersData; // Cache the sorted full list
-
-                // 4. Apply In-Memory Pagination
-                const totalItems = usersData.length;
-                const totalPages = Math.ceil(totalItems / USERS_PAGE_SIZE) || 1;
-                
-                if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
-                if (usersCurrentPage < 1) usersCurrentPage = 1;
-
-                const startIndex = (usersCurrentPage - 1) * USERS_PAGE_SIZE;
-                paginatedUsersList = usersData.slice(startIndex, startIndex + USERS_PAGE_SIZE);
-
-                // 5. Update DOM elements (Counts & Pagination)
-                const countDisp = document.getElementById('totalUsersCountDisp');
-                if (countDisp) countDisp.innerText = `Total Users: ${count}`;
-
-                const pageInfo = document.getElementById('usersPageInfo');
-                const btnPrev = document.getElementById('btnPrevUserPage');
-                const btnNext = document.getElementById('btnNextUserPage');
-
-                if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages}`;
-                if (btnPrev) btnPrev.disabled = usersCurrentPage <= 1;
-                if (btnNext) btnNext.disabled = usersCurrentPage >= totalPages;
-
-                // 6. Render Table HTML
-                let html = '';
-                if (paginatedUsersList.length > 0) {
-                    paginatedUsersList.forEach(u => {
-                        html += `
-<tr>
-                            <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
-                            <td>${escapeHTML(u.email)}</td>
-                            <td><span class="badge">${u._orderCount}</span></td>
-                            <td><span class="badge">${u._cartCount}</span></td>
-                            <td><span class="badge">${u._wishlistCount}</span></td>
-                            <td>${new Date(u.created_at).toLocaleDateString()}</td>
-                            <td><button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">VIEW DETAILS</button></td>
-                        </tr>`;
-                    });
-                }
-                
-                document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
-
-            } catch (err) {
-                console.error("Error loading users:", err);
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
+                const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
             }
+        };
+
+        let computedUsers = (users || []).map(u => {
+            const email = (u.email || '').toLowerCase();
+
+            const userOrders = (orders || []).filter(o => {
+                const orderEmail = (o.customer_details?.email || '').toLowerCase();
+                return orderEmail === email;
+            });
+
+            const cartArr = safeArray(u.cart);
+            const wishlistArr = safeArray(u.wishlist);
+
+            const latestOrderTime = userOrders.length
+                ? userOrders
+                    .map(o => new Date(o.created_at).getTime())
+                    .filter(Boolean)
+                    .sort((a, b) => b - a)[0]
+                : null;
+
+            return {
+                ...u,
+                order_count: userOrders.length,
+                cart_count: cartArr.length,
+                wishlist_count: wishlistArr.length,
+                latest_order_time: latestOrderTime ? new Date(latestOrderTime).toISOString() : null
+            };
+        });
+
+        // Search filter
+        if (searchQ) {
+            computedUsers = computedUsers.filter(u => {
+                const name = (u.full_name || '').toLowerCase();
+                const email = (u.email || '').toLowerCase();
+                return name.includes(searchQ) || email.includes(searchQ);
+            });
         }
+
+        // Sorting
+        computedUsers.sort((a, b) => {
+            const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+            const aLatestOrder = a.latest_order_time ? new Date(a.latest_order_time).getTime() : 0;
+            const bLatestOrder = b.latest_order_time ? new Date(b.latest_order_time).getTime() : 0;
+
+            const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+
+            switch (sortVal) {
+                case 'orders_desc':
+                    return (b.order_count || 0) - (a.order_count || 0);
+
+                case 'orders_asc':
+                    return (a.order_count || 0) - (b.order_count || 0);
+
+                case 'orders_activity':
+                    return bLatestOrder - aLatestOrder;
+
+                case 'cart_desc':
+                    return (b.cart_count || 0) - (a.cart_count || 0);
+
+                case 'cart_asc':
+                    return (a.cart_count || 0) - (b.cart_count || 0);
+
+                case 'cart_activity':
+                    return bUpdated - aUpdated;
+
+                case 'wishlist_desc':
+                    return (b.wishlist_count || 0) - (a.wishlist_count || 0);
+
+                case 'wishlist_asc':
+                    return (a.wishlist_count || 0) - (b.wishlist_count || 0);
+
+                case 'wishlist_activity':
+                    return bUpdated - aUpdated;
+
+                case 'date_desc':
+                default:
+                    return bCreated - aCreated;
+            }
+        });
+
+        const totalCount = computedUsers.length;
+        const totalPages = Math.ceil(totalCount / USERS_PAGE_SIZE) || 1;
+
+        const from = (page - 1) * USERS_PAGE_SIZE;
+        const to = from + USERS_PAGE_SIZE;
+
+        loadedUsersList = computedUsers.slice(from, to);
+
+        const countDisp = document.getElementById('totalUsersCountDisp');
+        if (countDisp) countDisp.innerText = `Total Users: ${totalCount}`;
+
+        const pageInfo = document.getElementById('usersPageInfo');
+        const btnPrev = document.getElementById('btnPrevUserPage');
+        const btnNext = document.getElementById('btnNextUserPage');
+
+        if (pageInfo) pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages}`;
+        if (btnPrev) btnPrev.disabled = usersCurrentPage <= 1;
+        if (btnNext) btnNext.disabled = usersCurrentPage >= totalPages;
+
+        let html = '';
+
+        if (loadedUsersList.length > 0) {
+            loadedUsersList.forEach(u => {
+                html += `
+                <tr>
+                    <td><strong>${escapeHTML(u.full_name || 'N/A')}</strong></td>
+                    <td>${escapeHTML(u.email || 'N/A')}</td>
+                    <td><span class="badge">${u.order_count || 0}</span></td>
+                    <td><span class="badge">${u.cart_count || 0}</span></td>
+                    <td><span class="badge">${u.wishlist_count || 0}</span></td>
+                    <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                        <button class="outline" style="padding: 4px 10px; font-size: 10px; margin: 0;" onclick="openUserDetails('${u.id}')">
+                            VIEW DETAILS
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        document.getElementById('usersTableBody').innerHTML =
+            html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">No users found matching your criteria.</td></tr>';
+
+    } catch (err) {
+        console.error("Error loading users:", err);
+        document.getElementById('usersTableBody').innerHTML =
+            `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${err.message}</td></tr>`;
+    }
+}
+
 
         function debounceUserSearch() {
             clearTimeout(userSearchTimeout);
@@ -3271,7 +3276,7 @@ window.executeBulkMonthlyCountByCategory = async function() {
         // Coupons Management
         async function loadCoupons() {
             try {
-                const { data, error } = await db.from('coupons').select('*').order('min_threshold', { ascending: false });
+                const { data, error } = await db.from('coupons').select('*').order('min_threshold', { ascending: false }).limit(100);
                 if (error) throw error;
 
                 let html = '';
@@ -3326,7 +3331,7 @@ window.executeBulkMonthlyCountByCategory = async function() {
         // Reviews Management
         async function loadReviews() {
             try {
-                const { data, error } = await db.from('reviews').select('*').order('id', { ascending: false });
+                const { data, error } = await db.from('reviews').select('*').order('id', { ascending: false }).limit(100);
                 if (error) throw error;
 
                 let html = '';
@@ -3363,21 +3368,19 @@ window.executeBulkMonthlyCountByCategory = async function() {
         let currentOrderFilter = 'All'; 
 
 async function updateTabCounts() {
-            try {
-                // Fetch ONLY the status column to keep the payload incredibly lightweight
-                const { data, error } = await db.from('orders').select('status');
-                if (error) throw error;
-                
-                const orders = data || [];
-                document.getElementById('count-all').innerText = `(${orders.length})`;
-                document.getElementById('count-inprogress').innerText = `(${orders.filter(o => o.status === 'In Progress').length})`;
-                document.getElementById('count-confirmed').innerText = `(${orders.filter(o => o.status === 'Confirmed').length})`;
-                document.getElementById('count-delivered').innerText = `(${orders.filter(o => o.status === 'Delivered').length})`;
-                document.getElementById('count-cancelled').innerText = `(${orders.filter(o => o.status === 'Cancelled').length})`;
-            } catch (err) {
-                console.error("Error fetching tab counts:", err);
-            }
-        }
+    try {
+        const { data, error } = await db.rpc('get_order_tab_counts');
+        if (error) throw error;
+        
+        document.getElementById('count-all').innerText = `(${data['All'] || 0})`;
+        document.getElementById('count-inprogress').innerText = `(${data['In Progress'] || 0})`;
+        document.getElementById('count-confirmed').innerText = `(${data['Confirmed'] || 0})`;
+        document.getElementById('count-delivered').innerText = `(${data['Delivered'] || 0})`;
+        document.getElementById('count-cancelled').innerText = `(${data['Cancelled'] || 0})`;
+    } catch (err) {
+        console.error("Error fetching tab counts:", err);
+    }
+}
 
         window.filterOrders = function(status, btn) {
             currentOrderFilter = status;
@@ -3449,27 +3452,28 @@ async function updateTabCounts() {
             }
         }
 
-        function populateStateDropdown() {
+        async function populateStateDropdown() {
             const stateSelect = document.getElementById('stateFilter');
             if(!stateSelect) return;
-            const states = new Set();
             
-            State.orders.forEach(o => {
-                const addr = o.customer_details?.address || '';
-                const match = addr.match(/([a-zA-Z\s]+)(?:,\s*|-)?\d{6}/);
-                if(match && match[1]) states.add(match[1].trim());
-            });
-            
-            let html = '<option value="All">All States</option>';
-            Array.from(states).sort().forEach(s => {
-                if(s.length > 2) html += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
-            });
-            
-            // Retain selection
-            const currentVal = stateSelect.value;
-            stateSelect.innerHTML = html;
-            if(Array.from(stateSelect.options).some(opt => opt.value === currentVal)) {
-                stateSelect.value = currentVal;
+            try {
+                const { data: states, error } = await db.rpc('get_distinct_order_states');
+                if (error) throw error;
+
+                let html = '<option value="All">All States</option>';
+                if (states && states.length > 0) {
+                    states.filter(s => s && s.length > 2).sort().forEach(s => {
+                        html += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`;
+                    });
+                }
+                
+                const currentVal = stateSelect.value;
+                stateSelect.innerHTML = html;
+                if(Array.from(stateSelect.options).some(opt => opt.value === currentVal)) {
+                    stateSelect.value = currentVal;
+                }
+            } catch (err) {
+                console.error("Error loading states:", err);
             }
         }
 
@@ -3801,81 +3805,76 @@ window.updateOrderStatus = function(id, newStatus) {
         
     
     window.exportOrdersCSV = async function() {
-            const btn = document.querySelector('button[onclick="exportOrdersCSV()"]');
-            if(btn) { btn.innerText = "EXPORTING..."; btn.disabled = true; }
+    const btn = document.querySelector('button[onclick="exportOrdersCSV()"]');
+    if(btn) { btn.innerText = "EXPORTING..."; btn.disabled = true; }
 
-            try {
-                // Reconstruct the active query without pagination (.range)
-                const searchQ = document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.trim() : '';
-                const paymentFilter = document.getElementById('paymentFilter') ? document.getElementById('paymentFilter').value : 'All';
-                const sortFilter = document.getElementById('sortValueFilter') ? document.getElementById('sortValueFilter').value : 'newest';
-                const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
+    try {
+        const searchQ = document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.trim() : '';
+        const paymentFilter = document.getElementById('paymentFilter') ? document.getElementById('paymentFilter').value : 'All';
+        const sortFilter = document.getElementById('sortValueFilter') ? document.getElementById('sortValueFilter').value : 'newest';
+        const stateFilter = document.getElementById('stateFilter') ? document.getElementById('stateFilter').value : 'All';
 
-                let query = db.from('orders').select('*');
+        let query = db.from('orders').select('*', { count: 'exact' });
 
-                if (currentOrderFilter !== 'All') query = query.eq('status', currentOrderFilter);
-                
-                if (searchQ) {
-                    if (!isNaN(searchQ)) query = query.or(`id.eq.${searchQ},customer_details->>phone.ilike.%${searchQ}%`);
-                    else query = query.or(`customer_details->>name.ilike.%${searchQ}%,customer_details->>email.ilike.%${searchQ}%`);
-                }
+        if (currentOrderFilter !== 'All') query = query.eq('status', currentOrderFilter);
+        if (searchQ) {
+            if (!isNaN(searchQ)) query = query.or(`id.eq.${searchQ},customer_details->>phone.ilike.%${searchQ}%`);
+            else query = query.or(`customer_details->>name.ilike.%${searchQ}%,customer_details->>email.ilike.%${searchQ}%`);
+        }
+        if (paymentFilter === 'cod') query = query.eq('customer_details->>paymentMethod', 'cod');
+        if (paymentFilter === 'online') query = query.neq('customer_details->>paymentMethod', 'cod');
+        if (stateFilter !== 'All') query = query.ilike('customer_details->>address', `%${stateFilter}%`);
 
-                if (paymentFilter === 'cod') query = query.eq('customer_details->>paymentMethod', 'cod');
-                if (paymentFilter === 'online') query = query.neq('customer_details->>paymentMethod', 'cod');
+        if (sortFilter === 'high_low') query = query.order('total_amount', { ascending: false });
+        else if (sortFilter === 'low_high') query = query.order('total_amount', { ascending: true });
+        else if (sortFilter === 'oldest') query = query.order('created_at', { ascending: true });
+        else query = query.order('created_at', { ascending: false });
 
-                if (stateFilter !== 'All') query = query.ilike('customer_details->>address', `%${stateFilter}%`);
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Order ID,Date,Customer Name,Phone,Email,State,City,Pincode,Amount,Payment Method,Status,AWB Number\n";
 
-                if (sortFilter === 'high_low') query = query.order('total_amount', { ascending: false });
-                else if (sortFilter === 'low_high') query = query.order('total_amount', { ascending: true });
-                else if (sortFilter === 'oldest') query = query.order('created_at', { ascending: true });
-                else query = query.order('created_at', { ascending: false });
+        const CHUNK_SIZE = 1000;
+        let hasMore = true;
+        let offset = 0;
 
-                const { data: fullFilteredOrders, error } = await query;
-                if (error) throw error;
-
-                if (!fullFilteredOrders || fullFilteredOrders.length === 0) {
-                    return alert("No orders available to export based on current filters.");
-                }
-                
-                let csvContent = "data:text/csv;charset=utf-8,";
-                csvContent += "Order ID,Date,Customer Name,Phone,Email,State,City,Pincode,Amount,Payment Method,Status,AWB Number\n";
-                
-                fullFilteredOrders.forEach(o => {
-                    const dateObj = new Date(o.created_at);
-                    const formattedDate = `"${dateObj.toLocaleDateString('en-IN')} ${dateObj.toLocaleTimeString('en-US')}"`;
-                    
-                    const c = o.customer_details || {};
-                    const cName = `"${c.name || ''}"`;
-                    const phone = `"${c.phone || ''}"`;
-                    const email = `"${c.email || ''}"`;
-                    
-                    const fullAddr = c.address || '';
-                    const addrParts = fullAddr.split(',');
-                    const stateStr = `"${addrParts.length > 2 ? addrParts[addrParts.length-1].split('-')[0]?.trim() : ''}"`;
-                    const cityStr = `"${addrParts.length > 1 ? addrParts[addrParts.length-2]?.trim() : ''}"`;
-                    
-                    const amount = o.total_amount;
-                    const pMethod = `"${c.paymentMethod === 'cod' ? 'COD' : 'Online'}"`;
-                    const status = `"${o.status}"`;
-                    const awb = `"${o.awb_number || ''}"`;
-                    
-                    csvContent += `${o.id},${formattedDate},${cName},${phone},${email},${stateStr},${cityStr},"",${amount},${pMethod},${status},${awb}\n`;
-                });
-                
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-            } catch (err) {
-                alert("Export failed: " + err.message);
-            } finally {
-                if(btn) { btn.innerText = "EXPORT CSV"; btn.disabled = false; }
+        while (hasMore) {
+            const { data: chunk, error } = await query.range(offset, offset + CHUNK_SIZE - 1);
+            if (error) throw error;
+            if (!chunk || chunk.length === 0) {
+                hasMore = false;
+                break;
             }
-        };
+
+            chunk.forEach(o => {
+                const dateObj = new Date(o.created_at);
+                const formattedDate = `"${dateObj.toLocaleDateString('en-IN')} ${dateObj.toLocaleTimeString('en-US')}"`;
+                const c = o.customer_details || {};
+                const fullAddr = c.address || '';
+                const addrParts = fullAddr.split(',');
+                const stateStr = `"${addrParts.length > 2 ? addrParts[addrParts.length-1].split('-')[0]?.trim() : ''}"`;
+                const cityStr = `"${addrParts.length > 1 ? addrParts[addrParts.length-2]?.trim() : ''}"`;
+                
+                csvContent += `${o.id},${formattedDate},"${c.name || ''}","${c.phone || ''}","${c.email || ''}",${stateStr},${cityStr},"",${o.total_amount},"${c.paymentMethod === 'cod' ? 'COD' : 'Online'}","${o.status}","${o.awb_number || ''}"\n`;
+            });
+            
+            if (chunk.length < CHUNK_SIZE) hasMore = false;
+            offset += CHUNK_SIZE;
+        }
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (err) {
+        alert("Export failed: " + err.message);
+    } finally {
+        if(btn) { btn.innerText = "EXPORT CSV"; btn.disabled = false; }
+    }
+};
 // --- Optimistic Master Delete ---
         window.deleteRecord = function(table, id) {
             // Capture the specific table row that was clicked
@@ -4245,44 +4244,62 @@ window.updateOrderStatus = function(id, newStatus) {
         // --- ORDER STATUS CHECKER LOGIC ---
 window.fetchedDelhiveryStatuses = {}; // Holds the live statuses temporally
 
-window.renderStatusCheckerTable = function() {
+window.renderStatusCheckerTable = async function() {
     const tbody = document.getElementById('statusCheckerTableBody');
     const filter = document.getElementById('awbStatusFilter').value;
 
-    // Get orders that have an AWB number assigned AND are not already Delivered in Supabase
-    let trackedOrders = State.orders.filter(o => o.awb_number && o.awb_number.trim() !== '' && o.status !== 'Delivered');
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">Loading tracked orders...</td></tr>`;
 
-    // If "Delivered" filter is selected, only show orders where the FETCHED live status is "Delivered"
-    if (filter === 'Delivered') {
-        trackedOrders = trackedOrders.filter(o => window.fetchedDelhiveryStatuses[o.id] === 'Delivered');
+    try {
+        const { data: dbOrders, error } = await db.from('orders')
+            .select('id, customer_details, awb_number, status')
+            .neq('status', 'Delivered')
+            .not('awb_number', 'is', null)
+            .neq('awb_number', '');
+
+        if (error) throw error;
+
+        let trackedOrders = dbOrders || [];
+
+        if (filter === 'Delivered') {
+            trackedOrders = trackedOrders.filter(
+                o => window.fetchedDelhiveryStatuses[o.id] === 'Delivered'
+            );
+        }
+
+        if (trackedOrders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No pending tracked orders found matching the filter.</td></tr>`;
+            return;
+        }
+
+        let html = '';
+        trackedOrders.forEach(o => {
+            const customerName = o.customer_details?.name || 'Unknown';
+            const liveStatus = window.fetchedDelhiveryStatuses[o.id] || 'Pending Check';
+
+            let liveStatusColor = '#64748b';
+            if (liveStatus === 'Delivered') liveStatusColor = '#10b981';
+            else if (liveStatus !== 'Pending Check') liveStatusColor = '#f59e0b';
+
+            html += `
+                <tr data-order-id="${o.id}">
+                    <td><strong>#${o.id}</strong></td>
+                    <td>${escapeHTML(customerName)}</td>
+                    <td><span class="badge" style="background:#e2e8f0; color:#0f172a;">${escapeHTML(o.awb_number)}</span></td>
+                    <td><span class="badge warning">${escapeHTML(o.status)}</span></td>
+                    <td id="live-status-${o.id}"><strong style="color:${liveStatusColor};">${escapeHTML(liveStatus)}</strong></td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+
+    } catch (err) {
+        console.error("Status checker load error:", err);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: red;">Failed to load tracked orders.</td></tr>`;
     }
-
-    if (trackedOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No pending tracked orders found matching the filter.</td></tr>`;
-        return;
-    }
-
-    let html = '';
-    trackedOrders.forEach(o => {
-        const customerName = o.customer_details?.name || 'Unknown';
-        const liveStatus = window.fetchedDelhiveryStatuses[o.id] || 'Pending Check';
-        
-        let liveStatusColor = '#64748b'; // Gray
-        if (liveStatus === 'Delivered') liveStatusColor = '#10b981'; // Green
-        else if (liveStatus !== 'Pending Check') liveStatusColor = '#f59e0b'; // Orange for in-transit
-
-        html += `
-            <tr data-order-id="${o.id}">
-                <td><strong>#${o.id}</strong></td>
-                <td>${escapeHTML(customerName)}</td>
-                <td><span class="badge" style="background:#e2e8f0; color:#0f172a;">${escapeHTML(o.awb_number)}</span></td>
-                <td><span class="badge warning">${escapeHTML(o.status)}</span></td>
-                <td id="live-status-${o.id}"><strong style="color:${liveStatusColor};">${escapeHTML(liveStatus)}</strong></td>
-            </tr>
-        `;
-    });
-    tbody.innerHTML = html;
 };
+
 
 window.fetchLiveDelhiveryStatus = async function() {
     const trackedOrders = State.orders.filter(o => o.awb_number && o.awb_number.trim() !== '' && o.status !== 'Delivered');
@@ -4612,7 +4629,7 @@ window.renderBulkSmartProducts = async function() {
 
     // Fetch fresh data for the selected category
     try {
-        const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false });
+        const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false }).limit(500);
         if (error) throw error;
 
         if (!data || data.length === 0) {
