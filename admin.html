@@ -1791,16 +1791,26 @@ db.channel('live-orders')
         }
         
         function switchView(viewId, element) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            
             // Trigger table render if opening status checker
-            if (viewId === 'status-checker') {
-                // Clear any previous fetched statuses when reopening the tab
-                window.fetchedDelhiveryStatuses = {};
-                document.getElementById('btnSyncSupabase').disabled = true;
-                document.getElementById('btnSyncSupabase').style.background = '#ccc';
-                renderStatusCheckerTable();
-            }
-            document.getElementById('view-' + viewId).classList.add('active');
+            if (viewId === 'status-checker') {
+                window.fetchedDelhiveryStatuses = {};
+                document.getElementById('btnSyncSupabase').disabled = true;
+                document.getElementById('btnSyncSupabase').style.background = '#ccc';
+                renderStatusCheckerTable();
+            }
+
+            // --- SMART LOADING LOGIC ADDED HERE ---
+            // Data tabhi load hoga jab aap us tab pe pehli baar jaoge
+            if (viewId === 'products' && State.products.length === 0) loadProducts();
+            if (viewId === 'orders' && State.orders.length === 0) loadOrders();
+            if (viewId === 'users') loadUsers(); // Har baar load karenge taaki active carts fresh rahein
+            if (viewId === 'coupons') loadCoupons();
+            if (viewId === 'reviews') loadReviews();
+            // --------------------------------------
+
+            document.getElementById('view-' + viewId).classList.add('active');
             
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
             
@@ -1843,23 +1853,19 @@ db.channel('live-orders')
             if (document.getElementById('couponModalTitle')) document.getElementById('couponModalTitle').innerText = 'Add Coupon';
         }
 
-        // Data Loading
-        async function loadAllData() {
-            try {
-                await Promise.all([
-                    loadDashboard(),
-                    loadCategories(), 
-                    loadSettings(),         
-                    loadProducts(),
-                    loadCoupons(),
-                    loadReviews(),
-                    loadOrders(),
-                    loadUsers()
-                ]);
-            } catch (err) {
-                console.error("Error loading master data:", err);
-            }
-        }
+// Data Loading (SMART LOAD)
+        async function loadAllData() {
+            try {
+                // Sirf zaroori cheezein load karenge start mein. Baki tab click hone par.
+                await Promise.all([
+                    loadDashboard(),
+                    loadCategories(), 
+                    loadSettings()
+                ]);
+            } catch (err) {
+                console.error("Error loading master data:", err);
+            }
+        }
 
 async function loadDashboard() {
     try {
