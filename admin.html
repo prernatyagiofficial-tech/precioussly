@@ -636,6 +636,7 @@
                 <div class="nav-link" onclick="switchView('coupons', this)">Coupons</div>
                 <div class="nav-link" onclick="switchView('reviews', this)">Reviews</div>
                 <div class="nav-link" onclick="switchView('settings', this)">Store Settings</div>
+                <div class="nav-link" onclick="switchView('smart-layouts', this)">Smart Layouts</div>
                 <div class="nav-link" onclick="switchView('users', this)">Registered Users</div>
                 <div class="nav-link" onclick="switchView('status-checker', this)">Order Status Checker</div>
                 <div class="nav-link" onclick="switchView('monthly-earnings', this)">Monthly Earnings</div>
@@ -1013,6 +1014,21 @@
 
                     </div>
                 </div>
+                
+                
+                
+                <div id="view-smart-layouts" class="view-section">
+                    <div class="section-header">
+                        <h1>Smart Layouts & Aspect Ratios</h1>
+                        <button id="saveSmartLayoutsBtn" onclick="saveSmartLayouts()">SAVE LAYOUTS</button>
+                    </div>
+                    <div style="margin-bottom: 20px; font-size: 13px; color: var(--text-muted);">
+                        Customize how your homepage sections look on the storefront.
+                    </div>
+                    <div id="smartLayoutsContainer" class="settings-grid">
+                        </div>
+                </div>
+                
                 
                 <div id="view-status-checker" class="view-section">
     <div class="section-header">
@@ -1538,6 +1554,7 @@
             categories: [],
             products: [],
             orders: [], 
+            homeSectionsConfig: [], // ADDED FOR SMART LAYOUTS
         };
         let prodCurrentPage = 1;
         const PROD_PAGE_SIZE = 50;
@@ -1826,6 +1843,9 @@ db.channel('live-orders')
         
         function switchView(viewId, element) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            if (viewId === 'smart-layouts') {
+                renderSmartLayoutsUI();
+            }
             // Trigger table render if opening status checker
             if (viewId === 'status-checker') {
                 // Clear any previous fetched statuses when reopening the tab
@@ -2328,6 +2348,7 @@ renderSmartTagsUI();
             ];
             
             const sections = data.home_sections_config || defaultSections;
+            State.homeSectionsConfig = sections; // SAVE TO STATE
             let sectionsHtml = '';
             sections.forEach(sec => {
                 // Do not allow deleting the core default sections
@@ -2399,11 +2420,17 @@ renderSmartTagsUI();
         // Home Sections Config
         const sectionsConfig = [];
         document.querySelectorAll('#homeSectionsList .home-section-item').forEach(item => {
+            const secId = item.getAttribute('data-id');
+            // Merge existing layout data so it isn't lost during re-ordering
+            const existingData = State.homeSectionsConfig.find(s => s.id === secId) || {};
             sectionsConfig.push({
-                id: item.getAttribute('data-id'),
-                title: item.querySelector('.section-title-input').value.trim()
+                id: secId,
+                title: item.querySelector('.section-title-input').value.trim(),
+                layout: existingData.layout || 'Horizontal Swipe',
+                aspectRatio: existingData.aspectRatio || '1:1 (Square)'
             });
         });
+        State.homeSectionsConfig = sectionsConfig; 
         payload.home_sections_config = sectionsConfig;
         
         const { error } = await db.from('settings').update(payload).eq('id', 1);
@@ -5234,6 +5261,72 @@ window.sendWaConfirmation = function() {
     window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
     closeModal('waActionModal');
 };
+
+
+
+
+// --- SMART LAYOUT LOGIC ---
+        window.renderSmartLayoutsUI = function() {
+            const container = document.getElementById('smartLayoutsContainer');
+            if (!State.homeSectionsConfig || State.homeSectionsConfig.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1/-1; padding: 20px;">No sections found. Add sections in Store Settings first.</p>';
+                return;
+            }
+
+            let html = '';
+            State.homeSectionsConfig.forEach((sec, index) => {
+                const layout = sec.layout || 'Horizontal Swipe';
+                const ar = sec.aspectRatio || '1:1 (Square)';
+
+                html += `
+                <div class="settings-card">
+                    <h3 style="margin-bottom: 15px;">${escapeHTML(sec.title)}</h3>
+                    <div class="grid-form">
+                        <div class="form-group full-width">
+                            <label>Layout Style</label>
+                            <select id="sl_layout_${index}">
+                                <option value="Horizontal Swipe" ${layout === 'Horizontal Swipe' ? 'selected' : ''}>Horizontal Swipe</option>
+                                <option value="Vertical Grid" ${layout === 'Vertical Grid' ? 'selected' : ''}>Vertical Grid</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width" style="margin-bottom: 0;">
+                            <label>Thumbnail Aspect Ratio</label>
+                            <select id="sl_ar_${index}">
+                                <option value="1:1 (Square)" ${ar === '1:1 (Square)' ? 'selected' : ''}>1:1 (Square)</option>
+                                <option value="3:4 (Portrait)" ${ar === '3:4 (Portrait)' ? 'selected' : ''}>3:4 (Portrait)</option>
+                                <option value="Circle" ${ar === 'Circle' ? 'selected' : ''}>Circle</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        };
+
+        window.saveSmartLayouts = async function() {
+            const btn = document.getElementById('saveSmartLayoutsBtn');
+            btn.innerText = "SAVING...";
+            btn.disabled = true;
+
+            try {
+                // Update State from DOM
+                State.homeSectionsConfig.forEach((sec, index) => {
+                    const layoutEl = document.getElementById(`sl_layout_${index}`);
+                    const arEl = document.getElementById(`sl_ar_${index}`);
+                    if (layoutEl) sec.layout = layoutEl.value;
+                    if (arEl) sec.aspectRatio = arEl.value;
+                });
+
+                const { error } = await db.from('settings').update({ home_sections_config: State.homeSectionsConfig }).eq('id', 1);
+                if (error) throw error;
+                showToast("Smart Layouts saved successfully!", "success");
+            } catch (err) {
+                alert("Error saving layouts: " + err.message);
+            } finally {
+                btn.innerText = "SAVE LAYOUTS";
+                btn.disabled = false;
+            }
+        };
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
