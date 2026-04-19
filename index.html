@@ -1467,6 +1467,27 @@ main {
         a, button, .product-card, .category-card { 
             touch-action: manipulation !important; 
         }
+/* --- NEW CARD BADGE CSS --- */
+.card-purchase-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7); 
+    color: #ffffff; 
+    padding: 5px 12px;
+    border-radius: 30px; 
+    font-size: 11px;
+    font-weight: 500;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn 0.4s ease; /* This adds the smooth slide-in effect */
+}
     </style>
 </head>
 <body>
@@ -2930,7 +2951,7 @@ if (appData.settings.instagramUrl) {
                         <span class="btn-text">VIEW</span>
                     </button>
                 `;
-            } else {
+} else {
                 // In Stock, Simple Product -> Quick Add to Cart
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
@@ -2939,10 +2960,19 @@ if (appData.settings.instagramUrl) {
                 `;
             }
 
+            // --- NEW BADGE CODE START ---
+            let cardBadgeHtml = '';
+            if (prod.show_purchase_count) {
+                cardBadgeHtml = `<div class="card-badge-${prod.id} card-purchase-badge" style="display: none;"></div>`;
+                setTimeout(() => fetchCardPurchaseCount(prod.id), 50); // Background mein data layega
+            }
+            // --- NEW BADGE CODE END ---
+
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
                     <div class="img-wrapper" style="width: 100%; ${customImageStyle}">
                         ${mediaContent}
+                        ${cardBadgeHtml}
                     </div>
                     <div class="product-info" style="display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
                         <div>
@@ -3753,7 +3783,21 @@ function changeProductSize(size, btnElement) {
         }
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
         
-
+// --- NEW: FETCH CARD PURCHASE COUNT ---
+        async function fetchCardPurchaseCount(prodId) {
+            try {
+                const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+                if (error) return; // Silent fail
+                if (data && data > 0) {
+                    // Update all cards of this product (home page + categories)
+                    const badges = document.querySelectorAll(`.card-badge-${prodId}`);
+                    badges.forEach(badge => {
+                        badge.innerHTML = `📦 ${data} recently`;
+                        badge.style.display = 'flex';
+                    });
+                }
+            } catch (err) {}
+        }
         window.updateCarousel = updateCarousel;
         window.handleTouchStart = handleTouchStart;
         window.handleTouchEnd = handleTouchEnd;
