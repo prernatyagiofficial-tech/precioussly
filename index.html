@@ -4609,7 +4609,7 @@ function handleCheckoutClick(btn) {
         }
 
 function initiatePayment(btn, totalAmount) {
-  if (!appData.settings.allowTransactions) {
+    if (!appData.settings.allowTransactions) {
         triggerHaptic('pop');
         showToast("We are not accepting payments right now.");
         return;
@@ -4664,10 +4664,7 @@ function initiatePayment(btn, totalAmount) {
 
     // --- AUTO-SAVE ADDRESS LOGIC ---
     const saveAddressData = {
-        name: name,
-        email: email,
-        phone: phone,
-        altPhone: altPhone,
+        name: name, email: email, phone: phone, altPhone: altPhone,
         state: document.getElementById('chkState').value.trim(),
         city: document.getElementById('chkCity').value.trim(),
         pincode: document.getElementById('chkPincode').value.trim(),
@@ -4676,84 +4673,78 @@ function initiatePayment(btn, totalAmount) {
 
     if (state.user) {
         db.from('profiles').update({
-            phone: saveAddressData.phone,
-            alt_phone: saveAddressData.altPhone,
-            state: saveAddressData.state,
-            city: saveAddressData.city,
-            pincode: saveAddressData.pincode,
-            address: saveAddressData.address
+            phone: saveAddressData.phone, alt_phone: saveAddressData.altPhone,
+            state: saveAddressData.state, city: saveAddressData.city,
+            pincode: saveAddressData.pincode, address: saveAddressData.address
         }).eq('id', state.user.id).then(({error}) => {
             if (error) console.error("Failed to auto-save profile address", error);
         });
     } else {
         localStorage.setItem('eco_guest_address', JSON.stringify(saveAddressData));
     }
-    // ------------------------------------
 
-    // --- 🛑 SUPABASE PRE-CHECK HELPER FUNCTION 🛑 ---
-    // Yeh function chupke se ek chhota data mangwa kar check karega ki DB active hai ya nahi
     const checkDatabaseHealth = async () => {
         try {
             const { error } = await db.from('settings').select('brand_name').limit(1);
             if (error) throw error;
-            return true; // Database bilkul theek hai
+            return true;
         } catch (err) {
-            console.error("DB Pre-check failed (Limit exhausted or DB down):", err);
+            console.error("DB Pre-check failed:", err);
             showToast("We are currently facing high traffic. Please try again in 15 minutes.");
-            return false; // Database down hai
+            return false;
         }
     };
-    // ------------------------------------------------
 
-    if (amountToCharge > 0) {
+    if (amountToCharge > 0 && paymentMethod === 'online') {
         withLoading(btn, async () => {
-            // 1. Sabse pehle DB health check karein (Agar fail hua toh yahin ruk jayega)
             const isDbAlive = await checkDatabaseHealth();
             if (!isDbAlive) return;
 
             try {
-                // 2. Agar DB alive hai, tabhi Razorpay order create karein
-                const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
-                    body: { amount: amountToCharge }
+                // 1. CREATE PENDING ORDER IN DATABASE FIRST
+                const pendingOrderId = Math.floor(100000 + Math.random() * 900000);
+                const orderData = {
+                    id: pendingOrderId,
+                    total_amount: totalAmount,
+                    items: state.cart,
+                    customer_details: orderDetails,
+                    status: 'Pending Payment', // New Webhook Status
+                    created_at: new Date().toISOString()
+                };
+
+                const { error: insertError } = await db.from('orders').insert([orderData]);
+                if (insertError) throw insertError;
+
+                // 2. PASS DB ORDER ID TO EDGE FUNCTION
+                const { data: rzpData, error: rzpError } = await db.functions.invoke('create-rzp-order', {
+                    body: { amount: amountToCharge, receipt_id: pendingOrderId.toString() }
                 });
 
-                if (orderError || !orderData || !orderData.id) {
-                    console.error("Backend Order Creation Error:", orderError);
-                    showToast("Failed to initialize secure payment.");
-                    return;
+                if (rzpError || !rzpData || !rzpData.id) {
+                    throw new Error("Failed to initialize secure payment.");
                 }
 
+                // 3. OPEN RAZORPAY
                 const options = {
                     "key": "rzp_live_Sc7Dz1pFcekdz3", 
-                    "amount": orderData.amount,       
+                    "amount": rzpData.amount,       
                     "currency": "INR",
-                    "order_id": orderData.id,         
+                    "order_id": rzpData.id,         
                     "name": appData.settings.brandName,
-                    "description": "Payment for Order",
+                    "description": "Payment for Order #" + pendingOrderId,
                     "image": appData.settings.logoUrl,
-                    "handler": async function (response) { 
-                        showToast("Verifying payment...");
-                        try {
-                            const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
-                                body: {
-                                    razorpay_order_id: response.razorpay_order_id,
-                                    razorpay_payment_id: response.razorpay_payment_id,
-                                    razorpay_signature: response.razorpay_signature
-                                }
-                            });
+                    "handler": function (response) { 
+                        // The webhook will handle the backend verification and inventory.
+                        // We just need to clear the cart and show the success screen locally.
+                        const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+                        orderData.status = 'Confirmed'; // Optimistically update local view
+                        localOrders.unshift(orderData); 
+                        localStorage.setItem('shria_orders', JSON.stringify(localOrders));
 
-                            if (verifyError) throw verifyError;
-
-                            if (verifyData && verifyData.success) {
-                                await processOrderPlacement(totalAmount, orderDetails); 
-                            } else {
-                                console.error("Verification Error:", verifyData);
-                                alert("Payment verification failed! Order not placed.");
-                            }
-                        } catch (err) {
-                            console.error("Verification Exception:", err);
-                            alert("Error verifying payment with server: " + err.message);
-                        }
+                        state.cart = [];
+                        persistUserData(); 
+                        updateBadges();
+                        renderThankYou(pendingOrderId);
                     },
                     "prefill": { 
                         "name": name, 
@@ -4763,39 +4754,36 @@ function initiatePayment(btn, totalAmount) {
                     "theme": { "color": "#1a1a1a" },
                     "modal": { 
                         "ondismiss": function() { 
-                            showToast("Payment cancelled"); 
+                            showToast("Payment cancelled. Order saved as Pending."); 
+                            renderOrders(); // Redirect to orders to see the pending order
                         } 
                     }
                 };
                 
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (response) {
-                    console.error("Payment Failed:", response.error);
                     showToast("Payment Failed: " + response.error.description);
                 });
                 rzp.open();
                 
             } catch (e) {
-                console.error("Payment Gateway Error:", e);
-                showToast("Payment Gateway Error. Please try again.");
+                console.error("Payment Flow Error:", e);
+                showToast("Error processing payment. Please try again.");
             }
         }, 1200); 
     } else {
-        // Agar pure COD order hai (amountToCharge === 0)
+        // COD FLOW (Remains unchanged, deducts inventory immediately)
         withLoading(btn, async () => {
-            // Yahan bhi DB check karenge taki COD order fail na ho
             const isDbAlive = await checkDatabaseHealth();
             if (!isDbAlive) return;
-
             processOrderPlacement(totalAmount, orderDetails);
         }, 1200); 
     }
 }
 
-        async function processOrderPlacement(totalAmount, orderDetails) {
+async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
     
-    // Map items to include exact stock key for the database RPC
     const itemsWithStockKeys = state.cart.map(item => {
         let key = item.variant || "Default";
         if (item.size) key += `_${item.size}`;
@@ -4814,13 +4802,10 @@ function initiatePayment(btn, totalAmount) {
     const { error } = await db.from('orders').insert([orderData]);
 
     if (error) {
-        console.error("Order insertion failed:", error);
-        alert("Database Error: Failed to save order. " + error.message); 
         showToast("Error saving order.");
         return; 
     }
 
-    // Deduct stock via RPC
     const { error: rpcError } = await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
     if (rpcError) console.error("Inventory Sync Error:", rpcError);
 
