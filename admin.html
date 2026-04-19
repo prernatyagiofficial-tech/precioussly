@@ -4626,30 +4626,49 @@ window.renderBulkSmartProducts = async function() {
                 imagesHtml = `<div class="smart-bulk-img" style="display:flex; align-items:center; justify-content:center; color:#999; font-size:12px; font-weight:600;">NO PIC</div>`;
             }
 
+            // NEW: Add Main Product Media Input here
+            const mainMediaStr = p.media && Array.isArray(p.media) ? p.media.join(', ') : '';
+            imagesHtml += `
+                <div style="margin-top: 12px; width: 100%; text-align: left;">
+                    <label style="font-family: 'Roboto Slab', serif; font-size: 11px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; display: block;">Main Media URLs</label>
+                    <textarea class="sb-media-input" id="sb_media_${p.id}" rows="2" style="font-family: 'Roboto Slab', serif; width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; box-shadow: var(--shadow-sm); margin-bottom: 8px; text-align: left;">${escapeHTML(mainMediaStr)}</textarea>
+                    <button class="outline" onclick="triggerFileUpload('fileVariantMedia', 'sb_media_${p.id}')" style="font-family: 'Roboto Slab', serif; padding: 6px 12px; font-size: 10px; margin-bottom: 0; width: 100%;">UPLOAD MAIN MEDIA</button>
+                </div>
+            `;
+
             let variantsHtml = '';
             if (p.variants && p.variants.length > 0) {
-                variantsHtml += `<div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
-                    <label style="font-weight: 600; font-size: 13px; color: var(--text-main);">Product Variants</label>`;
+                variantsHtml += `<div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px; text-align: left;">
+                    <label style="font-weight: 600; font-size: 13px; color: var(--text-main); display: block; margin-bottom: 12px;">Product Variants</label>`;
                 
                 p.variants.forEach((v, idx) => {
                     const vImg = (v.media && v.media.length > 0) ? escapeHTML(v.media[0]) : '';
+                    const vMediaStr = (v.media && Array.isArray(v.media)) ? v.media.join(', ') : '';
                     const vMediaTag = vImg ? (vImg.endsWith('.mp4') ? `<video src="${vImg}" class="smart-variant-media" muted playsinline></video>` : `<img src="${vImg}" class="smart-variant-media">`) : `<div class="smart-variant-media" style="display:flex; align-items:center; justify-content:center; font-size:9px; color:#999;">NO PIC</div>`;
                     
                     variantsHtml += `
-                    <div class="smart-variant-box" data-vindex="${idx}">
+                    <div class="smart-variant-box" data-vindex="${idx}" style="align-items: flex-start;">
                         ${vMediaTag}
                         <div class="sb-grid" style="margin-bottom:0; flex:1;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label style="font-size: 11px;">Variant Name</label>
-                                <input type="text" class="sb-var-name" value="${escapeHTML(v.name)}" style="margin-bottom:0;">
+                                <input type="text" class="sb-var-name" value="${escapeHTML(v.name)}" style="margin-bottom:0; text-align: left;">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label style="font-size: 11px;">Selling Price (₹)</label>
-                                <input type="number" class="sb-var-price" value="${v.price !== null && v.price !== undefined ? v.price : ''}" placeholder="Fallback to Base" style="margin-bottom:0;">
+                                <input type="number" class="sb-var-price" value="${v.price !== null && v.price !== undefined ? v.price : ''}" placeholder="Fallback to Base" style="margin-bottom:0; text-align: left;">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label style="font-size: 11px;">Cost Price (₹)</label>
-                                <input type="number" class="sb-var-cost" value="${v.cost_price !== null && v.cost_price !== undefined ? v.cost_price : ''}" placeholder="Fallback to Base" style="margin-bottom:0;">
+                                <input type="number" class="sb-var-cost" value="${v.cost_price !== null && v.cost_price !== undefined ? v.cost_price : ''}" placeholder="Fallback to Base" style="margin-bottom:0; text-align: left;">
+                            </div>
+                            
+                            <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0; margin-top: 8px;">
+                                <label style="font-family: 'Roboto Slab', serif; font-size: 11px;">Variant Media URLs</label>
+                                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                                    <textarea class="sb-var-media-input" id="sb_var_media_${p.id}_${idx}" rows="1" style="font-family: 'Roboto Slab', serif; flex: 1; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; box-shadow: var(--shadow-sm); margin-bottom: 0; text-align: left;">${escapeHTML(vMediaStr)}</textarea>
+                                    <button class="outline" onclick="triggerFileUpload('fileVariantMedia', 'sb_var_media_${p.id}_${idx}')" style="font-family: 'Roboto Slab', serif; padding: 6px 10px; font-size: 10px; margin-bottom: 0;">UPLOAD</button>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -4658,7 +4677,7 @@ window.renderBulkSmartProducts = async function() {
             }
 
             html += `
-            <div class="smart-bulk-card" data-id="${p.id}" style="position: relative;">
+            <div class="smart-bulk-card" data-id="${p.id}" style="position: relative; text-align: left;">
                 <button class="danger" style="position: absolute; top: 15px; right: 15px; width: auto; padding: 6px 12px; font-size: 10px; margin: 0; z-index: 10;" onclick="deleteRecord('products', ${p.id})">DELETE PRODUCT</button>
                 <div class="smart-bulk-media">
                     ${imagesHtml}
@@ -4667,34 +4686,33 @@ window.renderBulkSmartProducts = async function() {
                     <div class="sb-grid">
                         <div class="form-group" style="grid-column: 1 / -1; margin-bottom:0;">
                             <label>Product Name</label>
-                            <input type="text" class="sb-name" value="${escapeHTML(p.name)}" style="margin-bottom:0; padding-right: 120px;">
+                            <input type="text" class="sb-name" value="${escapeHTML(p.name)}" style="margin-bottom:0; padding-right: 120px; text-align: left;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Selling Price (₹)</label>
-                            <input type="number" class="sb-price" value="${p.price}" style="margin-bottom:0;">
+                            <input type="number" class="sb-price" value="${p.price}" style="margin-bottom:0; text-align: left;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Cost Price (₹)</label>
-                            <input type="number" class="sb-cost" value="${p.cost_price || ''}" style="margin-bottom:0;">
+                            <input type="number" class="sb-cost" value="${p.cost_price || ''}" style="margin-bottom:0; text-align: left;">
                         </div>
 
-                    <div class="form-group" style="margin-bottom:0;">
+                        <div class="form-group" style="margin-bottom:0;">
                             <label>Global Stock</label>
-                            <input type="number" class="sb-stock" value="${p.stock !== null && p.stock !== undefined ? p.stock : ''}" placeholder="Unlimited" style="margin-bottom:0;">
+                            <input type="number" class="sb-stock" value="${p.stock !== null && p.stock !== undefined ? p.stock : ''}" placeholder="Unlimited" style="margin-bottom:0; text-align: left;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>Smart Tag</label>
-                            <select class="sb-smart-tag" style="margin-bottom:0;">
+                            <select class="sb-smart-tag" style="margin-bottom:0; text-align: left;">
                                 <option value="">None</option>
                                 ${State.smartTags.map(tag => `<option value="${escapeHTML(tag)}" ${p.smart_tag === tag ? 'selected' : ''}>${escapeHTML(tag)}</option>`).join('')}
                             </select>
                         </div>
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" style="margin-top: 16px;">
                         <label>Description</label>
-                        <textarea class="sb-desc" rows="2" style="margin-bottom:0;">${escapeHTML(p.description || '')}</textarea>
-
+                        <textarea class="sb-desc" rows="2" style="margin-bottom:0; text-align: left;">${escapeHTML(p.description || '')}</textarea>
                     </div>
 
                     <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
@@ -4739,17 +4757,22 @@ window.saveAllBulkSmart = async function() {
             const origProd = originalData.find(p => p.id === id);
             if (!origProd) return;
 
+            // NEW: Read the main product media textarea
+            const mainMediaStr = card.querySelector('.sb-media-input').value.trim();
+            const mainMediaArr = mainMediaStr ? mainMediaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
             const payload = {
-                    smart_tag: card.querySelector('.sb-smart-tag').value || null,
-                    name: card.querySelector('.sb-name').value.trim(),
-                    price: Number(card.querySelector('.sb-price').value),
-                    cost_price: Number(card.querySelector('.sb-cost').value) || 0,
-                    stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
-                    description: card.querySelector('.sb-desc').value.trim(),
-                    is_best_seller: card.querySelector('.sb-bestseller').checked,
+                smart_tag: card.querySelector('.sb-smart-tag').value || null,
+                name: card.querySelector('.sb-name').value.trim(),
+                price: Number(card.querySelector('.sb-price').value),
+                cost_price: Number(card.querySelector('.sb-cost').value) || 0,
+                stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
+                description: card.querySelector('.sb-desc').value.trim(),
+                is_best_seller: card.querySelector('.sb-bestseller').checked,
                 is_alphabet: card.querySelector('.sb-alphabet').checked,
                 is_hidden: card.querySelector('.sb-hidden').checked,
-                show_size_chart: card.querySelector('.sb-sizechart').checked
+                show_size_chart: card.querySelector('.sb-sizechart').checked,
+                media: mainMediaArr // NEW: Saving the updated media array
             };
 
             // Handle Variants safely
@@ -4765,11 +4788,16 @@ window.saveAllBulkSmart = async function() {
                         const vPriceStr = vBox.querySelector('.sb-var-price').value.trim();
                         const vCostStr = vBox.querySelector('.sb-var-cost').value.trim();
                         
+                        // NEW: Read the variant media textarea
+                        const vMediaStr = vBox.querySelector('.sb-var-media-input').value.trim();
+                        const vMediaArr = vMediaStr ? vMediaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+                        
                         newVariants.push({
-                            ...origVar, // Preserve media and other original keys
+                            ...origVar, // Preserve other original keys
                             name: vBox.querySelector('.sb-var-name').value.trim(),
                             price: vPriceStr !== '' ? Number(vPriceStr) : null,
-                            cost_price: vCostStr !== '' ? Number(vCostStr) : null
+                            cost_price: vCostStr !== '' ? Number(vCostStr) : null,
+                            media: vMediaArr // NEW: Override original media
                         });
                     }
                 });
