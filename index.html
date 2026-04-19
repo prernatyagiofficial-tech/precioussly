@@ -2201,6 +2201,7 @@ let currentProductView = localStorage.getItem('eco_product_view') || null;
         
 
         let isPopState = false;
+        const domCache = {}; // <-- NEW: Stores your exact HTML state
 
         // Optimized Search listener
         const liveSearch = debounce((val) => executeSearch(val), 250);
@@ -2216,9 +2217,19 @@ let currentProductView = localStorage.getItem('eco_product_view') || null;
         function navigate(stateObj) {
     if (!isPopState) {
         const current = history.state;
-        // Save current scroll position before navigating away
+        // Save current scroll position and DOM before navigating away
         if (current) {
             current.scrollY = window.scrollY;
+            
+            // --- NEW: DOM CACHING LOGIC ---
+            // Create a unique key for the page we are leaving
+            const cacheKey = current.view + (current.id ? '_' + current.id : (current.query ? '_' + current.query : ''));
+            // Cache the DOM only for feed/grid views to prevent memory bloat
+            if (['home', 'category', 'search'].includes(current.view)) {
+                domCache[cacheKey] = document.getElementById('main-content').innerHTML;
+            }
+            // --- END CACHING LOGIC ---
+            
             history.replaceState(current, "", window.location.search || window.location.pathname);
         }
         let queryParams = ""; // Start empty
@@ -2285,6 +2296,29 @@ let currentProductView = localStorage.getItem('eco_product_view') || null;
             if (e.state) {
                 const s = e.state;
                 updateFabVisibility(s.view);
+                
+                // --- NEW: INSTANT RESTORATION LOGIC ---
+                const cacheKey = s.view + (s.id ? '_' + s.id : (s.query ? '_' + s.query : ''));
+                
+                if (domCache[cacheKey]) {
+                    // 1. Instantly inject the cached HTML synchronously
+                    document.getElementById('main-content').innerHTML = domCache[cacheKey];
+                    
+                    // 2. Instantly restore scroll position
+                    window.scrollTo(0, s.scrollY || 0);
+                    
+                    // 3. Re-attach the intersection observer for infinite scroll
+                    const anchor = document.getElementById('infinite-scroll-anchor');
+                    if (anchor) scrollObserver.observe(anchor);
+                    
+                    // 4. Quiet update: refresh cart badges without destroying the DOM
+                    updateBadges();
+                    
+                    // Stop execution here to prevent async renders from causing layout shifts!
+                    return; 
+                }
+                // --- END INSTANT RESTORATION ---
+
                 if (s.view === 'home') renderHome();
                 else if (s.view === 'category') renderCategory(s.id);
                 else if (s.view === 'product') renderProduct(s.id);
