@@ -815,6 +815,24 @@
 </div>
 
 
+
+<div id="view-bulk-checker" class="view-section">
+    <div class="section-header" style="position: sticky; top: -30px; background: var(--bg-body); z-index: 10; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-top: -10px; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 16px;">
+        <h1 style="margin: 0;">Name & Description Checker</h1>
+        <div style="display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end;">
+            <select id="bulkCheckerCatFilter" onchange="renderBulkCheckerProducts()" style="margin-bottom: 0; min-width: 250px; max-width: 300px; font-family: 'Roboto Slab', serif;">
+                <option value="">Select Category to Check...</option>
+            </select>
+            <button class="outline" onclick="switchView('products')" style="margin-bottom: 0; width: auto;">BACK TO PRODUCTS</button>
+        </div>
+    </div>
+    <div id="bulkCheckerContainer" style="margin-top: 20px;">
+        </div>
+</div>
+
+
+
+
 <div id="view-categories" class="view-section">
                     <div class="section-header">
                         <h1>Categories</h1>
@@ -1214,8 +1232,10 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <button onclick="closeModal('bulkChoiceModal'); openModal('bulkProductModal');">Bulk Add Products</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); initBulkChecker();" style="font-family: 'Roboto Slab', serif;">Bulk (Description/Name Checker)</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
             <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkPriceModal');">Bulk Update Price</button>
+            
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
 <button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
@@ -4576,6 +4596,210 @@ window.calculateTagRevenue = async function() {
     } catch (err) {
         console.error("Tag Revenue Error:", err);
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: red;">Failed to load revenue.</td></tr>`;
+    }
+};
+
+
+// --- BULK NAME & DESCRIPTION CHECKER LOGIC ---
+window.initBulkChecker = function() {
+    switchView('bulk-checker');
+
+    // Populate the dropdown with categories
+    let opts = '<option value="">Select Category to Check...</option>';
+    const mainCats = State.categories.filter(c => !c.parent_id);
+    mainCats.forEach(main => {
+        opts += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+        const subCats = State.categories.filter(c => c.parent_id === main.id);
+        subCats.forEach(sub => {
+            opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+        });
+    });
+
+    document.getElementById('bulkCheckerCatFilter').innerHTML = opts;
+    document.getElementById('bulkCheckerContainer').innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md); font-family: 'Roboto Slab', serif;">Please select a category from the dropdown above to load products.</div>`;
+};
+
+window.renderBulkCheckerProducts = async function() {
+    const catId = document.getElementById('bulkCheckerCatFilter').value;
+    const container = document.getElementById('bulkCheckerContainer');
+
+    if (!catId) {
+        container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md); font-family: 'Roboto Slab', serif;">Please select a category from the dropdown above to load products.</div>`;
+        return;
+    }
+
+    container.innerHTML = `<div style="text-align: center; padding: 40px; font-weight: 600; font-family: 'Roboto Slab', serif;">Loading Products...</div>`;
+
+    try {
+        const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false });
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div style="text-align: center; padding: 40px; border: 1px solid var(--border-color); font-family: 'Roboto Slab', serif;">No products found in this category.</div>`;
+            return;
+        }
+
+        let html = '';
+        data.forEach(p => {
+            // Extract the main display image
+            let imgSrc = '';
+            if (p.media && p.media.length > 0) imgSrc = p.media[0];
+            const isVideo = imgSrc && typeof imgSrc === 'string' && imgSrc.toLowerCase().endsWith('.mp4');
+            
+            let mediaTag = `<div style="width: 180px; height: 180px; background: var(--bg-body); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; border-radius: var(--radius-sm);">NO PIC</div>`;
+            if (imgSrc) {
+                if (isVideo) {
+                    mediaTag = `<video src="${escapeHTML(imgSrc)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" muted playsinline loop autoplay></video>`;
+                } else {
+                    mediaTag = `<img src="${escapeHTML(imgSrc)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">`;
+                }
+            }
+
+            // Generate Variants UI (Display & Edit mode)
+            let variantsDisplayHtml = '';
+            let variantsEditHtml = '';
+
+            if (p.variants && p.variants.length > 0) {
+                variantsDisplayHtml += `<div style="margin-top: 15px;"><strong style="font-size: 12px; text-transform: uppercase;">Variants:</strong><div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;">`;
+                variantsEditHtml += `<div style="margin-top: 15px;"><strong style="font-size: 12px; text-transform: uppercase;">Edit Variants:</strong><div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">`;
+
+                p.variants.forEach((v, idx) => {
+                    const vImgSrc = (v.media && v.media.length > 0) ? v.media[0] : '';
+                    const vIsVideo = vImgSrc && typeof vImgSrc === 'string' && vImgSrc.toLowerCase().endsWith('.mp4');
+                    let vMediaTag = `<div style="width: 30px; height: 30px; background: #eee; border: 1px solid #ccc; border-radius: 4px;"></div>`;
+
+                    if (vImgSrc) {
+                        if (vIsVideo) {
+                            vMediaTag = `<video src="${escapeHTML(vImgSrc)}" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;" muted></video>`;
+                        } else {
+                            vMediaTag = `<img src="${escapeHTML(vImgSrc)}" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">`;
+                        }
+                    }
+
+                    variantsDisplayHtml += `<div style="display: flex; align-items: center; gap: 8px; background: var(--bg-body); padding: 6px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 13px;">${vMediaTag} <span style="font-family: 'Roboto Slab', serif;">${escapeHTML(v.name)}</span></div>`;
+
+                    variantsEditHtml += `<div style="display: flex; align-items: center; gap: 10px;">
+                        ${vMediaTag}
+                        <input type="text" id="chk-var-name-${p.id}-${idx}" value="${escapeHTML(v.name)}" style="margin-bottom: 0; flex: 1; font-family: 'Roboto Slab', serif;">
+                    </div>`;
+                });
+
+                variantsDisplayHtml += `</div></div>`;
+                variantsEditHtml += `</div></div>`;
+            }
+
+            html += `
+            <div id="checker-card-${p.id}" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px; display: flex; gap: 24px; box-shadow: var(--shadow-sm); flex-wrap: wrap;">
+                <div style="flex-shrink: 0;">
+                    ${mediaTag}
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+
+                    <div id="checker-display-${p.id}" style="display: block;">
+                        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 18px; color: var(--text-main); font-family: 'Roboto Slab', serif;">${escapeHTML(p.name)}</h3>
+                        <div style="white-space: pre-wrap; font-size: 14px; color: var(--text-muted); line-height: 1.6; font-family: 'Roboto Slab', serif; border-left: 3px solid var(--border-color); padding-left: 12px; margin-bottom: 16px;">${escapeHTML(p.description || 'No description provided.')}</div>
+                        ${variantsDisplayHtml}
+                        <div style="margin-top: 20px;">
+                            <button class="outline" onclick="toggleCheckerEdit(${p.id})" style="width: auto; padding: 8px 24px; font-family: 'Roboto Slab', serif;">EDIT TEXT</button>
+                        </div>
+                    </div>
+
+                    <div id="checker-edit-${p.id}" style="display: none;">
+                        <label style="font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block;">Product Name</label>
+                        <input type="text" id="chk-name-${p.id}" value="${escapeHTML(p.name)}" style="font-family: 'Roboto Slab', serif; margin-bottom: 16px;">
+
+                        <label style="font-size: 12px; font-weight: 600; margin-bottom: 4px; display: block;">Description</label>
+                        <textarea id="chk-desc-${p.id}" rows="6" style="font-family: 'Roboto Slab', serif; margin-bottom: 16px;">${escapeHTML(p.description || '')}</textarea>
+
+                        ${variantsEditHtml}
+
+                        <div style="margin-top: 20px; display: flex; gap: 12px;">
+                            <button id="chk-save-btn-${p.id}" onclick="saveCheckerEdits(${p.id})" style="width: auto; padding: 8px 24px; font-family: 'Roboto Slab', serif;">SAVE CHANGES</button>
+                            <button class="outline" onclick="cancelCheckerEdit(${p.id})" style="width: auto; padding: 8px 24px; font-family: 'Roboto Slab', serif;">CANCEL</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            `;
+        });
+
+        // Store raw data to process variants correctly on save
+        container.setAttribute('data-raw', JSON.stringify(data));
+        container.innerHTML = html;
+
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--danger); font-family: 'Roboto Slab', serif;">Error loading products: ${err.message}</div>`;
+    }
+};
+
+window.toggleCheckerEdit = function(id) {
+    document.getElementById(`checker-display-${id}`).style.display = 'none';
+    document.getElementById(`checker-edit-${id}`).style.display = 'block';
+};
+
+window.cancelCheckerEdit = function(id) {
+    document.getElementById(`checker-edit-${id}`).style.display = 'none';
+    document.getElementById(`checker-display-${id}`).style.display = 'block';
+};
+
+window.saveCheckerEdits = async function(id) {
+    const btn = document.getElementById(`chk-save-btn-${id}`);
+    btn.innerText = "SAVING...";
+    btn.disabled = true;
+
+    try {
+        const container = document.getElementById('bulkCheckerContainer');
+        const originalData = JSON.parse(container.getAttribute('data-raw') || '[]');
+        const origProd = originalData.find(p => p.id === id);
+
+        if (!origProd) throw new Error("Original product data not found.");
+
+        const newName = document.getElementById(`chk-name-${id}`).value.trim();
+        const newDesc = document.getElementById(`chk-desc-${id}`).value.trim();
+
+        if (!newName) throw new Error("Product name cannot be empty.");
+
+        const payload = {
+            name: newName,
+            description: newDesc
+        };
+
+        // Check for modified variants
+        if (origProd.variants && origProd.variants.length > 0) {
+            const updatedVariants = origProd.variants.map((v, idx) => {
+                const varInput = document.getElementById(`chk-var-name-${id}-${idx}`);
+                return {
+                    ...v,
+                    name: varInput ? varInput.value.trim() : v.name
+                };
+            });
+            payload.variants = updatedVariants;
+        }
+
+        // 1. Update Database
+        const { error } = await db.from('products').update(payload).eq('id', id);
+        if (error) throw error;
+
+        showToast("Changes saved successfully!", "success");
+
+        // 2. Update local state directly so UI doesn't revert
+        const stateIdx = State.products.findIndex(p => p.id === id);
+        if (stateIdx > -1) {
+            State.products[stateIdx].name = payload.name;
+            State.products[stateIdx].description = payload.description;
+            if (payload.variants) {
+                State.products[stateIdx].variants = payload.variants;
+            }
+        }
+
+        // 3. Re-render the view to push the card back to clean Read-Only text
+        await renderBulkCheckerProducts();
+
+    } catch (err) {
+        alert("Failed to save: " + err.message);
+        btn.innerText = "SAVE CHANGES";
+        btn.disabled = false;
     }
 };
 
