@@ -1673,28 +1673,38 @@ db.channel('live-orders')
         loadDashboard(); 
     })
     .subscribe();
-        // UI & Auth
+// UI & Auth
         async function checkSession() {
             try {
                 const { data: { session }, error } = await db.auth.getSession();
                 if (error) throw error;
-                
-if (session) {
+
+                if (session) {
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('adminContainer').style.display = 'block';
-                    
-                    // --- NEW: Read URL hash and restore the view ---
+
+                    // 1. Load all data FIRST so State.orders is ready for the new charts
+                    await loadAllData();
+
+                    // 2. Read URL hash and restore the view
                     const hash = window.location.hash.replace('#', '');
-                    const validViews = ['dashboard', 'orders', 'products', 'categories', 'coupons', 'reviews', 'settings', 'users'];
-                    
+                    const validViews = [
+                        'dashboard', 'orders', 'products', 'categories', 'coupons', 
+                        'reviews', 'settings', 'users', 'daily-orders', 'revenue-tags', 
+                        'status-checker', 'monthly-earnings'
+                    ];
+
                     if (validViews.includes(hash)) {
                         switchView(hash); // Load the view from the URL
+
+                        // 3. Trigger specific data-fetching functions for the new sub-views
+                        if (hash === 'daily-orders') renderDailyOrderStats();
+                        if (hash === 'revenue-tags') calculateTagRevenue();
+                        if (hash === 'status-checker') renderStatusCheckerTable();
+                        if (hash === 'monthly-earnings') renderMonthlyEarnings();
                     } else {
                         switchView('dashboard'); // Default fallback
                     }
-                    // ------------------------------------------------
-
-                    await loadAllData();
                 } else {
                     document.getElementById('loginContainer').style.display = 'block';
                     document.getElementById('adminContainer').style.display = 'none';
