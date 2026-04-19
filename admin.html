@@ -448,8 +448,8 @@
         .lightbox-media.is-zoomed { cursor: grab; }
         .lightbox-media.is-zoomed:active { cursor: grabbing; }
         
-.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media { cursor: pointer; transition: opacity 0.2s; }
-        .order-item-thumb:hover, .prod-img-thumb:hover, .wishlist-item-media:hover, .smart-bulk-img:hover, .smart-variant-media:hover { opacity: 0.8; }
+.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media, .checker-main-img, .checker-var-img { cursor: pointer; transition: opacity 0.2s; }
+        .order-item-thumb:hover, .prod-img-thumb:hover, .wishlist-item-media:hover, .smart-bulk-img:hover, .smart-variant-media:hover, .checker-main-img:hover, .checker-var-img:hover { opacity: 0.8; }
 
         /* Dashboard Overview Cards */
         #view-dashboard > div > div {
@@ -1230,18 +1230,18 @@
             <h3 style="margin: 0; border: none; padding: 0;">Choose Bulk Action</h3>
             <button class="outline" style="width: auto; padding: 2px 8px; margin: 0;" onclick="closeModal('bulkChoiceModal')">X</button>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-            <button onclick="closeModal('bulkChoiceModal'); openModal('bulkProductModal');">Bulk Add Products</button>
-            <button class="outline" onclick="closeModal('bulkChoiceModal'); initBulkChecker();" style="font-family: 'Roboto Slab', serif;">Bulk (Description/Name Checker)</button>
-            <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkDescModal');">Bulk Add Description</button>
-            <button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkPriceModal');">Bulk Update Price</button>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+            <button onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-add-products'; openModal('bulkProductModal');">Bulk Add Products</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-checker'; initBulkChecker();" style="font-family: 'Roboto Slab', serif;">Bulk (Description/Name Checker)</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-add-description'; openModal('bulkDescModal');">Bulk Add Description</button>
+            <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-price'; openModal('bulkPriceModal');">Bulk Update Price</button>
             
-<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
-<button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
-<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
-<button class="outline" onclick="closeModal('bulkChoiceModal'); openModal('bulkMonthlyCountModal');">Bulk Toggle Monthly Count</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-cost-price'; openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
+<button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-smart'; initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-visibility'; openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-monthly-count'; openModal('bulkMonthlyCountModal');">Bulk Toggle Monthly Count</button>
 
-<button class="danger" onclick="closeModal('bulkChoiceModal'); openModal('bulkDeleteModal');">Bulk Delete By Category</button>
+<button class="danger" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-delete'; openModal('bulkDeleteModal');">Bulk Delete By Category</button>
         </div>
     </div>
 </div>
@@ -1706,13 +1706,25 @@ db.channel('live-orders')
                     // 1. Load all data FIRST so State.orders is ready for the new charts
                     await loadAllData();
 
-                    // 2. Read URL hash and restore the view
+// 2. Read URL hash and restore the view
                     const hash = window.location.hash.replace('#', '');
+                    
                     const validViews = [
                         'dashboard', 'orders', 'products', 'categories', 'coupons', 
                         'reviews', 'settings', 'users', 'daily-orders', 'revenue-tags', 
-                        'status-checker', 'monthly-earnings'
+                        'status-checker', 'monthly-earnings', 'bulk-smart', 'bulk-checker'
                     ];
+
+                    // Dictionary mapping the new URL slugs to their specific modal IDs
+                    const bulkModals = {
+                        'bulk-add-products': 'bulkProductModal',
+                        'bulk-add-description': 'bulkDescModal',
+                        'bulk-update-price': 'bulkPriceModal',
+                        'bulk-update-cost-price': 'bulkCostPriceModal',
+                        'bulk-visibility': 'bulkVisibilityModal',
+                        'bulk-monthly-count': 'bulkMonthlyCountModal',
+                        'bulk-delete': 'bulkDeleteModal'
+                    };
 
                     if (validViews.includes(hash)) {
                         switchView(hash); // Load the view from the URL
@@ -1722,6 +1734,13 @@ db.channel('live-orders')
                         if (hash === 'revenue-tags') calculateTagRevenue();
                         if (hash === 'status-checker') renderStatusCheckerTable();
                         if (hash === 'monthly-earnings') renderMonthlyEarnings();
+                        if (hash === 'bulk-smart') initBulkSmartEditor();
+                        if (hash === 'bulk-checker') initBulkChecker();
+
+                    } else if (bulkModals[hash]) {
+                        // If the URL matches a bulk action modal, open the Products page first, then pop the modal
+                        switchView('products');
+                        openModal(bulkModals[hash]);
                     } else {
                         switchView('dashboard'); // Default fallback
                     }
@@ -4181,7 +4200,7 @@ window.updateOrderStatus = function(id, newStatus) {
 
 // 1. Event Delegation for Opening the Lightbox
             document.addEventListener('click', (e) => {
-                const target = e.target.closest('.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media');
+                const target = e.target.closest('.order-item-thumb, .prod-img-thumb, .wishlist-item-media, .smart-bulk-img, .smart-variant-media, .checker-main-img, .checker-var-img');
                 if (!target) return;
 
                 const src = target.src || target.getAttribute('src');
@@ -4649,9 +4668,9 @@ window.renderBulkCheckerProducts = async function() {
             let mediaTag = `<div style="width: 180px; height: 180px; background: var(--bg-body); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; border-radius: var(--radius-sm);">NO PIC</div>`;
             if (imgSrc) {
                 if (isVideo) {
-                    mediaTag = `<video src="${escapeHTML(imgSrc)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" muted playsinline loop autoplay></video>`;
+                    mediaTag = `<video src="${escapeHTML(imgSrc)}" class="checker-main-img" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" muted playsinline loop autoplay></video>`;
                 } else {
-                    mediaTag = `<img src="${escapeHTML(imgSrc)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">`;
+                    mediaTag = `<img src="${escapeHTML(imgSrc)}" class="checker-main-img" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">`;
                 }
             }
 
@@ -4668,11 +4687,11 @@ window.renderBulkCheckerProducts = async function() {
                     const vIsVideo = vImgSrc && typeof vImgSrc === 'string' && vImgSrc.toLowerCase().endsWith('.mp4');
                     let vMediaTag = `<div style="width: 30px; height: 30px; background: #eee; border: 1px solid #ccc; border-radius: 4px;"></div>`;
 
-                    if (vImgSrc) {
+if (vImgSrc) {
                         if (vIsVideo) {
-                            vMediaTag = `<video src="${escapeHTML(vImgSrc)}" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;" muted></video>`;
+                            vMediaTag = `<video src="${escapeHTML(vImgSrc)}" class="checker-var-img" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;" muted></video>`;
                         } else {
-                            vMediaTag = `<img src="${escapeHTML(vImgSrc)}" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">`;
+                            vMediaTag = `<img src="${escapeHTML(vImgSrc)}" class="checker-var-img" style="width: 30px; height: 30px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">`;
                         }
                     }
 
@@ -4793,8 +4812,15 @@ window.saveCheckerEdits = async function(id) {
             }
         }
 
-        // 3. Re-render the view to push the card back to clean Read-Only text
+// 3. Re-render the view to push the card back to clean Read-Only text
+        const savedScroll = window.scrollY;
+        const checkerContainer = document.getElementById('bulkCheckerContainer');
+        checkerContainer.style.minHeight = checkerContainer.offsetHeight + 'px'; // Prevent collapsing
+
         await renderBulkCheckerProducts();
+
+        checkerContainer.style.minHeight = ''; // Remove fixed height
+        window.scrollTo(0, savedScroll); // Restore exact scroll position
 
     } catch (err) {
         alert("Failed to save: " + err.message);
@@ -5045,8 +5071,16 @@ window.saveAllBulkSmart = async function() {
         await Promise.all(updates);
 
         showToast("All products updated successfully!", "success");
+        
+        const savedScroll = window.scrollY;
+        const smartContainer = document.getElementById('bulkSmartContainer');
+        smartContainer.style.minHeight = smartContainer.offsetHeight + 'px'; // Prevent collapsing
+
         await loadProducts(prodCurrentPage); // Refresh background state
         await renderBulkSmartProducts(); // Re-render the smart grid to show fresh saved data
+        
+        smartContainer.style.minHeight = ''; // Remove fixed height
+        window.scrollTo(0, savedScroll); // Restore exact scroll position
 
     } catch (err) {
         alert("Failed to save some products: " + err.message);
