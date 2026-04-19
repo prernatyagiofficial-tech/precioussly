@@ -1884,7 +1884,7 @@ let currentSubCategories = [];
             const toast = document.getElementById('toastMsg');
             toast.textContent = msg;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => toast.classList.remove('show'), 3500);
         }
 
         function triggerHaptic(type) {
@@ -1914,7 +1914,8 @@ let currentSubCategories = [];
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
         minCODAmount: Number(row.min_cod_amount) || 500,
-        acceptingPayments: row.accepting_payments !== false,
+        acceptingPayments: true, 
+allowTransactions: row.accepting_payments !== false,
         
         // Dynamic Shipping Settings
         shippingFee: row.shipping_fee !== undefined ? Number(row.shipping_fee) : 50,
@@ -4426,6 +4427,11 @@ function handleCheckoutClick(btn) {
         }
 
 function initiatePayment(btn, totalAmount) {
+  if (!appData.settings.allowTransactions) {
+        triggerHaptic('pop');
+        showToast("We are not accepting payments right now.");
+        return;
+    }
     if (!validateCheckoutForm()) {
         triggerHaptic('pop');
         showToast("Please check the errors in the form");
