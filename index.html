@@ -80,11 +80,12 @@
         }
 
 main {
-            flex: 1;
-            padding-bottom: 40px;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-        }
+    flex: 1;
+    padding-bottom: 40px;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    min-height: 100vh; /* <-- ADD THIS LINE */
+}
 
       /* Header */
         header {
@@ -2994,12 +2995,13 @@ if (appData.settings.instagramUrl) {
             currentSubCategories = [];
             
 // Reset filters visually without re-triggering the fetch
-            if (!isRestoring) {
-                currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
-                filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
-                updateFilterUI();
-                mainContent.innerHTML = getSkeletonHTML(false);
-            }
+if (!isRestoring) {
+    currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+    filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
+    updateFilterUI();
+    window.scrollTo(0, 0); // <-- ADD THIS LINE
+    mainContent.innerHTML = getSkeletonHTML(false);
+}
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams, isRestoring);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
@@ -3438,9 +3440,10 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
             currentSubCategories = subCategories;
             
 // Show loading state if there are no subcategories to show first
-            if (subCategories.length === 0 && !isRestoring) {
-                mainContent.innerHTML = getSkeletonHTML(false);
-            }
+if (subCategories.length === 0 && !isRestoring) {
+    window.scrollTo(0, 0); // <-- ADD THIS LINE
+    mainContent.innerHTML = getSkeletonHTML(false);
+}
 
 // Reset filters visually without re-triggering the fetch
             if (!isRestoring) {
@@ -5697,10 +5700,11 @@ function triggerFilterApply() {
 }
 
 async function applyFiltersAndSort() {
-            // Server-Side Request Setup for Filters
-            currentPage = 0;
-            
-            mainContent.innerHTML = getSkeletonHTML(false);
+    // Server-Side Request Setup for Filters
+    currentPage = 0;
+    
+    window.scrollTo(0, 0); // <-- ADD THIS LINE
+    mainContent.innerHTML = getSkeletonHTML(false);
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
