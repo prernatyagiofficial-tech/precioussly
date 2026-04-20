@@ -973,9 +973,13 @@
         <label>Minimum Amount for COD (₹)</label>
         <input type="number" id="setMinCod" placeholder="e.g. 500">
     </div>
-    <div class="form-group">
+<div class="form-group">
         <label>COD Upfront/Advance Fee (₹)</label>
         <input type="number" id="setCodFee" placeholder="e.g. 49">
+    </div>
+    <div class="form-group">
+        <label>Extra Shipping Fee for COD (₹)</label>
+        <input type="number" id="setCodExtraShipping" placeholder="e.g. 50">
     </div>
 </div>
                         
@@ -2366,6 +2370,7 @@ renderSmartTagsUI();
             // Order, COD & Shipping Rules
             document.getElementById('setMinOrder').value = data.min_order_amount || 0;
             document.getElementById('setCodFee').value = data.cod_upfront_fee || 0;
+            document.getElementById('setCodExtraShipping').value = data.cod_extra_shipping || 0;
             document.getElementById('setMinCod').value = data.min_cod_amount || 0;
             document.getElementById('setShippingFee').value = data.shipping_fee !== null ? data.shipping_fee : 50;
             document.getElementById('setFreeShippingThreshold').value = data.free_shipping_threshold !== null ? data.free_shipping_threshold : 499;
@@ -2441,6 +2446,7 @@ renderSmartTagsUI();
             // Order, COD & Shipping Rules
             min_order_amount: Number(document.getElementById('setMinOrder').value) || 0,
             cod_upfront_fee: Number(document.getElementById('setCodFee').value) || 0,
+            cod_extra_shipping: Number(document.getElementById('setCodExtraShipping').value) || 0,
             min_cod_amount: Number(document.getElementById('setMinCod').value) || 0,
             shipping_fee: Number(document.getElementById('setShippingFee').value) || 0,
             free_shipping_threshold: Number(document.getElementById('setFreeShippingThreshold').value) || 0,
