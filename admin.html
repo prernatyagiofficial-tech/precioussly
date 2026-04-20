@@ -923,6 +923,24 @@
                                 <label>Header Vertical Spacing (Top/Bottom px)</label>
                                 <input type="number" id="setHeaderPaddingY" placeholder="e.g. 5">
                             </div>
+                            <div class="form-group" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+    <label style="color: var(--brand-color);">Header Instagram Icon</label>
+    <label class="checkbox-label" style="margin-top: 10px;">
+        <input type="checkbox" id="setHeaderIgShow"> Show Instagram Icon in Header
+    </label>
+</div>
+<div class="form-group">
+    <label>Icon Size (px)</label>
+    <input type="number" id="setHeaderIgSize" placeholder="e.g. 24">
+</div>
+<div class="form-group">
+    <label>Icon X Offset (Left/Right px)</label>
+    <input type="number" id="setHeaderIgOffsetX" placeholder="e.g. -5">
+</div>
+<div class="form-group">
+    <label>Icon Y Offset (Up/Down px)</label>
+    <input type="number" id="setHeaderIgOffsetY" placeholder="e.g. 2">
+</div>
                             <div class="form-group"><label>Announcement Bar Text</label><input type="text" id="setAnnouncement"></div>
                             <div class="form-group full-width" style="margin-top: 15px;">
     <label>About Us Text (Your Brand Story)</label>
@@ -2352,6 +2370,10 @@ const totalSpent = userOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
             document.getElementById('setLogoOffsetX').value = data.logo_offset_x || 0;
             document.getElementById('setLogoOffsetY').value = data.logo_offset_y || 0;
             document.getElementById('setHeaderPaddingY').value = data.header_padding_y !== null ? data.header_padding_y : 16;
+            document.getElementById('setHeaderIgShow').checked = !!data.instagram_header_show;
+document.getElementById('setHeaderIgSize').value = data.instagram_header_size || 24;
+document.getElementById('setHeaderIgOffsetX').value = data.instagram_header_offset_x || 0;
+document.getElementById('setHeaderIgOffsetY').value = data.instagram_header_offset_y || 0;
             
             // Contact Settings
             document.getElementById('setWhatsapp').value = data.whatsapp_number || '';
@@ -2430,6 +2452,10 @@ renderSmartTagsUI();
             logo_offset_x: Number(document.getElementById('setLogoOffsetX').value) || 0,
             logo_offset_y: Number(document.getElementById('setLogoOffsetY').value) || 0,
             header_padding_y: Number(document.getElementById('setHeaderPaddingY').value) || 0,
+            instagram_header_show: document.getElementById('setHeaderIgShow').checked,
+instagram_header_size: Number(document.getElementById('setHeaderIgSize').value) || 24,
+instagram_header_offset_x: Number(document.getElementById('setHeaderIgOffsetX').value) || 0,
+instagram_header_offset_y: Number(document.getElementById('setHeaderIgOffsetY').value) || 0,
             
             // Contact & Support
             whatsapp_number: document.getElementById('setWhatsapp').value.trim(),
