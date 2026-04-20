@@ -4696,15 +4696,61 @@ window.calculateTagRevenue = async function() {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">Calculating revenue...</td></tr>`;
 
     try {
-        const { data, error } = await db.rpc('get_tag_revenue', { target_tag: selectedTag });
-        if (error) throw error;
+        // 1. Fetch ONLY Delivered orders directly from the database
+        const { data: deliveredOrders, error: orderError } = await db.from('orders')
+            .select('items')
+            .eq('status', 'Delivered')
+            .limit(10000); 
+
+        if (orderError) throw orderError;
+
+        // 2. Fetch products to accurately map the smart tags and cost prices
+        const { data: products, error: prodError } = await db.from('products')
+            .select('id, name, smart_tag, cost_price');
+            
+        if (prodError) throw prodError;
 
         let totalRev = 0;
         let totalProfitGlobal = 0;
+        const statsMap = {};
 
+        // 3. Process the math locally
+        deliveredOrders.forEach(order => {
+            const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+            
+            items.forEach(item => {
+                const prod = products.find(p => String(p.id) === String(item.id));
+                const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
+
+                // Filter by the dropdown selection
+                if (selectedTag === 'All' || tag === selectedTag) {
+                    const key = item.id;
+                    if (!statsMap[key]) {
+                        statsMap[key] = {
+                            name: item.name || (prod ? prod.name : 'Unknown Product'),
+                            tag: tag,
+                            units: 0,
+                            rev: 0,
+                            profit: 0
+                        };
+                    }
+                    
+                    const qty = item.qty || 1;
+                    const price = item.price || 0;
+                    const cost = (prod && prod.cost_price !== undefined) ? prod.cost_price : (item.cost_price || 0);
+
+                    statsMap[key].units += qty;
+                    statsMap[key].rev += (price * qty);
+                    statsMap[key].profit += ((price - cost) * qty);
+                }
+            });
+        });
+
+        const data = Object.values(statsMap);
         let html = '';
+
         if (!data || data.length === 0) {
-            html = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No revenue data found for this tag.</td></tr>`;
+            html = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No delivered revenue data found for this tag.</td></tr>`;
         } else {
             const sortedData = data.sort((a, b) => b.rev - a.rev);
 
