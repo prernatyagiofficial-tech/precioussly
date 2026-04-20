@@ -879,16 +879,17 @@ main {
             visibility: visible;
         }
 
-        .modal-box {
+.modal-box {
             background: #fff;
             width: 90%;
-            max-width: 400px;
-            border-radius: 24px;
-            padding: 30px;
+            max-width: 360px; /* Slightly narrower for a tighter, refined look */
+            border-radius: 16px; /* Sharper corners to fit a premium aesthetic */
+            padding: 30px 25px;
             text-align: center;
             transform: scale(0.95) translateY(20px);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* Softer, highly subtle shadow */
+            border: 1px solid var(--border-color); /* Crisp defining line */
         }
 
         .modal-overlay.active .modal-box {
@@ -896,54 +897,71 @@ main {
         }
 
         .modal-title {
-            font-size: 20px;
+            font-family: 'Playfair Display', serif; /* Matching your heading typography */
+            font-size: 22px;
             font-weight: 600;
             color: var(--text-dark);
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .modal-text {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-gray);
-            margin-bottom: 30px;
-            line-height: 1.6;
+            margin-bottom: 25px;
+            line-height: 1.5;
         }
 
         .modal-actions {
             display: flex;
-            gap: 15px;
+            gap: 12px;
         }
 
         .modal-btn {
             flex: 1;
-            padding: 14px;
-            border-radius: var(--radius-md);
-            font-size: 15px;
-            font-weight: 600;
+            padding: 12px; /* Slimmer, sleeker button padding */
+            border-radius: 8px; /* Matching sharp aesthetic */
+            font-size: 14px;
+            font-weight: 500; /* Removed heavy bolding */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
             border: none;
             font-family: inherit;
         }
 
         .modal-btn-cancel {
-            background: #fff;
+            background: transparent;
             color: var(--text-dark);
             border: 1px solid var(--border-color);
         }
 
-        .modal-btn-cancel:hover { background: var(--secondary-bg); border-color: var(--text-gray); }
-        .modal-btn-cancel:active { background: var(--placeholder-bg); transform: scale(0.96); }
-
-        .modal-btn-confirm {
-            background: #ff4757;
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+        .modal-btn-cancel:hover { 
+            background: var(--secondary-bg); 
+            border-color: var(--text-dark); 
+        }
+        .modal-btn-cancel:active { 
+            background: var(--placeholder-bg); 
+            transform: scale(0.98); 
         }
 
-        .modal-btn-confirm:hover { background: #ff2a3f; box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4); transform: translateY(-2px); }
-        .modal-btn-confirm:active { transform: scale(0.96) translateY(0); box-shadow: 0 2px 8px rgba(255, 71, 87, 0.2); }
+        .modal-btn-confirm {
+            background: var(--text-dark); /* Solid black */
+            color: #fff;
+            border: 1px solid var(--text-dark);
+            box-shadow: none; /* Completely removed the glow */
+        }
 
+        .modal-btn-confirm:hover { 
+            background: #000; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Elegant, neutral shadow on hover */
+            transform: translateY(-1px); 
+        }
+        .modal-btn-confirm:active { 
+            transform: scale(0.98) translateY(0); 
+            box-shadow: none; 
+            background: #333; 
+        }
         /* Enhanced Footer Styles */
         footer { background-color: #fff; padding: 60px 20px 30px; border-top: 1px solid var(--border-color); margin-top: auto; position: relative; }
         .footer-content { display: flex; flex-direction: column; gap: 40px; max-width: 1000px; margin: 0 auto; }
