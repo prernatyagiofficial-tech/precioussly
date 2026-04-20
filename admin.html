@@ -1922,10 +1922,32 @@ async function loadDashboard() {
         const { data, error } = await db.rpc('get_dashboard_stats');
         if (error) throw error;
 
+        // NEW CODE: Fetch ONLY Delivered orders to calculate true Total Received
+        const { data: deliveredOrders, error: revError } = await db.from('orders')
+            .select('total_amount, customer_details')
+            .eq('status', 'Delivered');
+
+        let correctTotalReceived = 0;
+        
+        if (!revError && deliveredOrders) {
+            deliveredOrders.forEach(order => {
+                const c = order.customer_details || {};
+                
+                // Check if it's COD or Online to calculate exact cash
+                if (c.paymentMethod === 'cod') {
+                    correctTotalReceived += Number(c.amountPaid || 0) + Number(c.amountDue || 0);
+                } else {
+                    correctTotalReceived += Number(order.total_amount || 0);
+                }
+            });
+        }
+
         document.getElementById('statOrders').innerText = data.total_orders || 0;
         document.getElementById('statProducts').innerText = data.total_products || 0;
         document.getElementById('statUsers').innerText = data.total_users || 0;
-        document.getElementById('statReceived').innerText = `₹${(data.total_received || 0).toLocaleString()}`;
+        
+        // Display the newly calculated correct total
+        document.getElementById('statReceived').innerText = `₹${correctTotalReceived.toLocaleString('en-IN')}`;
     } catch (err) {
         console.error("Dashboard error:", err);
     }
@@ -4696,15 +4718,15 @@ window.calculateTagRevenue = async function() {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">Calculating revenue...</td></tr>`;
 
     try {
-        // 1. Fetch ONLY Delivered orders directly from the database
+        // 1. Fetch ONLY Delivered orders, grabbing full financial data this time
         const { data: deliveredOrders, error: orderError } = await db.from('orders')
-            .select('items')
+            .select('id, items, total_amount, customer_details, actual_shipping_cost')
             .eq('status', 'Delivered')
             .limit(10000); 
 
         if (orderError) throw orderError;
 
-        // 2. Fetch products to accurately map the smart tags and cost prices
+        // 2. Fetch products to map the smart tags and base costs
         const { data: products, error: prodError } = await db.from('products')
             .select('id, name, smart_tag, cost_price');
             
@@ -4714,10 +4736,29 @@ window.calculateTagRevenue = async function() {
         let totalProfitGlobal = 0;
         const statsMap = {};
 
-        // 3. Process the math locally
+        // 3. Process the exact actual money received per order
         deliveredOrders.forEach(order => {
             const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+            const c = order.customer_details || {};
             
+            // Determine exactly how much cash/payment was received for this specific delivered order
+            let amountReceived = 0;
+            if (c.paymentMethod === 'cod') {
+                // For delivered COD, we collect advance + amount due
+                amountReceived = Number(c.amountPaid || 0) + Number(c.amountDue || 0);
+            } else {
+                // Online payments
+                amountReceived = Number(order.total_amount || 0);
+            }
+            
+            const actualShipping = Number(order.actual_shipping_cost) || 0;
+
+            // Find the base subtotal to calculate the proportional share of each item
+            let orderBaseSubtotal = 0;
+            items.forEach(item => {
+                orderBaseSubtotal += (Number(item.price) || 0) * (Number(item.qty) || 1);
+            });
+
             items.forEach(item => {
                 const prod = products.find(p => String(p.id) === String(item.id));
                 const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
@@ -4735,13 +4776,21 @@ window.calculateTagRevenue = async function() {
                         };
                     }
                     
-                    const qty = item.qty || 1;
-                    const price = item.price || 0;
-                    const cost = (prod && prod.cost_price !== undefined) ? prod.cost_price : (item.cost_price || 0);
+                    const qty = Number(item.qty) || 1;
+                    const baseItemRev = (Number(item.price) || 0) * qty;
+                    
+                    // Calculate this item's percentage of the total order value
+                    const weight = orderBaseSubtotal > 0 ? (baseItemRev / orderBaseSubtotal) : 0;
+                    
+                    // Calculate exact actual revenue and profit assigned to this specific item
+                    const actualItemRev = amountReceived * weight;
+                    const cost = (prod && prod.cost_price !== undefined) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
+                    const actualItemCost = cost * qty;
+                    const actualItemProfit = ((amountReceived - actualShipping) * weight) - actualItemCost;
 
                     statsMap[key].units += qty;
-                    statsMap[key].rev += (price * qty);
-                    statsMap[key].profit += ((price - cost) * qty);
+                    statsMap[key].rev += actualItemRev;
+                    statsMap[key].profit += actualItemProfit;
                 }
             });
         });
