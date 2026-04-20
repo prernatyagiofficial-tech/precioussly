@@ -2147,33 +2147,7 @@ function mapProduct(row) {
 
 
 
-// --- NEW: FETCH CARD PURCHASE COUNT ---
-async function fetchCardPurchaseCount(prodId) {
-    try {
-        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
-        if (error) return; // Silent fail
-        
-        if (data && data > 0) {
-            // Helper function to safely apply to DOM in case it's still rendering
-            const applyToDOM = (attemptsLeft) => {
-                const badges = document.querySelectorAll(`.card-badge-${prodId}`);
-                if (badges.length > 0) {
-                    badges.forEach(badge => {
-                        badge.innerHTML = `📦 ${data} recently`;
-                        badge.style.display = 'flex';
-                    });
-                } else if (attemptsLeft > 0) {
-                    // If the card isn't in the DOM yet, wait 100ms and check again
-                    setTimeout(() => applyToDOM(attemptsLeft - 1), 100);
-                }
-            };
-            
-            // Start the loop: Try up to 5 times (500ms total)
-            applyToDOM(5); 
-        }
-    } catch (err) {}
-}
-        // Fetches enough products to populate all homepage category sections properly
+
 async function getProducts(force = false) {
     return fetchWithCache('products_initial', async () => {
         const { data } = await db.from('products')
@@ -3813,24 +3787,51 @@ function changeProductSize(size, btnElement) {
         }
 
         function openSizeChartModal() { sizeChartModal.classList.add('active'); document.body.classList.add('no-scroll'); }
-        async function fetchAndDisplayPurchaseCount(prodId) {
-            try {
-                const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
-                if (error) throw error;
-                
-                // Only show if the count is strictly greater than 0
-                if (data && data > 0) {
-                    const badge = document.getElementById('monthlyPurchaseBadge');
-                    if (badge) {
-                        const orderWord = data === 1 ? 'order' : 'orders';
-                        badge.innerHTML = `📦 ${data} ${orderWord} placed recently `;
+    /* --- REPLACE FROM HERE --- */
+async function fetchCardPurchaseCount(prodId) {
+    try {
+        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+        if (error) return; 
+        
+        // Only show if the count is greater than 0
+        if (data && data > 0) {
+            const applyToDOM = (attemptsLeft) => {
+                const badges = document.querySelectorAll(`.card-badge-${prodId}`);
+                if (badges.length > 0) {
+                    badges.forEach(badge => {
+                        // Product Card format: 📦 1 recently / 📦 2 recently
+                        badge.innerHTML = `📦 ${data} recently`;
                         badge.style.display = 'flex';
-                    }
+                    });
+                } else if (attemptsLeft > 0) {
+                    setTimeout(() => applyToDOM(attemptsLeft - 1), 100);
                 }
-            } catch (err) {
-                console.error("Failed to fetch purchase count:", err);
+            };
+            applyToDOM(5); 
+        }
+    } catch (err) {}
+}
+
+async function fetchAndDisplayPurchaseCount(prodId) {
+    try {
+        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+        if (error) throw error;
+        
+        // Only show if the count is greater than 0
+        if (data && data > 0) {
+            const badge = document.getElementById('monthlyPurchaseBadge');
+            if (badge) {
+                // Product Page format: 📦 1 order placed recently / 📦 2 orders placed recently
+                const orderWord = data === 1 ? 'order' : 'orders';
+                badge.innerHTML = `📦 ${data} ${orderWord} placed recently`;
+                badge.style.display = 'flex';
             }
         }
+    } catch (err) {
+        console.error("Failed to fetch purchase count:", err);
+    }
+}
+/* --- TO HERE --- */
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
         
 
