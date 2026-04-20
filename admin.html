@@ -2635,15 +2635,21 @@ window.addDynamicHomeSection = function() {
                 document.getElementById('catParentId').innerHTML = parentCatOptions;
                 document.getElementById('setBannerAction').innerHTML = bannerOptions;
 
-                // Populate Home Sections Dropdown
-                let addSecHtml = '<option value="">Select Category to Showcase</option>';
-                State.categories.forEach(c => {
-                    let prefix = c.parent_id ? '↳ ' : '';
-                    addSecHtml += `<option value="cat_${c.id}">${prefix}${escapeHTML(c.name)}</option>`;
-                });
-                if(document.getElementById('addSectionSelect')) {
-                    document.getElementById('addSectionSelect').innerHTML = addSecHtml;
-                }
+// Populate Home Sections Dropdown
+let addSecHtml = '<option value="">Select Category to Showcase</option>';
+mainCats.forEach(main => {
+    // Add the main category
+    addSecHtml += `<option value="cat_${main.id}">${escapeHTML(main.name)}</option>`;
+    
+    // Find and add its specific subcategories right underneath it
+    const subCats = State.categories.filter(c => c.parent_id === main.id);
+    subCats.forEach(sub => {
+        addSecHtml += `<option value="cat_${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+    });
+});
+if(document.getElementById('addSectionSelect')) {
+    document.getElementById('addSectionSelect').innerHTML = addSecHtml;
+}
 
                 // Re-bind SortableJS
                 initCategorySortable();
