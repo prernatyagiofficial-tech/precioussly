@@ -2031,6 +2031,7 @@ let currentSubCategories = [];
         aboutUsText: row.about_us_text || `Welcome to ${row.brand_name || 'Shria'}. We are dedicated to providing you with the best curated collections tailored for elegance and quality.`,
         minOrderAmount: Number(row.min_order_amount) || 149,
         codUpfrontFee: Number(row.cod_upfront_fee) || 49,
+        codExtraShipping: Number(row.cod_extra_shipping) || 0,
         minCODAmount: Number(row.min_cod_amount) || 500,
         acceptingPayments: true, 
 allowTransactions: row.accepting_payments !== false,
@@ -4490,8 +4491,8 @@ function createSlug(text) {
                 .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
                 .replace(/\-\-+/g, '-');        // Replace multiple - with single -
         }
-        // --- CHECKOUT LOGIC ---
-        function handlePaymentSelection(radio, totalAmount) {
+// --- CHECKOUT LOGIC ---
+        function handlePaymentSelection(radio) {
             triggerHaptic('light');
             const codRadio = document.querySelector('input[value="cod"]');
             const isCODDisabled = codRadio ? codRadio.disabled : false;
@@ -4500,6 +4501,28 @@ function createSlug(text) {
                 document.querySelector('input[value="online"]').checked = true;
                 return;
             }
+
+            // Recalculate totals dynamically
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+            
+            // Add the extra COD fee if COD is selected
+            if (radio.value === 'cod') {
+                shipping += (appData.settings.codExtraShipping || 0);
+            }
+
+            let discount = 0;
+            for (let rule of appData.coupons) {
+                if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; }
+            }
+
+            const totalAmount = subtotal + shipping - discount;
+
+            // Update the display on the screen instantly
+            const shippingDisplay = document.getElementById('checkoutShippingDisplay');
+            const totalDisplay = document.getElementById('checkoutTotalDisplay');
+            if (shippingDisplay) shippingDisplay.innerText = shipping === 0 ? 'Free' : formatPrice(shipping);
+            if (totalDisplay) totalDisplay.innerText = formatPrice(totalAmount);
 
             const btnText = document.querySelector('#placeOrderBtn .btn-text');
             const codInfo = document.getElementById('codInfoText');
@@ -4524,6 +4547,64 @@ function handleCheckoutClick(btn) {
         renderCheckout();
     }, 1200);
 }
+        // --- CHECKOUT LOGIC ---
+        function handlePaymentSelection(radio) {
+            triggerHaptic('light');
+            const codRadio = document.querySelector('input[value="cod"]');
+            const isCODDisabled = codRadio ? codRadio.disabled : false;
+
+            if (radio.value === 'cod' && isCODDisabled) {
+                document.querySelector('input[value="online"]').checked = true;
+                return;
+            }
+
+            // Recalculate totals dynamically
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+            
+            // Add the extra COD fee if COD is selected
+            if (radio.value === 'cod') {
+                shipping += (appData.settings.codExtraShipping || 0);
+            }
+
+            let discount = 0;
+            for (let rule of appData.coupons) {
+                if (subtotal >= rule.minThreshold) { discount = rule.discountAmount; break; }
+            }
+
+            const totalAmount = subtotal + shipping - discount;
+
+            // Update the display on the screen instantly
+            const shippingDisplay = document.getElementById('checkoutShippingDisplay');
+            const totalDisplay = document.getElementById('checkoutTotalDisplay');
+            if (shippingDisplay) shippingDisplay.innerText = shipping === 0 ? 'Free' : formatPrice(shipping);
+            if (totalDisplay) totalDisplay.innerText = formatPrice(totalAmount);
+
+            const btnText = document.querySelector('#placeOrderBtn .btn-text');
+            const codInfo = document.getElementById('codInfoText');
+
+            if (radio.value === 'cod') {
+                btnText.innerText = `Pay Advance ${formatPrice(appData.settings.codUpfrontFee)} & Place Order`;
+                if (codInfo) {
+                    const remaining = totalAmount - appData.settings.codUpfrontFee;
+                    codInfo.innerHTML = `Advance payment of <strong>${formatPrice(appData.settings.codUpfrontFee)}</strong> required. Remaining <strong>${formatPrice(remaining)}</strong> to be paid on delivery.`;
+                    codInfo.style.display = 'block';
+                }
+            } else {
+                btnText.innerText = `Confirm & Pay ${formatPrice(totalAmount)}`;
+                if (codInfo) codInfo.style.display = 'none';
+            }
+        }
+
+        function handleCheckoutClick(btn) {
+            triggerHaptic('success');
+            
+            // Normal checkout flow for all users (Guest & Logged-in)
+            withLoading(btn, () => {
+                renderCheckout();
+            }, 1200);
+        }
+
         async function renderCheckout() {
             const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
@@ -4579,19 +4660,8 @@ function handleCheckoutClick(btn) {
                 <div class="back-nav" onclick="renderCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Back to Cart</div>
                 <div class="section-title-wrapper" style="padding-top: 0;"><h3>Checkout</h3></div>
                 
-                <div class="checkout-layout">
-                    <div class="checkout-summary-box">
-                        <div class="summary-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
-                        <div class="summary-row"><span>Shipping</span><span>${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
-                        ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span><span>-${formatPrice(discount)}</span></div>` : ''}
-                        <div class="summary-total" style="margin-top:15px; padding-top:15px; border-top:1px dashed var(--border-color);">
-                            <span>Amount Payable</span>
-                            <span>${formatPrice(totalAmount)}</span>
-                        </div>
-                        ${discount > 0 ? `<div style="color:var(--dark-green); font-size:13px; font-weight:600; text-align:center; margin-top:15px;">You are saving ${formatPrice(discount)} on this order!</div>` : ''}
-                    </div>
-
-                    <div class="checkout-form-wrapper" style="padding: 0 20px;">
+                <div class="checkout-layout" style="justify-content: center;">
+                    <div class="checkout-form-wrapper" style="padding: 0 20px; max-width: 600px; width: 100%;">
                         <div class="form-group">
                             <label>Full Name</label>
                             <input type="text" id="chkName" placeholder="Enter your full name" value="${prefillName}" required>
@@ -4616,26 +4686,37 @@ function handleCheckoutClick(btn) {
                             <textarea id="chkAddress" rows="3" placeholder="House No, Building, Street, Area" required>${prefillAddress}</textarea>
                             <div class="error-message" id="errAddress">Please enter your full address</div>
                         </div>
-<div class="row-group">
+                        <div class="row-group">
                             <div class="form-group"><label>Phone Number</label><input type="tel" id="chkPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillPhone}" required><div class="error-message" id="errPhone">Please enter a valid 10-digit number</div></div>
                             <div class="form-group"><label>Alt. Phone (Optional)</label><input type="tel" id="chkAltPhone" placeholder="10-digit number" maxlength="10" pattern="[0-9]{10}" value="${prefillAltPhone}"><div class="error-message" id="errAltPhone">Please enter a valid 10-digit number</div></div>
+                        </div>
+
+                        <div class="checkout-summary-box" style="width: 100%; position: static; margin: 30px 0;">
+                            <div class="summary-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
+                            <div class="summary-row"><span>Shipping</span><span id="checkoutShippingDisplay">${shipping === 0 ? 'Free' : formatPrice(shipping)}</span></div>
+                            ${discount > 0 ? `<div class="summary-row summary-discount"><span>Discount</span><span>-${formatPrice(discount)}</span></div>` : ''}
+                            <div class="summary-total" style="margin-top:15px; padding-top:15px; border-top:1px dashed var(--border-color);">
+                                <span>Amount Payable</span>
+                                <span id="checkoutTotalDisplay">${formatPrice(totalAmount)}</span>
+                            </div>
+                            ${discount > 0 ? `<div style="color:var(--dark-green); font-size:13px; font-weight:600; text-align:center; margin-top:15px;">You are saving ${formatPrice(discount)} on this order!</div>` : ''}
                         </div>
 
                         ${appData.settings.acceptingPayments ? `
                             <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
                             <div class="payment-options">
                                 <label class="radio-label">
-                                    <input type="radio" name="payment" value="online" onchange="handlePaymentSelection(this, ${totalAmount})" checked> Online Payment (UPI/Cards)
+                                    <input type="radio" name="payment" value="online" onchange="handlePaymentSelection(this)" checked> Online Payment (UPI/Cards)
                                 </label>
                                 <label class="radio-label ${!isCODAvailable ? 'disabled' : ''}">
-                                    <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this, ${totalAmount})" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
+                                    <input type="radio" name="payment" value="cod" onchange="handlePaymentSelection(this)" ${!isCODAvailable ? 'disabled' : ''}> Cash on Delivery (COD)
                                 </label>
                                 ${!isCODAvailable ? `<span class="cod-warning">COD available for orders above ₹${appData.settings.minCODAmount}</span>` : ''}
                                 <div id="codInfoText" style="display: none; background: var(--light-green); color: var(--dark-green); padding: 15px 20px; border-radius: var(--radius-md); font-size: 14px; margin-top: 15px; border: 1px dashed var(--dark-green);"></div>
                             </div>
                             
                             <div style="margin-top: 40px; margin-bottom: 20px;">
-                                <button class="btn-primary" id="placeOrderBtn" onpointerdown="triggerHaptic('light')" onclick="initiatePayment(this, ${totalAmount})">
+                                <button class="btn-primary" id="placeOrderBtn" onpointerdown="triggerHaptic('light')" onclick="initiatePayment(this)">
 <span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
                             </div>
                         ` : `
@@ -4689,7 +4770,7 @@ function handleCheckoutClick(btn) {
         }
 
 // --- NEW PAYMENT & ORDER FLOW (Save First, Pay Later) ---
-function initiatePayment(btn, totalAmount) {
+function initiatePayment(btn) {
     if (!appData.settings.allowTransactions) {
         triggerHaptic('pop');
         showToast("We are not accepting payments right now.");
@@ -4699,8 +4780,6 @@ function initiatePayment(btn, totalAmount) {
         triggerHaptic('pop');
         showToast("Please check the errors in the form");
         return;
-        triggerHaptic('light');
-
     }
 
     const name = document.getElementById('chkName').value;
@@ -4710,7 +4789,13 @@ function initiatePayment(btn, totalAmount) {
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
 
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+    let shipping = subtotal > appData.settings.freeShippingThreshold ? 0 : appData.settings.shippingFee;
+    
+    // Add extra COD shipping if applicable
+    if (paymentMethod === 'cod') {
+        shipping += (appData.settings.codExtraShipping || 0);
+    }
+
     let discount = 0;
     let appliedCouponStr = "None";
     
@@ -4722,14 +4807,15 @@ function initiatePayment(btn, totalAmount) {
         }
     }
 
-    let amountToCharge = Number(totalAmount) || 0;
+    const finalTotalAmount = subtotal + shipping - discount;
+    let amountToCharge = finalTotalAmount;
     let amountDueOnDelivery = 0;
 
     if (paymentMethod === 'cod') {
         amountToCharge = Number(appData.settings.codUpfrontFee) || 0;
-        amountDueOnDelivery = Math.max(0, Number(totalAmount) - amountToCharge);
+        amountDueOnDelivery = Math.max(0, finalTotalAmount - amountToCharge);
     }
-
+    
     const orderDetails = {
         name: name,
         email: email,
@@ -4773,13 +4859,13 @@ function initiatePayment(btn, totalAmount) {
     }
     // ------------------------------------
 
-    // 1. Generate Order ID beforehand
+// 1. Generate Order ID beforehand
     const generatedOrderId = Math.floor(100000 + Math.random() * 900000);
     
     // 2. Prepare Order Data with "Pending Payment" status
     const orderDataToSave = {
         id: generatedOrderId,
-        total_amount: totalAmount,
+        total_amount: finalTotalAmount,
         items: state.cart,
         customer_details: orderDetails,
         status: 'Pending Payment', 
