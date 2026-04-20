@@ -1525,6 +1525,14 @@ main {
                     <span id="brandNameDisplay"></span>
                 </a>
 
+
+<a href="#" id="headerInstaLink" target="_blank" title="Instagram" class="icon-btn" style="display: none; position: relative;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+    </svg>
+</a>
                 <div class="header-icons">
                     <button class="icon-btn" onclick="toggleSearch()" title="Search">
                         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -2023,6 +2031,10 @@ let currentSubCategories = [];
         logoOffsetX: Number(row.logo_offset_x) || 0,
         logoOffsetY: Number(row.logo_offset_y) || 0,
         headerPaddingY: row.header_padding_y !== undefined && row.header_padding_y !== null ? Number(row.header_padding_y) : 16,
+        igHeaderShow: parseBool(row.instagram_header_show),
+igHeaderSize: Number(row.instagram_header_size) || 24,
+igHeaderOffsetX: Number(row.instagram_header_offset_x) || 0,
+igHeaderOffsetY: Number(row.instagram_header_offset_y) || 0,
         whatsappNumber: row.whatsapp_number || '',
         emailId: row.email_id || '',
         instagramUrl: row.instagram_url || '',
@@ -2528,6 +2540,26 @@ if (domCache[cacheKey]) {
 
     document.getElementById('footerBrandName').innerText = appData.settings.brandName;
     document.getElementById('copyrightBrand').innerText = appData.settings.brandName;
+    const headerInstaBtn = document.getElementById('headerInstaLink');
+if (headerInstaBtn) {
+    // Check if the toggle is ON and an Instagram URL actually exists
+    if (appData.settings.igHeaderShow && appData.settings.instagramUrl) {
+        headerInstaBtn.style.display = 'flex';
+        headerInstaBtn.href = appData.settings.instagramUrl;
+        
+        // Target the SVG inside the button to control size
+        const instaIcon = headerInstaBtn.querySelector('svg');
+        if (instaIcon) {
+            instaIcon.style.width = appData.settings.igHeaderSize + 'px';
+            instaIcon.style.height = appData.settings.igHeaderSize + 'px';
+        }
+        
+        // Apply the exact X and Y positioning
+        headerInstaBtn.style.transform = `translate(${appData.settings.igHeaderOffsetX}px, ${appData.settings.igHeaderOffsetY}px)`;
+    } else {
+        headerInstaBtn.style.display = 'none';
+    }
+}
     
     if (!currentProductView) {
         currentProductView = appData.settings.defaultProductView || 'grid';
