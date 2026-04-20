@@ -4699,11 +4699,11 @@ function handleCheckoutClick(btn) {
                             <input type="text" id="chkName" placeholder="Enter your full name" value="${prefillName}" required>
                             <div class="error-message" id="errName">Please enter your full name</div>
                         </div>
-                        <div class="form-group">
-                            <label>Email Address</label>
-                            <input type="email" id="chkEmail" placeholder="Enter your email" value="${prefillEmail}" required>
-                            <div class="error-message" id="errEmail">Please enter a valid email</div>
-                        </div>
+                       <div class="form-group">
+    <label>Email Address (Optional)</label>
+    <input type="email" id="chkEmail" placeholder="Enter your email" value="${prefillEmail}">
+    <div class="error-message" id="errEmail">Please enter a valid email</div>
+</div>
                         <div class="row-group">
                             <div class="form-group"><label>State</label><input type="text" id="chkState" placeholder="Enter your state" value="${prefillState}" required><div class="error-message" id="errState">Please enter your state</div></div>
                             <div class="form-group"><label>City</label><input type="text" id="chkCity" placeholder="Enter your city" value="${prefillCity}" required><div class="error-message" id="errCity">Please enter your city</div></div>
@@ -4788,7 +4788,7 @@ function handleCheckoutClick(btn) {
             };
 
             validateField('chkName', val => val.length > 0);
-            validateField('chkEmail', val => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val));
+            validateField('chkEmail', val => val.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val));
             validateField('chkState', val => val.length > 0);
             validateField('chkCity', val => val.length > 0);
             validateField('chkPincode', val => /^[0-9]{6}$/.test(val));
