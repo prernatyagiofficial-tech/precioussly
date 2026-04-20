@@ -504,7 +504,9 @@ main {
         .reviews-marquee-track.scroll-right {
             animation: marqueeRight 25s linear infinite;
         }
-
+        .reviews-marquee-wrapper:hover .reviews-marquee-track {
+            animation-play-state: paused; /* Pauses on hover */
+        }
         
         @keyframes marqueeLeft {
             0% { transform: translateX(0); }
@@ -845,7 +847,7 @@ main {
 
         /* Discount and Savings */
         .summary-discount { color: #00b894; font-weight: 600; }
-        .savings-message { background: #eaf8f0; color: #1a6331; padding: 8px 16px; border-radius: 50px; font-size: 13px; text-align: center; margin-bottom: 20px; font-weight: 500; border: 1px solid #1a6331; }
+        .savings-message { background: #eaf8f0; color: #1a6331; padding: 15px; border-radius: var(--radius-md); font-size: 14px; text-align: center; margin-bottom: 20px; font-weight: 600; border: 1px dashed #1a6331; }
         .checkout-summary-box { background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
 
         /* Modal Overlay */
@@ -1465,27 +1467,6 @@ main {
         a, button, .product-card, .category-card { 
             touch-action: manipulation !important; 
         }
-/* --- NEW CARD BADGE CSS --- */
-.card-purchase-badge {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.7); 
-    color: #ffffff; 
-    padding: 5px 12px;
-    border-radius: 30px; 
-    font-size: 11px;
-    font-weight: 500;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    pointer-events: none;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    animation: fadeIn 0.4s ease; /* This adds the smooth slide-in effect */
-}
     </style>
 </head>
 <body>
@@ -2949,7 +2930,7 @@ if (appData.settings.instagramUrl) {
                         <span class="btn-text">VIEW</span>
                     </button>
                 `;
-} else {
+            } else {
                 // In Stock, Simple Product -> Quick Add to Cart
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
@@ -2958,19 +2939,10 @@ if (appData.settings.instagramUrl) {
                 `;
             }
 
-            // --- NEW BADGE CODE START ---
-            let cardBadgeHtml = '';
-            if (prod.show_purchase_count) {
-                cardBadgeHtml = `<div class="card-badge-${prod.id} card-purchase-badge" style="display: none;"></div>`;
-                setTimeout(() => fetchCardPurchaseCount(prod.id), 50); // Background mein data layega
-            }
-            // --- NEW BADGE CODE END ---
-
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
                     <div class="img-wrapper" style="width: 100%; ${customImageStyle}">
                         ${mediaContent}
-                        ${cardBadgeHtml}
                     </div>
                     <div class="product-info" style="display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
                         <div>
@@ -3781,21 +3753,7 @@ function changeProductSize(size, btnElement) {
         }
         function closeSizeChartModal() { sizeChartModal.classList.remove('active'); document.body.classList.remove('no-scroll'); }
         
-// --- NEW: FETCH CARD PURCHASE COUNT ---
-        async function fetchCardPurchaseCount(prodId) {
-            try {
-                const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
-                if (error) return; // Silent fail
-                if (data && data > 0) {
-                    // Update all cards of this product (home page + categories)
-                    const badges = document.querySelectorAll(`.card-badge-${prodId}`);
-                    badges.forEach(badge => {
-                        badge.innerHTML = `📦 ${data} recently`;
-                        badge.style.display = 'flex';
-                    });
-                }
-            } catch (err) {}
-        }
+
         window.updateCarousel = updateCarousel;
         window.handleTouchStart = handleTouchStart;
         window.handleTouchEnd = handleTouchEnd;
@@ -4399,11 +4357,10 @@ async function renderCart(preserveScroll = false, isQuietUpdate = false) {
 
     const amountForFreeShipping = appData.settings.freeShippingThreshold - subtotal;
     let freeShippingMessage = "";
-    
-if (amountForFreeShipping > 0) {
-        freeShippingMessage = `<div class="savings-message" style="background: #fff5e6; color: #e67e22; border-color: #e67e22;">Add ${formatPrice(amountForFreeShipping)} more to get FREE Shipping!</div>`;
+    if (amountForFreeShipping > 0) {
+        freeShippingMessage = `<div class="savings-message" style="background: #fff5e6; color: #e67e22; border-color: #e67e22;">Add <strong>${formatPrice(amountForFreeShipping)}</strong> more to get <strong>FREE Shipping</strong>! </div>`;
     } else {
-        freeShippingMessage = `<div class="savings-message">You've unlocked FREE Shipping!</div>`;
+        freeShippingMessage = `<div class="savings-message">You've unlocked <strong>FREE Shipping</strong>! </div>`;
     }
 
     html += `
@@ -4652,7 +4609,7 @@ function handleCheckoutClick(btn) {
         }
 
 function initiatePayment(btn, totalAmount) {
-    if (!appData.settings.allowTransactions) {
+  if (!appData.settings.allowTransactions) {
         triggerHaptic('pop');
         showToast("We are not accepting payments right now.");
         return;
@@ -4707,7 +4664,10 @@ function initiatePayment(btn, totalAmount) {
 
     // --- AUTO-SAVE ADDRESS LOGIC ---
     const saveAddressData = {
-        name: name, email: email, phone: phone, altPhone: altPhone,
+        name: name,
+        email: email,
+        phone: phone,
+        altPhone: altPhone,
         state: document.getElementById('chkState').value.trim(),
         city: document.getElementById('chkCity').value.trim(),
         pincode: document.getElementById('chkPincode').value.trim(),
@@ -4716,82 +4676,84 @@ function initiatePayment(btn, totalAmount) {
 
     if (state.user) {
         db.from('profiles').update({
-            phone: saveAddressData.phone, alt_phone: saveAddressData.altPhone,
-            state: saveAddressData.state, city: saveAddressData.city,
-            pincode: saveAddressData.pincode, address: saveAddressData.address
+            phone: saveAddressData.phone,
+            alt_phone: saveAddressData.altPhone,
+            state: saveAddressData.state,
+            city: saveAddressData.city,
+            pincode: saveAddressData.pincode,
+            address: saveAddressData.address
         }).eq('id', state.user.id).then(({error}) => {
             if (error) console.error("Failed to auto-save profile address", error);
         });
     } else {
         localStorage.setItem('eco_guest_address', JSON.stringify(saveAddressData));
     }
+    // ------------------------------------
 
+    // --- 🛑 SUPABASE PRE-CHECK HELPER FUNCTION 🛑 ---
+    // Yeh function chupke se ek chhota data mangwa kar check karega ki DB active hai ya nahi
     const checkDatabaseHealth = async () => {
         try {
             const { error } = await db.from('settings').select('brand_name').limit(1);
             if (error) throw error;
-            return true;
+            return true; // Database bilkul theek hai
         } catch (err) {
-            console.error("DB Pre-check failed:", err);
+            console.error("DB Pre-check failed (Limit exhausted or DB down):", err);
             showToast("We are currently facing high traffic. Please try again in 15 minutes.");
-            return false;
+            return false; // Database down hai
         }
     };
+    // ------------------------------------------------
 
     if (amountToCharge > 0) {
         withLoading(btn, async () => {
+            // 1. Sabse pehle DB health check karein (Agar fail hua toh yahin ruk jayega)
             const isDbAlive = await checkDatabaseHealth();
             if (!isDbAlive) return;
 
             try {
-                // 1. CREATE PENDING ORDER IN DATABASE FIRST
-                const pendingOrderId = Math.floor(100000 + Math.random() * 900000);
-                const orderData = {
-                    id: pendingOrderId,
-                    total_amount: totalAmount,
-                    items: state.cart,
-                    customer_details: orderDetails,
-                    status: 'Pending Payment', // New Webhook Status
-                    created_at: new Date().toISOString()
-                };
-
-                const { error: insertError } = await db.from('orders').insert([orderData]);
-                if (insertError) throw insertError;
-
-                // 2. PASS DB ORDER ID TO EDGE FUNCTION
-                const { data: rzpData, error: rzpError } = await db.functions.invoke('create-rzp-order', {
-                    body: { amount: amountToCharge, receipt_id: pendingOrderId.toString() }
+                // 2. Agar DB alive hai, tabhi Razorpay order create karein
+                const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
+                    body: { amount: amountToCharge }
                 });
 
-                if (rzpError || !rzpData || !rzpData.id) {
-                    throw new Error("Failed to initialize secure payment.");
+                if (orderError || !orderData || !orderData.id) {
+                    console.error("Backend Order Creation Error:", orderError);
+                    showToast("Failed to initialize secure payment.");
+                    return;
                 }
 
-                // 3. OPEN RAZORPAY
                 const options = {
                     "key": "rzp_live_Sc7Dz1pFcekdz3", 
-                    "amount": rzpData.amount,       
+                    "amount": orderData.amount,       
                     "currency": "INR",
-                    "order_id": rzpData.id,         
+                    "order_id": orderData.id,         
                     "name": appData.settings.brandName,
-                    "description": "Payment for Order #" + pendingOrderId,
+                    "description": "Payment for Order",
                     "image": appData.settings.logoUrl,
-"handler": function (response) { 
-    // The webhook will handle the backend verification and inventory.
-    // We just need to clear the cart and show the success screen locally.
-    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-    orderData.status = 'Confirmed'; // Optimistically update local view
-    localOrders.unshift(orderData); 
-    localStorage.setItem('shria_orders', JSON.stringify(localOrders));
+                    "handler": async function (response) { 
+                        showToast("Verifying payment...");
+                        try {
+                            const { data: verifyData, error: verifyError } = await db.functions.invoke('verify-rzp-payment', {
+                                body: {
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature
+                                }
+                            });
 
-    // Proactively update Supabase so the Orders page doesn't show 'Pending Payment'
-    // while waiting for the webhook to finish processing.
-    db.from('orders').update({ status: 'Confirmed' }).eq('id', pendingOrderId).then();
+                            if (verifyError) throw verifyError;
 
-    state.cart = [];
-                        persistUserData(); 
-                        updateBadges();
-                        renderThankYou(pendingOrderId);
+                            if (verifyData && verifyData.success) {
+                                await processOrderPlacement(totalAmount, orderDetails); 
+                            } else {
+                                console.error("Verification Error:", verifyData);
+                                alert("Payment verification failed! Order not placed.");
+                            }
+                        } catch (err) {
+                            console.error("Verification Exception:", err);
+                            alert("Error verifying payment with server: " + err.message);
+                        }
                     },
                     "prefill": { 
                         "name": name, 
@@ -4801,36 +4763,39 @@ function initiatePayment(btn, totalAmount) {
                     "theme": { "color": "#1a1a1a" },
                     "modal": { 
                         "ondismiss": function() { 
-                            showToast("Payment cancelled. Order saved as Pending."); 
-                            renderOrders(); // Redirect to orders to see the pending order
+                            showToast("Payment cancelled"); 
                         } 
                     }
                 };
                 
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (response) {
+                    console.error("Payment Failed:", response.error);
                     showToast("Payment Failed: " + response.error.description);
                 });
                 rzp.open();
                 
             } catch (e) {
-                console.error("Payment Flow Error:", e);
-                showToast("Error processing payment. Please try again.");
+                console.error("Payment Gateway Error:", e);
+                showToast("Payment Gateway Error. Please try again.");
             }
         }, 1200); 
     } else {
-        // COD FLOW (Remains unchanged, deducts inventory immediately)
+        // Agar pure COD order hai (amountToCharge === 0)
         withLoading(btn, async () => {
+            // Yahan bhi DB check karenge taki COD order fail na ho
             const isDbAlive = await checkDatabaseHealth();
             if (!isDbAlive) return;
+
             processOrderPlacement(totalAmount, orderDetails);
         }, 1200); 
     }
 }
 
-async function processOrderPlacement(totalAmount, orderDetails) {
+        async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
     
+    // Map items to include exact stock key for the database RPC
     const itemsWithStockKeys = state.cart.map(item => {
         let key = item.variant || "Default";
         if (item.size) key += `_${item.size}`;
@@ -4849,10 +4814,13 @@ async function processOrderPlacement(totalAmount, orderDetails) {
     const { error } = await db.from('orders').insert([orderData]);
 
     if (error) {
+        console.error("Order insertion failed:", error);
+        alert("Database Error: Failed to save order. " + error.message); 
         showToast("Error saving order.");
         return; 
     }
 
+    // Deduct stock via RPC
     const { error: rpcError } = await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
     if (rpcError) console.error("Inventory Sync Error:", rpcError);
 
@@ -5185,7 +5153,6 @@ document.body.addEventListener('click', (e) => {
 });
 
 // Touch and Zoom Physics
-// Touch and Zoom Physics
 function attachLightboxGestures() {
     const container = document.querySelector('#lb-slide-' + lbCurrentIdx);
     if (!container) return;
@@ -5194,51 +5161,19 @@ function attachLightboxGestures() {
     let touchStartDist = 0, startScale = 1;
     let swipeStartX = 0, swipeStartY = 0, touchStartX = 0, touchStartY = 0;
     let isPinching = false, isPanning = false;
-    let lastTapTime = 0; 
-
-    // --- NEW: Helper function to build "walls" so the image can't be dragged off-screen ---
-    const clampPan = () => {
-        const maxX = Math.max(0, (media.offsetWidth * lbScale - window.innerWidth) / 2);
-        const maxY = Math.max(0, (media.offsetHeight * lbScale - window.innerHeight) / 2);
-        lbPanX = Math.max(-maxX, Math.min(maxX, lbPanX));
-        lbPanY = Math.max(-maxY, Math.min(maxY, lbPanY));
-    };
+    let lastTapTime = 0; // Crucial for blocking double-tap
 
     container.addEventListener('touchstart', (e) => {
+        // Enforce strict prevention of default double-tap zoom
         const currentTime = new Date().getTime();
+        if (currentTime - lastTapTime < 300) { e.preventDefault(); } 
+        lastTapTime = currentTime;
 
-        // 1. PINCH TO ZOOM
         if (e.touches.length === 2) {
-            lastTapTime = 0; 
             isPinching = true;
             touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             startScale = lbScale;
-            return; 
-        } 
-        
-        // 2. DOUBLE TAP & SINGLE TOUCH
-        if (e.touches.length === 1) {
-            if (currentTime - lastTapTime < 300) { 
-                e.preventDefault(); 
-                
-                if (lbScale > 1) {
-                    resetLightboxZoom(); 
-                } else {
-                    lbScale = 2.5; 
-                    const rect = media.getBoundingClientRect();
-                    const tapX = e.touches[0].clientX - (rect.left + rect.width / 2);
-                    const tapY = e.touches[0].clientY - (rect.top + rect.height / 2);
-                    lbPanX = -tapX * (lbScale - 1);
-                    lbPanY = -tapY * (lbScale - 1);
-                    
-                    clampPan(); // Apply boundaries after double-tap!
-                    media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
-                }
-                lastTapTime = 0; 
-                return; 
-            } 
-            
-            lastTapTime = currentTime;
+        } else if (e.touches.length === 1) {
             isPinching = false;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
@@ -5250,11 +5185,9 @@ function attachLightboxGestures() {
 
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && isPinching) {
-            e.preventDefault(); 
+            e.preventDefault(); // Stop page scrolling
             const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             lbScale = Math.min(Math.max(1, startScale * (dist / touchStartDist)), 4);
-            
-            clampPan(); // Apply boundaries while pinching!
             media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
         } else if (e.touches.length === 1 && lbScale > 1 && isPanning) {
             e.preventDefault();
@@ -5262,8 +5195,6 @@ function attachLightboxGestures() {
             lbPanY += e.touches[0].clientY - touchStartY;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
-            
-            clampPan(); // Apply boundaries while dragging!
             media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
         }
     }, { passive: false });
@@ -5273,6 +5204,7 @@ function attachLightboxGestures() {
             if (lbScale <= 1 && !isPinching) {
                 const diffX = swipeStartX - e.changedTouches[0].clientX;
                 const diffY = swipeStartY - e.changedTouches[0].clientY;
+                // Swipe threshold 50px
                 if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
                     if (diffX > 0) lightboxNext();
                     else lightboxPrev();
@@ -5290,7 +5222,6 @@ function attachLightboxGestures() {
         lbScale += e.deltaY * -0.005;
         lbScale = Math.min(Math.max(1, lbScale), 4);
         if(lbScale === 1) { lbPanX = 0; lbPanY = 0; }
-        else { clampPan(); } // Apply boundaries to scroll wheel!
         media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
     }, { passive: false });
 }
