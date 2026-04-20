@@ -1964,7 +1964,8 @@ async function loadDashboard() {
             });
         }
 
-        document.getElementById('statOrders').innerText = data.total_orders || 0;
+        const { count: validOrdersCount } = await db.from('orders').select('*', { count: 'exact', head: true }).in('status', ['Confirmed', 'Delivered']);
+document.getElementById('statOrders').innerText = validOrdersCount || 0;
         document.getElementById('statProducts').innerText = data.total_products || 0;
         document.getElementById('statUsers').innerText = data.total_users || 0;
         
@@ -1995,7 +1996,7 @@ window.renderDailyOrderStats = function() {
 // 1. Group all orders by date
 State.orders.forEach(order => {
     // ---> SKIP ORDERS THAT ARE PENDING PAYMENT <---
-    if (order.status === 'Pending Payment') return; 
+     if (order.status !== 'Confirmed' && order.status !== 'Delivered') return;
 
     const orderDateObj = new Date(order.created_at);
         const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
