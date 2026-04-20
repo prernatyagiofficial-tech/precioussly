@@ -4637,7 +4637,8 @@ function handleCheckoutClick(btn) {
                             </div>
                             
                             <div style="margin-top: 40px; margin-bottom: 20px;">
-                                <button class="btn-primary" id="placeOrderBtn" onclick="initiatePayment(this, ${totalAmount})"><span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
+                                <button class="btn-primary" id="placeOrderBtn" onpointerdown="triggerHaptic('light')" onclick="initiatePayment(this, ${totalAmount})">
+<span class="btn-text">Confirm & Pay ${formatPrice(totalAmount)}</span></button>
                             </div>
                         ` : `
                             <h4 style="margin: 30px 0 20px; font-size:18px; color: var(--text-dark);">Payment Method</h4>
@@ -4700,6 +4701,8 @@ function initiatePayment(btn, totalAmount) {
         triggerHaptic('pop');
         showToast("Please check the errors in the form");
         return;
+        triggerHaptic('light');
+
     }
 
     const name = document.getElementById('chkName').value;
