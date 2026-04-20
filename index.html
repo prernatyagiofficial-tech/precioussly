@@ -5172,6 +5172,7 @@ document.body.addEventListener('click', (e) => {
 });
 
 // Touch and Zoom Physics
+// Touch and Zoom Physics
 function attachLightboxGestures() {
     const container = document.querySelector('#lb-slide-' + lbCurrentIdx);
     if (!container) return;
@@ -5180,19 +5181,51 @@ function attachLightboxGestures() {
     let touchStartDist = 0, startScale = 1;
     let swipeStartX = 0, swipeStartY = 0, touchStartX = 0, touchStartY = 0;
     let isPinching = false, isPanning = false;
-    let lastTapTime = 0; // Crucial for blocking double-tap
+    let lastTapTime = 0; 
+
+    // --- NEW: Helper function to build "walls" so the image can't be dragged off-screen ---
+    const clampPan = () => {
+        const maxX = Math.max(0, (media.offsetWidth * lbScale - window.innerWidth) / 2);
+        const maxY = Math.max(0, (media.offsetHeight * lbScale - window.innerHeight) / 2);
+        lbPanX = Math.max(-maxX, Math.min(maxX, lbPanX));
+        lbPanY = Math.max(-maxY, Math.min(maxY, lbPanY));
+    };
 
     container.addEventListener('touchstart', (e) => {
-        // Enforce strict prevention of default double-tap zoom
         const currentTime = new Date().getTime();
-        if (currentTime - lastTapTime < 300) { e.preventDefault(); } 
-        lastTapTime = currentTime;
 
+        // 1. PINCH TO ZOOM
         if (e.touches.length === 2) {
+            lastTapTime = 0; 
             isPinching = true;
             touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             startScale = lbScale;
-        } else if (e.touches.length === 1) {
+            return; 
+        } 
+        
+        // 2. DOUBLE TAP & SINGLE TOUCH
+        if (e.touches.length === 1) {
+            if (currentTime - lastTapTime < 300) { 
+                e.preventDefault(); 
+                
+                if (lbScale > 1) {
+                    resetLightboxZoom(); 
+                } else {
+                    lbScale = 2.5; 
+                    const rect = media.getBoundingClientRect();
+                    const tapX = e.touches[0].clientX - (rect.left + rect.width / 2);
+                    const tapY = e.touches[0].clientY - (rect.top + rect.height / 2);
+                    lbPanX = -tapX * (lbScale - 1);
+                    lbPanY = -tapY * (lbScale - 1);
+                    
+                    clampPan(); // Apply boundaries after double-tap!
+                    media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
+                }
+                lastTapTime = 0; 
+                return; 
+            } 
+            
+            lastTapTime = currentTime;
             isPinching = false;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
@@ -5204,9 +5237,11 @@ function attachLightboxGestures() {
 
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && isPinching) {
-            e.preventDefault(); // Stop page scrolling
+            e.preventDefault(); 
             const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             lbScale = Math.min(Math.max(1, startScale * (dist / touchStartDist)), 4);
+            
+            clampPan(); // Apply boundaries while pinching!
             media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
         } else if (e.touches.length === 1 && lbScale > 1 && isPanning) {
             e.preventDefault();
@@ -5214,6 +5249,8 @@ function attachLightboxGestures() {
             lbPanY += e.touches[0].clientY - touchStartY;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
+            
+            clampPan(); // Apply boundaries while dragging!
             media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
         }
     }, { passive: false });
@@ -5223,7 +5260,6 @@ function attachLightboxGestures() {
             if (lbScale <= 1 && !isPinching) {
                 const diffX = swipeStartX - e.changedTouches[0].clientX;
                 const diffY = swipeStartY - e.changedTouches[0].clientY;
-                // Swipe threshold 50px
                 if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
                     if (diffX > 0) lightboxNext();
                     else lightboxPrev();
@@ -5241,6 +5277,7 @@ function attachLightboxGestures() {
         lbScale += e.deltaY * -0.005;
         lbScale = Math.min(Math.max(1, lbScale), 4);
         if(lbScale === 1) { lbPanX = 0; lbPanY = 0; }
+        else { clampPan(); } // Apply boundaries to scroll wheel!
         media.style.transform = `translate(${lbPanX}px, ${lbPanY}px) scale(${lbScale})`;
     }, { passive: false });
 }
