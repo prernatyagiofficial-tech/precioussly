@@ -4738,7 +4738,7 @@ function initiatePayment(btn, totalAmount) {
         }
     };
 
-    if (amountToCharge > 0 && paymentMethod === 'online') {
+    if (amountToCharge > 0) {
         withLoading(btn, async () => {
             const isDbAlive = await checkDatabaseHealth();
             if (!isDbAlive) return;
@@ -4776,15 +4776,19 @@ function initiatePayment(btn, totalAmount) {
                     "name": appData.settings.brandName,
                     "description": "Payment for Order #" + pendingOrderId,
                     "image": appData.settings.logoUrl,
-                    "handler": function (response) { 
-                        // The webhook will handle the backend verification and inventory.
-                        // We just need to clear the cart and show the success screen locally.
-                        const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
-                        orderData.status = 'Confirmed'; // Optimistically update local view
-                        localOrders.unshift(orderData); 
-                        localStorage.setItem('shria_orders', JSON.stringify(localOrders));
+"handler": function (response) { 
+    // The webhook will handle the backend verification and inventory.
+    // We just need to clear the cart and show the success screen locally.
+    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    orderData.status = 'Confirmed'; // Optimistically update local view
+    localOrders.unshift(orderData); 
+    localStorage.setItem('shria_orders', JSON.stringify(localOrders));
 
-                        state.cart = [];
+    // Proactively update Supabase so the Orders page doesn't show 'Pending Payment'
+    // while waiting for the webhook to finish processing.
+    db.from('orders').update({ status: 'Confirmed' }).eq('id', pendingOrderId).then();
+
+    state.cart = [];
                         persistUserData(); 
                         updateBadges();
                         renderThankYou(pendingOrderId);
