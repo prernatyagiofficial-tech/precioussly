@@ -1487,6 +1487,27 @@ main {
         a, button, .product-card, .category-card { 
             touch-action: manipulation !important; 
         }
+/* --- NEW CARD BADGE CSS --- */
+.card-purchase-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 500;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn 0.4s ease; /* This adds the smooth animation! */
+}
     </style>
 </head>
 <body>
@@ -2124,6 +2145,34 @@ function mapProduct(row) {
         }
 
 
+
+
+// --- NEW: FETCH CARD PURCHASE COUNT ---
+async function fetchCardPurchaseCount(prodId) {
+    try {
+        const { data, error } = await db.rpc('get_monthly_purchase_count', { p_product_id: String(prodId) });
+        if (error) return; // Silent fail
+        
+        if (data && data > 0) {
+            // Helper function to safely apply to DOM in case it's still rendering
+            const applyToDOM = (attemptsLeft) => {
+                const badges = document.querySelectorAll(`.card-badge-${prodId}`);
+                if (badges.length > 0) {
+                    badges.forEach(badge => {
+                        badge.innerHTML = `📦 ${data} recently`;
+                        badge.style.display = 'flex';
+                    });
+                } else if (attemptsLeft > 0) {
+                    // If the card isn't in the DOM yet, wait 100ms and check again
+                    setTimeout(() => applyToDOM(attemptsLeft - 1), 100);
+                }
+            };
+            
+            // Start the loop: Try up to 5 times (500ms total)
+            applyToDOM(5); 
+        }
+    } catch (err) {}
+}
         // Fetches enough products to populate all homepage category sections properly
 async function getProducts(force = false) {
     return fetchWithCache('products_initial', async () => {
@@ -2951,7 +3000,9 @@ if (!isRestoring) {
                         <span class="btn-text">VIEW</span>
                     </button>
                 `;
-            } else {
+
+
+} else {
                 // In Stock, Simple Product -> Quick Add to Cart
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
@@ -2960,9 +3011,16 @@ if (!isRestoring) {
                 `;
             }
 
+            let purchaseBadgeHtml = '';
+            if (prod.show_purchase_count) {
+                purchaseBadgeHtml = `<div class="card-purchase-badge card-badge-${prod.id}" style="display: none;"></div>`;
+                fetchCardPurchaseCount(prod.id); 
+            }
+
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
                     <div class="img-wrapper" style="width: 100%; ${customImageStyle}">
+                        ${purchaseBadgeHtml}
                         ${mediaContent}
                     </div>
                     <div class="product-info" style="display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
@@ -4630,8 +4688,9 @@ function handleCheckoutClick(btn) {
             return isValid;
         }
 
+// --- NEW PAYMENT & ORDER FLOW (Save First, Pay Later) ---
 function initiatePayment(btn, totalAmount) {
-  if (!appData.settings.allowTransactions) {
+    if (!appData.settings.allowTransactions) {
         triggerHaptic('pop');
         showToast("We are not accepting payments right now.");
         return;
@@ -4712,46 +4771,55 @@ function initiatePayment(btn, totalAmount) {
     }
     // ------------------------------------
 
-    // --- 🛑 SUPABASE PRE-CHECK HELPER FUNCTION 🛑 ---
-    // Yeh function chupke se ek chhota data mangwa kar check karega ki DB active hai ya nahi
-    const checkDatabaseHealth = async () => {
-        try {
-            const { error } = await db.from('settings').select('brand_name').limit(1);
-            if (error) throw error;
-            return true; // Database bilkul theek hai
-        } catch (err) {
-            console.error("DB Pre-check failed (Limit exhausted or DB down):", err);
-            showToast("We are currently facing high traffic. Please try again in 15 minutes.");
-            return false; // Database down hai
-        }
+    // 1. Generate Order ID beforehand
+    const generatedOrderId = Math.floor(100000 + Math.random() * 900000);
+    
+    // 2. Prepare Order Data with "Pending Payment" status
+    const orderDataToSave = {
+        id: generatedOrderId,
+        total_amount: totalAmount,
+        items: state.cart,
+        customer_details: orderDetails,
+        status: 'Pending Payment', 
+        created_at: new Date().toISOString()
     };
-    // ------------------------------------------------
 
-    if (amountToCharge > 0) {
-        withLoading(btn, async () => {
-            // 1. Sabse pehle DB health check karein (Agar fail hua toh yahin ruk jayega)
-            const isDbAlive = await checkDatabaseHealth();
-            if (!isDbAlive) return;
+    withLoading(btn, async () => {
+        // DB Health Check
+        try {
+            const { error: healthErr } = await db.from('settings').select('brand_name').limit(1);
+            if (healthErr) throw healthErr;
+        } catch (err) {
+            showToast("We are currently facing high traffic. Please try again in 15 minutes.");
+            return;
+        }
 
+        // 3. PRE-SAVE ORDER TO DATABASE (Saved before Razorpay opens!)
+        const { error: insertError } = await db.from('orders').insert([orderDataToSave]);
+        if (insertError) {
+            showToast("Failed to initialize order. Please try again.");
+            return; 
+        }
+
+        if (amountToCharge > 0) {
+            // ONLINE PAYMENT FLOW
             try {
-                // 2. Agar DB alive hai, tabhi Razorpay order create karein
-                const { data: orderData, error: orderError } = await db.functions.invoke('create-rzp-order', {
+                const { data: rzpOrder, error: rzpError } = await db.functions.invoke('create-rzp-order', {
                     body: { amount: amountToCharge }
                 });
 
-                if (orderError || !orderData || !orderData.id) {
-                    console.error("Backend Order Creation Error:", orderError);
+                if (rzpError || !rzpOrder || !rzpOrder.id) {
                     showToast("Failed to initialize secure payment.");
                     return;
                 }
 
                 const options = {
                     "key": "rzp_live_Sc7Dz1pFcekdz3", 
-                    "amount": orderData.amount,       
+                    "amount": rzpOrder.amount,       
                     "currency": "INR",
-                    "order_id": orderData.id,         
+                    "order_id": rzpOrder.id,         
                     "name": appData.settings.brandName,
-                    "description": "Payment for Order",
+                    "description": "Payment for Order #" + generatedOrderId,
                     "image": appData.settings.logoUrl,
                     "handler": async function (response) { 
                         showToast("Verifying payment...");
@@ -4767,52 +4835,78 @@ function initiatePayment(btn, totalAmount) {
                             if (verifyError) throw verifyError;
 
                             if (verifyData && verifyData.success) {
-                                await processOrderPlacement(totalAmount, orderDetails); 
+                                // Payment Verified! Now officially confirm the order & cut stock
+                                await finalizeOrderSuccess(generatedOrderId, orderDataToSave); 
                             } else {
-                                console.error("Verification Error:", verifyData);
-                                alert("Payment verification failed! Order not placed.");
+                                alert("Payment verification failed! Order is saved as Pending.");
                             }
                         } catch (err) {
-                            console.error("Verification Exception:", err);
                             alert("Error verifying payment with server: " + err.message);
                         }
                     },
-                    "prefill": { 
-                        "name": name, 
-                        "email": email, 
-                        "contact": phone 
-                    },
+                    "prefill": { "name": name, "email": email, "contact": phone },
                     "theme": { "color": "#1a1a1a" },
                     "modal": { 
                         "ondismiss": function() { 
-                            showToast("Payment cancelled"); 
+                            showToast("Payment cancelled. Order saved as Pending."); 
                         } 
                     }
                 };
                 
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (response) {
-                    console.error("Payment Failed:", response.error);
                     showToast("Payment Failed: " + response.error.description);
                 });
                 rzp.open();
                 
             } catch (e) {
-                console.error("Payment Gateway Error:", e);
                 showToast("Payment Gateway Error. Please try again.");
             }
-        }, 1200); 
-    } else {
-        // Agar pure COD order hai (amountToCharge === 0)
-        withLoading(btn, async () => {
-            // Yahan bhi DB check karenge taki COD order fail na ho
-            const isDbAlive = await checkDatabaseHealth();
-            if (!isDbAlive) return;
-
-            processOrderPlacement(totalAmount, orderDetails);
-        }, 1200); 
-    }
+        } else {
+            // PURE COD FLOW (Amount to charge is 0)
+            await finalizeOrderSuccess(generatedOrderId, orderDataToSave);
+        }
+    }, 1200); 
 }
+
+async function finalizeOrderSuccess(orderId, orderData) {
+    triggerHaptic('success');
+    
+    // 1. Update Order Status to 'In Progress' in DB
+    const { error: updateError } = await db.from('orders')
+        .update({ status: 'In Progress' })
+        .eq('id', orderId);
+
+    if (updateError) {
+        alert("Database Error: Failed to update status. Please contact support."); 
+        return; 
+    }
+
+    // 2. Map items to include exact stock key for the database RPC
+    const itemsWithStockKeys = state.cart.map(item => {
+        let key = item.variant || "Default";
+        if (item.size) key += `_${item.size}`;
+        return { ...item, stockKey: key };
+    });
+
+    // 3. Deduct stock via RPC
+    const { error: rpcError } = await db.rpc('process_order_inventory', { cart_items: itemsWithStockKeys });
+    if (rpcError) console.error("Inventory Sync Error:", rpcError);
+
+    // 4. Update Local Storage for Customer's View
+    orderData.status = 'In Progress';
+    const localOrders = JSON.parse(localStorage.getItem('shria_orders') || '[]');
+    localOrders.unshift(orderData); 
+    localStorage.setItem('shria_orders', JSON.stringify(localOrders));
+
+    // 5. Clear Cart & Redirect
+    state.cart = [];
+    persistUserData(); 
+    updateBadges();
+    
+    renderThankYou(orderId);
+}
+// --- END NEW PAYMENT FLOW ---
 
         async function processOrderPlacement(totalAmount, orderDetails) {
     triggerHaptic('success');
