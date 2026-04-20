@@ -1947,9 +1947,13 @@ window.renderDailyOrderStats = function() {
     const dailyStats = {};
     const optionsIST = { timeZone: 'Asia/Kolkata' };
 
-    // 1. Group all orders by date
-    State.orders.forEach(order => {
-        const orderDateObj = new Date(order.created_at);
+
+// 1. Group all orders by date
+State.orders.forEach(order => {
+    // ---> SKIP ORDERS THAT ARE PENDING PAYMENT <---
+    if (order.status === 'Pending Payment') return; 
+
+    const orderDateObj = new Date(order.created_at);
         const dateKey = orderDateObj.toLocaleDateString('en-IN', optionsIST);
 
         if (!dailyStats[dateKey]) {
@@ -2047,10 +2051,13 @@ async function loadUsers(page = 1) {
 
                 let usersData = data || [];
 
-                // 2. Attach frontend calculated data for accurate sorting
-                usersData = usersData.map(u => {
-                    const userEmail = (u.email || '').toLowerCase();
-                    const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
+// 2. Attach frontend calculated data for accurate sorting
+usersData = usersData.map(u => {
+    const userEmail = (u.email || '').toLowerCase();
+    const userOrders = State.orders.filter(o => 
+        (o.customer_details?.email || '').toLowerCase() === userEmail && 
+        o.status !== 'Pending Payment' // <-- Added this condition
+    );
                     
                     let wishlistArr = [];
                     if (u.wishlist) {
@@ -2162,10 +2169,13 @@ async function loadUsers(page = 1) {
             const user = loadedUsersList.find(u => u.id === userId);
             if (!user) return;
 
-            // Calculate Order Stats
-            const userEmail = (user.email || '').toLowerCase();
-            const userOrders = State.orders.filter(o => (o.customer_details?.email || '').toLowerCase() === userEmail);
-            const totalSpent = userOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+// Calculate Order Stats
+const userEmail = (user.email || '').toLowerCase();
+const userOrders = State.orders.filter(o => 
+    (o.customer_details?.email || '').toLowerCase() === userEmail && 
+    o.status !== 'Pending Payment' // <-- Added this condition
+);
+const totalSpent = userOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
             // Parse Wishlist Array safely
             let wishlistItems = [];
