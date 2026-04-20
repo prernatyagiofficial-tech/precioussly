@@ -9,19 +9,13 @@
     <meta property="og:title" content="precioussly">
     <meta property="og:description" content="Shop the best curated collections tailored for elegance.">
     <script type="application/ld+json" id="product-schema">{}</script>
-<link rel="preconnect" href="https://gahkjnfiltfcqqdjnxnx.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://gahkjnfiltfcqqdjnxnx.supabase.co">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-<noscript>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap">
-</noscript>
-
-<!-- Razorpay and Supabase are now loaded on demand from JS -->
-
+    <link rel="preconnect" href="https://gahkjnfiltfcqqdjnxnx.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://gahkjnfiltfcqqdjnxnx.supabase.co">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
       <style>
         :root {
@@ -80,12 +74,11 @@
         }
 
 main {
-    flex: 1;
-    padding-bottom: 40px;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-    min-height: 100vh; /* <-- ADD THIS LINE */
-}
+            flex: 1;
+            padding-bottom: 40px;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
 
       /* Header */
         header {
@@ -879,17 +872,16 @@ main {
             visibility: visible;
         }
 
-.modal-box {
+        .modal-box {
             background: #fff;
             width: 90%;
-            max-width: 360px; /* Slightly narrower for a tighter, refined look */
-            border-radius: 16px; /* Sharper corners to fit a premium aesthetic */
-            padding: 30px 25px;
+            max-width: 400px;
+            border-radius: 24px;
+            padding: 30px;
             text-align: center;
             transform: scale(0.95) translateY(20px);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* Softer, highly subtle shadow */
-            border: 1px solid var(--border-color); /* Crisp defining line */
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
 
         .modal-overlay.active .modal-box {
@@ -897,71 +889,54 @@ main {
         }
 
         .modal-title {
-            font-family: 'Playfair Display', serif; /* Matching your heading typography */
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--text-dark);
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .modal-text {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-gray);
-            margin-bottom: 25px;
-            line-height: 1.5;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
         .modal-actions {
             display: flex;
-            gap: 12px;
+            gap: 15px;
         }
 
         .modal-btn {
             flex: 1;
-            padding: 12px; /* Slimmer, sleeker button padding */
-            border-radius: 8px; /* Matching sharp aesthetic */
-            font-size: 14px;
-            font-weight: 500; /* Removed heavy bolding */
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            padding: 14px;
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s;
             border: none;
             font-family: inherit;
         }
 
         .modal-btn-cancel {
-            background: transparent;
+            background: #fff;
             color: var(--text-dark);
             border: 1px solid var(--border-color);
         }
 
-        .modal-btn-cancel:hover { 
-            background: var(--secondary-bg); 
-            border-color: var(--text-dark); 
-        }
-        .modal-btn-cancel:active { 
-            background: var(--placeholder-bg); 
-            transform: scale(0.98); 
-        }
+        .modal-btn-cancel:hover { background: var(--secondary-bg); border-color: var(--text-gray); }
+        .modal-btn-cancel:active { background: var(--placeholder-bg); transform: scale(0.96); }
 
         .modal-btn-confirm {
-            background: var(--text-dark); /* Solid black */
+            background: #ff4757;
             color: #fff;
-            border: 1px solid var(--text-dark);
-            box-shadow: none; /* Completely removed the glow */
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
         }
 
-        .modal-btn-confirm:hover { 
-            background: #000; 
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Elegant, neutral shadow on hover */
-            transform: translateY(-1px); 
-        }
-        .modal-btn-confirm:active { 
-            transform: scale(0.98) translateY(0); 
-            box-shadow: none; 
-            background: #333; 
-        }
+        .modal-btn-confirm:hover { background: #ff2a3f; box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4); transform: translateY(-2px); }
+        .modal-btn-confirm:active { transform: scale(0.96) translateY(0); box-shadow: 0 2px 8px rgba(255, 71, 87, 0.2); }
+
         /* Enhanced Footer Styles */
         footer { background-color: #fff; padding: 60px 20px 30px; border-top: 1px solid var(--border-color); margin-top: auto; position: relative; }
         .footer-content { display: flex; flex-direction: column; gap: 40px; max-width: 1000px; margin: 0 auto; }
@@ -1511,46 +1486,6 @@ main {
     -webkit-backdrop-filter: blur(4px);
     animation: fadeIn 0.4s ease; /* This adds the smooth slide-in effect */
 }
-/* ===== PERFORMANCE PATCH: GPU / paint containment / motion ===== */
-.carousel-track,
-.lightbox-img-container,
-.lightbox-img,
-.reviews-marquee-track,
-.scrolling-wrapper,
-.product-card .img-wrapper img,
-.product-card .img-wrapper video,
-.category-img-box img,
-.category-img-box video,
-.review-card img,
-.review-card video {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-}
-
-.carousel-track,
-.lightbox-img-container,
-.reviews-marquee-track,
-.scrolling-wrapper {
-    will-change: transform;
-}
-
-.product-card,
-.category-card,
-.review-card,
-.cart-item,
-.order-card {
-    contain: layout paint style;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .reviews-marquee-track,
-    .scrolling-wrapper {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-    }
-}
-
     </style>
 </head>
 <body>
@@ -1849,48 +1784,6 @@ main {
     </div>
 </div>
 <script>
-  /* ===== PERFORMANCE PATCH: async SDK loaders ===== */
-const __sdkCache = new Map();
-
-function loadExternalScript(src, { async = true, defer = false } = {}) {
-    if (__sdkCache.has(src)) return __sdkCache.get(src);
-
-    const promise = new Promise((resolve, reject) => {
-        const existing = document.querySelector(`script[src="${src}"]`);
-        if (existing) {
-            if (existing.dataset.loaded === 'true') return resolve();
-            existing.addEventListener('load', () => resolve(), { once: true });
-            existing.addEventListener('error', reject, { once: true });
-            return;
-        }
-
-        const s = document.createElement('script');
-        s.src = src;
-        s.async = async;
-        s.defer = defer;
-        s.crossOrigin = 'anonymous';
-        s.onload = () => {
-            s.dataset.loaded = 'true';
-            resolve();
-        };
-        s.onerror = reject;
-        document.head.appendChild(s);
-    });
-
-    __sdkCache.set(src, promise);
-    return promise;
-}
-
-function ensureSupabaseSDK() {
-    if (window.supabase) return Promise.resolve(window.supabase);
-    return loadExternalScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2').then(() => window.supabase);
-}
-
-function ensureRazorpaySDK() {
-    if (window.Razorpay) return Promise.resolve(window.Razorpay);
-    return loadExternalScript('https://checkout.razorpay.com/v1/checkout.js').then(() => window.Razorpay);
-}
-
         // Prevent the browser from fighting our custom scroll restoration (Fixes the footer flash)
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
@@ -1900,21 +1793,7 @@ function ensureRazorpaySDK() {
         const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM'; 
         
-        let db = null;
-
-        async function initSupabaseClient() {
-            if (db) return db;
-            await ensureSupabaseSDK();
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-                auth: {
-                    persistSession: true,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: true
-                }
-            });
-            return db;
-        }
-
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         document.getElementById('year').textContent = new Date().getFullYear();
         const imageSvg = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
@@ -1989,42 +1868,40 @@ function ensureRazorpaySDK() {
 }
 
         // --- AUTHENTICATION STATE & LOGOUT ---
-        let authListenersAttached = false;
+        // 1. Get initial session on page load (crucial for Google OAuth redirects)
+        db.auth.getSession().then(({ data: { session } }) => {
+            state.user = session ? session.user : null;
+        });
 
-        function attachAuthListeners() {
-            if (authListenersAttached) return;
-            authListenersAttached = true;
+// 2. Listen for auth changes (handles both Email and Google OAuth flows)
+        db.auth.onAuthStateChange((event, session) => {
+            state.user = session ? session.user : null;
+            
+// NEW: Clean up the messy ?code= URL after a successful login
+if (session && window.location.href.includes('code=')) {
+    history.replaceState({view: 'login'}, "", window.location.pathname + '?view=login');
+    
+    // Show a success message so the customer knows they can continue
+    showToast("Sign in successful! You can now place your order. 🎉");
+}
+            
+            // MODIFIED: Update the UI on ANY auth state change (including INITIAL_SESSION after OAuth redirect)
+            generateMenuLinks(); // Refresh dynamic menu to show/hide 'Account' vs 'Sign In'
+            renderMenu();
+            
+            // If they are currently looking at the login page, update the view to show Account details
+            if (history.state && history.state.view === 'login') {
+                 renderLogin(); 
+            }
+        });
 
-            // 1. Get initial session on page load
-            db.auth.getSession().then(({ data: { session } }) => {
-                state.user = session ? session.user : null;
-            });
-
-            // 2. Listen for auth changes
-            db.auth.onAuthStateChange((event, session) => {
-                state.user = session ? session.user : null;
-                
-                if (session && window.location.href.includes('code=')) {
-                    history.replaceState({view: 'login'}, "", window.location.pathname + '?view=login');
-                    showToast("Sign in successful! You can now place your order. 🎉");
-                }
-                
-                generateMenuLinks();
-                renderMenu();
-                
-                if (history.state && history.state.view === 'login') {
-                    renderLogin(); 
-                }
-            });
-        }
-
-        // 3. Handle user sign out
+        // 3. Handle user sign out (Trigger Modal)
         function handleSignOut() {
             triggerHaptic('light');
             openSignOutModal();
         }
 
-        // 4. Execute actual sign out
+        // 4. Execute the actual sign out (Triggered by Modal confirm button)
         async function executeSignOut() {
             closeSignOutModal();
             triggerHaptic('light');
@@ -2034,10 +1911,9 @@ function ensureRazorpaySDK() {
             } else {
                 showToast("Successfully logged out");
                 state.user = null;
-                renderHome();
+                renderHome(); // Send them back to the homepage
             }
         }
-
 
         // --- DYNAMIC APPLICATION DATA ---
         const appData = {
@@ -2108,109 +1984,6 @@ let currentSubCategories = [];
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3500);
         }
-        
-                /* ===== PERFORMANCE PATCH: DOM + media helpers ===== */
-        function renderHTML(target, html) {
-            const range = document.createRange();
-            range.selectNode(target);
-            target.replaceChildren(range.createContextualFragment(html));
-        }
-
-        function htmlToNode(html) {
-            const template = document.createElement('template');
-            template.innerHTML = html.trim();
-            return template.content.firstElementChild;
-        }
-
-        function getLazyVideoObserver() {
-            if (getLazyVideoObserver.instance) return getLazyVideoObserver.instance;
-
-            getLazyVideoObserver.instance = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const video = entry.target;
-                    if (entry.isIntersecting) {
-                        if (video.preload === 'none') video.preload = 'metadata';
-                        const playPromise = video.play && video.play();
-                        if (playPromise && typeof playPromise.catch === 'function') {
-                            playPromise.catch(() => {});
-                        }
-                    } else {
-                        if (!video.closest('.product-hero') && !video.closest('.lightbox-overlay')) {
-                            video.pause && video.pause();
-                        }
-                    }
-                });
-            }, { rootMargin: '250px 0px' });
-
-            return getLazyVideoObserver.instance;
-        }
-
-        function optimizeRenderedMedia(root = mainContent) {
-            if (!root) return;
-
-            const imgs = root.querySelectorAll('img');
-            imgs.forEach((img, index) => {
-                if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
-
-                const isCritical =
-                    !!img.closest('.product-hero') ||
-                    !!img.closest('.banner') ||
-                    index < 4;
-
-                if (!img.hasAttribute('loading')) {
-                    img.setAttribute('loading', isCritical ? 'eager' : 'lazy');
-                }
-
-                if (isCritical && !img.hasAttribute('fetchpriority')) {
-                    img.setAttribute('fetchpriority', 'high');
-                }
-            });
-
-            const videos = root.querySelectorAll('video');
-            videos.forEach(video => {
-                const isCritical =
-                    !!video.closest('.product-hero') ||
-                    !!video.closest('.lightbox-overlay');
-
-                video.setAttribute('playsinline', '');
-
-                if (!isCritical) {
-                    video.setAttribute('preload', 'none');
-                    video.dataset.lazyVideo = '1';
-                    try { video.pause(); } catch(e) {}
-                    getLazyVideoObserver().observe(video);
-                } else if (!video.hasAttribute('preload')) {
-                    video.setAttribute('preload', 'metadata');
-                }
-            });
-        }
-
-        function appendProductNodesChunked(container, products, { chunkSize = 8, customImageStyle = 'aspect-ratio: 1 / 1; border-radius: var(--radius-md);', aboveFoldCount = 0 } = {}) {
-            return new Promise((resolve) => {
-                let index = 0;
-
-                function pump() {
-                    const frag = document.createDocumentFragment();
-                    const end = Math.min(index + chunkSize, products.length);
-
-                    for (; index < end; index++) {
-                        frag.appendChild(htmlToNode(getProductCardHTML(products[index], customImageStyle, index < aboveFoldCount)));
-                    }
-
-                    container.appendChild(frag);
-
-                    if (index < products.length) {
-                        requestAnimationFrame(pump);
-                    } else {
-                        optimizeRenderedMedia(container);
-                        resolve();
-                    }
-                }
-
-                requestAnimationFrame(pump);
-            });
-        }
-
 
         function triggerHaptic(type) {
             if (!window.navigator || !navigator.vibrate) return;
@@ -2250,7 +2023,7 @@ allowTransactions: row.accepting_payments !== false,
         reviewsTitle: row.reviews_title || 'Customer Reviews',
         showReviewsSection: row.show_reviews_section !== false,
 
-        bannerConfig: safeParseJSON(row.banner_config, { taget: 'all', imageUrl: '' }),
+        bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' }),
         reviewsAutoScroll: row.reviews_auto_scroll !== false,
         reviewsScrollDirection: row.reviews_scroll_direction || 'left',
         homeSectionsConfig: safeParseJSON(row.home_sections_config, [
@@ -2673,76 +2446,43 @@ if (domCache[cacheKey]) {
             }
         });
 
-        // OPTIMIZED REAL-TIME FETCHING
-        let realtimeChannel = null;
-        const pendingRealtimeTables = new Set();
-
-        const flushRealtimeUpdates = debounce(async () => {
-            const tables = Array.from(pendingRealtimeTables);
-            pendingRealtimeTables.clear();
-
-            if (tables.includes('settings')) {
-                const s = await getSettings(true);
-                if (s) {
-                    appData.settings = s;
-                    applyGlobalSettings();
-                }
-            }
-
-            if (tables.includes('categories')) {
-                const c = await getCategories(true);
-                if (c) {
-                    appData.categories = c;
-                    generateMenuLinks();
-                    renderMenu();
-                }
-            }
-
-            if (tables.includes('products')) {
-                const p = await getProducts(true);
-                if (p) appData.products = p;
-            }
-
-            if (tables.includes('coupons')) {
-                const cpn = await getCoupons(true);
-                if (cpn) appData.coupons = cpn;
-            }
-
-            if (tables.includes('reviews')) {
-                const r = await getReviews(true);
-                if (r) appData.reviews = r;
-            }
-
-            if (tables.includes('orders')) {
-                await syncLocalOrdersWithSupabase();
-            }
-
-            const currentView = history.state ? history.state.view : 'home';
-
-            if (tables.includes('orders') && currentView === 'orders') {
-                renderOrders();
-                return;
-            }
-
-            if (tables.includes('products')) {
-                if (currentView === 'home') renderHome(true);
-                else if (currentView === 'category') renderCategory(history.state?.id || 'all');
-                else if (currentView === 'product') renderProduct(history.state?.id);
-            }
-        }, 500);
-
-        function attachRealtimeListener() {
-            if (realtimeChannel) return;
-
-            realtimeChannel = db.channel('public-changes')
-                .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-                    if (!payload || !payload.table) return;
-                    pendingRealtimeTables.add(payload.table);
-                    flushRealtimeUpdates();
-                })
-                .subscribe();
-        }
-
+// OPTIMIZED REAL-TIME FETCHING
+        db.channel('public-changes')
+          .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+              const table = payload.table;
+              
+              if (table === 'settings') {
+                  getSettings(true).then(s => { appData.settings = s; applyGlobalSettings(); });
+              }
+              else if (table === 'categories') {
+                  getCategories(true).then(c => { appData.categories = c; generateMenuLinks(); renderMenu(); });
+              }
+              else if (table === 'products') {
+                  getProducts(true).then(p => { 
+                      appData.products = p; 
+                      const currentView = history.state ? history.state.view : 'home';
+                      
+                      // FIX: Added 'true' to preserve scroll position when real-time update happens!
+                      if (currentView === 'home' || currentView === 'category') {
+                          renderHome(true); 
+                      }
+                  });
+              }
+              else if (table === 'coupons') {
+                  getCoupons(true).then(c => { appData.coupons = c; });
+              }
+              else if (table === 'reviews') {
+                  getReviews(true).then(r => { appData.reviews = r; });
+              }
+              else if (table === 'orders') {
+                  // If an order status changes in Supabase, sync immediately
+                  syncLocalOrdersWithSupabase().then(() => {
+                      if (history.state && history.state.view === 'orders') {
+                          renderOrders(); // Re-render if they are currently viewing the Orders page
+                      }
+                  });
+              }
+          }).subscribe();
 
         function applyGlobalSettings() {
     const navBar = document.querySelector('.nav-bar');
@@ -2870,19 +2610,14 @@ if (appData.settings.instagramUrl) {
 }
 
         
-// --- APP INITIALIZATION ---
+        // --- APP INITIALIZATION ---
+        // --- APP INITIALIZATION ---
         async function initApp() {
             // 1. Instantly render the Skeleton UI so the screen isn't blank
             mainContent.innerHTML = getSkeletonHTML(true);
             window.scrollTo(0, 0);
 
             try {
-                // ---> ADD THESE 3 LINES HERE <---
-                // Initialize the database connection first!
-                await initSupabaseClient(); 
-                attachAuthListeners();
-                attachRealtimeListener();
-
                 // 2. Fetch data in parallel
                 const [settings, categories, products, coupons, reviews] = await Promise.all([
                     getSettings(), getCategories(), getProducts(), getCoupons(), getReviews()
@@ -2893,6 +2628,7 @@ if (appData.settings.instagramUrl) {
                 appData.products = products;
                 appData.coupons = coupons;
                 appData.reviews = reviews;
+
                 generateMenuLinks();
                 applyGlobalSettings();
                 updateBadges();
@@ -3013,13 +2749,12 @@ if (appData.settings.instagramUrl) {
             currentSubCategories = [];
             
 // Reset filters visually without re-triggering the fetch
-if (!isRestoring) {
-    currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
-    filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
-    updateFilterUI();
-    window.scrollTo(0, 0); // <-- ADD THIS LINE
-    mainContent.innerHTML = getSkeletonHTML(false);
-}
+            if (!isRestoring) {
+                currentFilters = { inStock: false, outOfStock: false, minPrice: null, maxPrice: null, sortBy: 'featured' };
+                filterAggregates = { inStock: 0, outOfStock: 0, maxPrice: 0 };
+                updateFilterUI();
+                mainContent.innerHTML = getSkeletonHTML(false);
+            }
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams, isRestoring);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
@@ -3154,7 +2889,7 @@ if (!isRestoring) {
     return `<svg class="${className}" viewBox="0 0 24 24" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
 }
 
-                function getProductCardHTML(prod, customImageStyle = 'aspect-ratio: 1 / 1; border-radius: var(--radius-md);', isAboveFold = false) {
+        function getProductCardHTML(prod, customImageStyle = 'aspect-ratio: 1 / 1; border-radius: var(--radius-md);') {
             let displayMediaStr = "";
             if (prod.variants && prod.variants.length > 0 && prod.variants[0].media && prod.variants[0].media.length > 0) {
                 displayMediaStr = prod.variants[0].media[0];
@@ -3165,48 +2900,57 @@ if (!isRestoring) {
             const isVideo = displayMediaStr && typeof displayMediaStr === 'string' && displayMediaStr.toLowerCase().endsWith('.mp4');
             let mediaContent = `<div class="img-placeholder">${imageSvg}</div>`;
             
+            // Added decoding="async" for performance
             if (displayMediaStr) {
                 if (isVideo) {
-                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline preload="${isAboveFold ? 'metadata' : 'none'}" ${isAboveFold ? '' : 'data-lazy-video="1"'} style="width:100%; height:100%; object-fit:cover;"></video>`;
+                    mediaContent = `<video src="${displayMediaStr}" autoplay loop muted playsinline decoding="async"></video>`;
                 } else {
-                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}" loading="${isAboveFold ? 'eager' : 'lazy'}" ${isAboveFold ? 'fetchpriority="high"' : ''} decoding="async">`;
+                    mediaContent = `<img src="${displayMediaStr}" alt="${prod.name}" decoding="async">`;
                 }
             }
 
+            // 1. "Sold Out" Logic (Total Inventory Check)
             let isSoldOut = false;
             if (prod.variant_stock && Object.keys(prod.variant_stock).length > 0) {
                 let allVariantsSoldOut = true;
                 for (let key in prod.variant_stock) {
                     const stockVal = prod.variant_stock[key];
+                    // Treat null, undefined, or empty string as infinite stock. Also check if > 0.
                     if (stockVal === null || stockVal === undefined || stockVal === "" || Number(stockVal) > 0) {
                         allVariantsSoldOut = false;
-                        break;
+                        break; // Found available stock, no need to keep looping
                     }
                 }
                 isSoldOut = allVariantsSoldOut;
             } else if (prod.stock !== null && prod.stock <= 0) {
+                // Fallback to simple stock if no variant stock object exists
                 isSoldOut = true;
             }
 
+            // 2. Determine if the product has any variants
             const hasVariants = (prod.variants && prod.variants.length > 0) || 
                                 (prod.sizes && prod.sizes.length > 0) || 
                                 (prod.isAlphabet === true);
 
+            // 3. Generate the appropriate action button HTML
             let actionButtonHtml = '';
             
             if (isSoldOut) {
+                // Completely Out of Stock
                 actionButtonHtml = `
                     <button class="btn-secondary btn-disabled" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation();">
                         <span class="btn-text">Sold Out</span>
                     </button>
                 `;
             } else if (hasVariants) {
+                // In Stock WITH variants -> Route to Product Details Page
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="event.stopPropagation(); renderProduct('${prod.id}');">
                         <span class="btn-text">VIEW</span>
                     </button>
                 `;
-            } else {
+} else {
+                // In Stock, Simple Product -> Quick Add to Cart
                 actionButtonHtml = `
                     <button class="btn-secondary" style="margin-top: 12px; padding: 8px 10px; font-size: 13px;" onclick="quickAddToCart(event, this, '${prod.id}')">
                         <span class="btn-text">Add to Cart</span>
@@ -3214,11 +2958,13 @@ if (!isRestoring) {
                 `;
             }
 
+            // --- NEW BADGE CODE START ---
             let cardBadgeHtml = '';
             if (prod.show_purchase_count) {
                 cardBadgeHtml = `<div class="card-badge-${prod.id} card-purchase-badge" style="display: none;"></div>`;
-                setTimeout(() => fetchCardPurchaseCount(prod.id), 50);
+                setTimeout(() => fetchCardPurchaseCount(prod.id), 50); // Background mein data layega
             }
+            // --- NEW BADGE CODE END ---
 
             return `
                 <div class="product-card" onclick="renderProduct('${prod.id}')" style="height: 100%;">
@@ -3236,7 +2982,6 @@ if (!isRestoring) {
                 </div>
             `;
         }
-
 
         // --- VIEWS ---
         function renderHome(preserveScroll = false) {
@@ -3458,10 +3203,9 @@ if (appData.settings.showReviewsSection && appData.reviews && appData.reviews.le
             currentSubCategories = subCategories;
             
 // Show loading state if there are no subcategories to show first
-if (subCategories.length === 0 && !isRestoring) {
-    window.scrollTo(0, 0); // <-- ADD THIS LINE
-    mainContent.innerHTML = getSkeletonHTML(false);
-}
+            if (subCategories.length === 0 && !isRestoring) {
+                mainContent.innerHTML = getSkeletonHTML(false);
+            }
 
 // Reset filters visually without re-triggering the fetch
             if (!isRestoring) {
@@ -3525,10 +3269,11 @@ if (subCategories.length === 0 && !isRestoring) {
     }
 }
 
-                function renderProductList(title, products, subCats = [], totalCount = 0, savedScroll = 0) {
+        function renderProductList(title, products, subCats = [], totalCount = 0, savedScroll = 0) {
             let html = ``;
 
             if (subCats && subCats.length > 0) {
+                // Fetch dynamic layout rules from settings
                 const layoutConfig = appData.settings.subcatLayoutConfig || { layout: 'Vertical Grid', aspectRatio: '1:1 (Square)' };
                 
                 const isGrid = layoutConfig.layout === 'Vertical Grid';
@@ -3543,7 +3288,7 @@ if (subCategories.length === 0 && !isRestoring) {
                 } else if (layoutConfig.aspectRatio === 'Circle') {
                     imgBoxStyle = 'aspect-ratio: 1/1; border-radius: 50%;';
                 } else {
-                    imgBoxStyle = 'aspect-ratio: 1/1; border-radius: var(--radius-lg);';
+                    imgBoxStyle = 'aspect-ratio: 1/1; border-radius: var(--radius-lg);'; // 1:1 Default
                 }
 
                 html += `
@@ -3556,8 +3301,8 @@ if (subCategories.length === 0 && !isRestoring) {
                     const isVideo = cat.img && typeof cat.img === 'string' && cat.img.toLowerCase().endsWith('.mp4');
                     const imgContent = cat.img 
                         ? (isVideo 
-                            ? `<video src="${cat.img}" autoplay loop muted playsinline preload="none" data-lazy-video="1" style="width:100%; height:100%; object-fit:cover;"></video>` 
-                            : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" loading="lazy" decoding="async">`) 
+                            ? `<video src="${cat.img}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>` 
+                            : `<img src="${cat.img}" style="width:100%; height:100%; object-fit:cover;" decoding="async">`) 
                         : `<div class="img-placeholder">${imageSvg}</div>`;
                     
                     html += `
@@ -3571,15 +3316,14 @@ if (subCategories.length === 0 && !isRestoring) {
                 html += `</div>`;
                 
                 requestAnimationFrame(() => {
-                    renderHTML(mainContent, html);
-                    optimizeRenderedMedia(mainContent);
+                    mainContent.innerHTML = html;
                     if (savedScroll > 0) window.scrollTo(0, savedScroll);
                     else window.scrollTo(0, 0);
                 });
                 return; 
             }
 
-            if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
+if (title && title !== "Explore Collections" && title !== "Your Wishlist") {
                 const gridActive = currentProductView === 'grid' ? 'active' : '';
                 const listActive = currentProductView === 'list' ? 'active' : '';
                 
@@ -3604,38 +3348,29 @@ if (subCategories.length === 0 && !isRestoring) {
             }
 
             const viewClass = currentProductView === 'list' ? 'list-view' : '';
-            html += `<div class="grid-container ${viewClass}" id="dynamic-product-grid"></div>`;
+            html += `<div class="grid-container ${viewClass}" id="dynamic-product-grid">`;
+            if(products.length === 0) html += `<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>`;
+            else products.forEach(prod => html += getProductCardHTML(prod));
+            html += `</div>`;
             
+            // Add the anchor for the intersection observer
             if (products.length >= ITEMS_PER_PAGE && title !== "Your Wishlist") {
                 html += `<div id="infinite-scroll-anchor" style="width: 100%; height: 50px; padding: 20px 0;"></div>`;
             }
             
             requestAnimationFrame(() => {
-                renderHTML(mainContent, html);
-
+                mainContent.innerHTML = html;
                 
+                if (savedScroll > 0) window.scrollTo(0, savedScroll);
+                else window.scrollTo(0, 0);
+                
+                // Attach observer
+                const anchor = document.getElementById('infinite-scroll-anchor');
+                if (anchor) scrollObserver.observe(anchor);
+            });
+        }
 
-
-const grid = document.getElementById('dynamic-product-grid');
-                    if (!grid) return;
-
-                    if (products.length === 0) {
-                        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><p>No products found.</p></div>';
-                    } else {
-                        // Append products chunk by chunk to avoid freezing the UI
-                        appendProductNodesChunked(grid, products);
-                    }
-
-                    // Attach intersection observer to the new anchor for infinite scroll
-                    const anchor = document.getElementById('infinite-scroll-anchor');
-                    if (anchor) {
-                        scrollObserver.observe(anchor);
-                    }
-                });
-            }
-
-        // --- UPDATE STOCK UI ---
-        function updateStockUI(prod) {
+function updateStockUI(prod) {
     let currentVariant = prod.variants && prod.variants.length > 0 ? prod.variants[selectedProductVariantIndex].name : "Default";
     let stockKey = currentVariant;
     if (selectedProductSize) stockKey += `_${selectedProductSize}`;
@@ -5718,11 +5453,10 @@ function triggerFilterApply() {
 }
 
 async function applyFiltersAndSort() {
-    // Server-Side Request Setup for Filters
-    currentPage = 0;
-    
-    window.scrollTo(0, 0); // <-- ADD THIS LINE
-    mainContent.innerHTML = getSkeletonHTML(false);
+            // Server-Side Request Setup for Filters
+            currentPage = 0;
+            
+            mainContent.innerHTML = getSkeletonHTML(false);
             
             const { data, count } = await fetchServerProducts(currentPage, currentFetchParams);
             hasMoreProducts = data.length >= ITEMS_PER_PAGE;
