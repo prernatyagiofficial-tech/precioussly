@@ -4951,12 +4951,28 @@ window.initBulkSmartEditor = function() {
     });
     
     document.getElementById('bulkSmartCatFilter').innerHTML = opts;
-    document.getElementById('bulkSmartContainer').innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
+
+    // --- FIX: Check browser memory for a saved category ---
+    const savedCat = localStorage.getItem('savedBulkSmartCat');
+    if (savedCat) {
+        document.getElementById('bulkSmartCatFilter').value = savedCat;
+        // Automatically fetch and render the products for this category
+        setTimeout(() => renderBulkSmartProducts(), 50); 
+    } else {
+        document.getElementById('bulkSmartContainer').innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
+    }
 };
 
 window.renderBulkSmartProducts = async function() {
     const catId = document.getElementById('bulkSmartCatFilter').value;
     const container = document.getElementById('bulkSmartContainer');
+    
+    // --- FIX: Save the selected category to browser memory ---
+    if (catId) {
+        localStorage.setItem('savedBulkSmartCat', catId);
+    } else {
+        localStorage.removeItem('savedBulkSmartCat'); // Clear memory if they select the empty default
+    }
     
     if (!catId) {
         container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
