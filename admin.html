@@ -5643,7 +5643,6 @@ window.executeAiNameWriter = async function() {
     let successCount = 0;
     let failCount = 0;
 
-    // Get the FRESH Live Logged-in Session Token (JWT)
     const { data: { session } } = await db.auth.getSession();
     const authToken = session?.access_token || SUPABASE_KEY;
 
@@ -5656,106 +5655,66 @@ window.executeAiNameWriter = async function() {
         const nameDispEl = document.getElementById(`ai-name-disp-${prodId}`);
         if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning);">Generating...</span>`;
 
-        // TEMPORARY FIX: Automatic Retry Logic
-        let maxRetries = 2;
-        let attempt = 0;
-        let isProcessed = false;
-
-        while (attempt <= maxRetries && !isProcessed) {
-            try {
-                if (!product || !product.media || product.media.length === 0) {
-                    throw new Error("No image found for this product.");
-                }
-
-                let imageUrl = product.media[0];
-                if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-                    imageUrl = 'https://' + imageUrl;
-                }
-
-                // Call the Edge Function
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-name`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}` 
-                    },
-                    body: JSON.stringify({ imageUrl, prompt: promptText })
-                });
-
-                let data;
-                try {
-                    data = await response.json();
-                } catch(e) {
-                    throw new Error("Server returned a non-JSON response.");
-                }
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Unknown Edge Function Error");
-                }
-                
-                if (!data || !data.name) throw new Error("No name returned from AI.");
-
-                const generatedName = data.name;
-
-                // Update database
-                const { error: dbError } = await db.from('products').update({ name: generatedName }).eq('id', prodId);
-                if (dbError) throw dbError;
-
-                // Update local temp state
-                product.name = generatedName;
-                const stateProd = State.products.find(p => p.id === prodId);
-                if(stateProd) stateProd.name = generatedName;
-                
-                // Update UI
-                if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">${escapeHTML(generatedName)}</span>`;
-                successCount++;
-                isProcessed = true; // Loop break karega
-
-            } catch (err) {
-                const errMsg = err.message || "";
-                // Agar Quota limit ka error hai, toh retry karo
-                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
-                    attempt++;
-                    if (attempt <= maxRetries) {
-                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 5 mins... (Retry ${attempt})</span>`;
-                        
-                        // SMART TRICK: If limit hit, wait 5 minutes (300 seconds) with mm:ss countdown
-                        for(let w = 300; w > 0; w--) {
-                            let mins = Math.floor(w / 60);
-                            let secs = w % 60;
-                            let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                            progressEl.innerText = `Rate limit hit. Cooling down API (${timeDisplay} left)...`;
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
-                    } else {
-                        // Retries khatam, error throw karo
-                        console.error(`Error on product ${prodId}:`, err);
-                        const safeName = product ? escapeHTML(product.name) : 'Product';
-                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">${safeName} (Failed: API Limit)</span>`;
-                        failCount++;
-                        break;
-                    }
-                } else {
-                    // Koi aur error hai (jaise image not found), toh fail kar do bina retry ke
-                    console.error(`Error on product ${prodId}:`, err);
-                    const safeName = product ? escapeHTML(product.name) : 'Product';
-                    if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">${safeName} (Failed: ${escapeHTML(err.message)})</span>`;
-                    failCount++;
-                    break;
-                }
+        try {
+            if (!product || !product.media || product.media.length === 0) {
+                throw new Error("No image found for this product.");
             }
+
+            let imageUrl = product.media[0];
+            if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                imageUrl = 'https://' + imageUrl;
+            }
+
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-name`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}` 
+                },
+                body: JSON.stringify({ imageUrl, prompt: promptText })
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch(e) {
+                throw new Error("Server returned a non-JSON response.");
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || "Unknown Edge Function Error");
+            }
+            
+            if (!data || !data.name) throw new Error("No name returned from AI.");
+
+            const generatedName = data.name;
+
+            const { error: dbError } = await db.from('products').update({ name: generatedName }).eq('id', prodId);
+            if (dbError) throw dbError;
+
+            product.name = generatedName;
+            const stateProd = State.products.find(p => p.id === prodId);
+            if(stateProd) stateProd.name = generatedName;
+            
+            if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">${escapeHTML(generatedName)}</span>`;
+            successCount++;
+
+        } catch (err) {
+            console.error(`Error on product ${prodId}:`, err);
+            const safeName = product ? escapeHTML(product.name) : 'Product';
+            if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">${safeName} (Failed: ${escapeHTML(err.message)})</span>`;
+            failCount++;
         }
 
-        // SMART TRICK: Wait 300 seconds (5 minutes) between requests to avoid limits completely
+        // Clean 75-second wait (1 minute 15 seconds)
         if (i < checkedBoxes.length - 1) {
-            let waitSeconds = 300; // 5 minutes break
+            let waitSeconds = 75; 
             
-            // Yeh loop har second UI update karega taaki aapko freeze feel na ho
             for(let w = waitSeconds; w > 0; w--) {
                 let mins = Math.floor(w / 60);
                 let secs = w % 60;
                 let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                progressEl.innerText = `Waiting for safe limit (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                progressEl.innerText = `Waiting (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
@@ -5777,7 +5736,6 @@ window.executeAiNameWriter = async function() {
 
     await loadProducts(prodCurrentPage); 
 };
-
 
 // --- BULK AI DESCRIPTION WRITER LOGIC ---
 
@@ -5895,98 +5853,65 @@ window.executeAiDescWriter = async function() {
         const descDispEl = document.getElementById(`ai-desc-disp-${prodId}`);
         if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning);">Generating...</span>`;
 
-        let maxRetries = 2;
-        let attempt = 0;
-        let isProcessed = false;
-
-        while (attempt <= maxRetries && !isProcessed) {
-            try {
-                if (!product || !product.media || product.media.length === 0) {
-                    throw new Error("No image found for this product.");
-                }
-
-                let imageUrl = product.media[0];
-                if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-                    imageUrl = 'https://' + imageUrl;
-                }
-
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-desc`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}` 
-                    },
-                    body: JSON.stringify({ imageUrl, prompt: promptText })
-                });
-
-                let data;
-                try {
-                    data = await response.json();
-                } catch(e) {
-                    throw new Error("Server returned a non-JSON response.");
-                }
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Unknown Edge Function Error");
-                }
-                
-                if (!data || !data.description) throw new Error("No description returned from AI.");
-
-                const generatedDesc = data.description;
-
-                // Update database
-                const { error: dbError } = await db.from('products').update({ description: generatedDesc }).eq('id', prodId);
-                if (dbError) throw dbError;
-
-                // Update local temp state
-                product.description = generatedDesc;
-                const stateProd = State.products.find(p => p.id === prodId);
-                if(stateProd) stateProd.description = generatedDesc;
-                
-                // Update UI
-                if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">Description Updated!</span>`;
-                successCount++;
-                isProcessed = true; 
-
-            } catch (err) {
-                const errMsg = err.message || "";
-                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
-                    attempt++;
-                    if (attempt <= maxRetries) {
-                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 5 mins... (Retry ${attempt})</span>`;
-                        
-                        // SMART TRICK: If limit hit, wait 5 minutes (300 seconds) with mm:ss countdown
-                        for(let w = 300; w > 0; w--) {
-                            let mins = Math.floor(w / 60);
-                            let secs = w % 60;
-                            let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                            progressEl.innerText = `Rate limit hit. Cooling down API (${timeDisplay} left)...`;
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
-                    } else {
-                        console.error(`Error on product ${prodId}:`, err);
-                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: API Limit</span>`;
-                        failCount++;
-                        break;
-                    }
-                } else {
-                    console.error(`Error on product ${prodId}:`, err);
-                    if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: ${escapeHTML(err.message)}</span>`;
-                    failCount++;
-                    break;
-                }
+        try {
+            if (!product || !product.media || product.media.length === 0) {
+                throw new Error("No image found for this product.");
             }
+
+            let imageUrl = product.media[0];
+            if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                imageUrl = 'https://' + imageUrl;
+            }
+
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-desc`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}` 
+                },
+                body: JSON.stringify({ imageUrl, prompt: promptText })
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch(e) {
+                throw new Error("Server returned a non-JSON response.");
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || "Unknown Edge Function Error");
+            }
+            
+            if (!data || !data.description) throw new Error("No description returned from AI.");
+
+            const generatedDesc = data.description;
+
+            const { error: dbError } = await db.from('products').update({ description: generatedDesc }).eq('id', prodId);
+            if (dbError) throw dbError;
+
+            product.description = generatedDesc;
+            const stateProd = State.products.find(p => p.id === prodId);
+            if(stateProd) stateProd.description = generatedDesc;
+            
+            if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">Description Updated!</span>`;
+            successCount++;
+
+        } catch (err) {
+            console.error(`Error on product ${prodId}:`, err);
+            if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: ${escapeHTML(err.message)}</span>`;
+            failCount++;
         }
 
-        // SMART TRICK: Wait 300 seconds (5 minutes) between requests to avoid limits completely
+        // Clean 75-second wait (1 minute 15 seconds)
         if (i < checkedBoxes.length - 1) {
-            let waitSeconds = 300; // 5 minutes break
+            let waitSeconds = 75; 
             
             for(let w = waitSeconds; w > 0; w--) {
                 let mins = Math.floor(w / 60);
                 let secs = w % 60;
                 let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                progressEl.innerText = `Waiting for safe limit (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                progressEl.innerText = `Waiting (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
