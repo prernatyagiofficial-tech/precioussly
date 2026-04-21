@@ -1292,6 +1292,7 @@
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-cost-price'; openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
 <button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-smart'; initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); initBulkAiNameWriter();" style="border-color: #8b5cf6; color: #8b5cf6; margin-bottom: 12px; font-weight: 600; font-family: 'Roboto Slab', serif;">🤖 Bulk AI Name Writer</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); initBulkAiDescWriter();" style="border-color: #10b981; color: #10b981; margin-bottom: 12px; font-weight: 600; font-family: 'Roboto Slab', serif;">🤖 Bulk AI Description Writer</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-visibility'; openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-monthly-count'; openModal('bulkMonthlyCountModal');">Bulk Toggle Monthly Count</button>
 
@@ -5710,7 +5711,7 @@ window.executeAiNameWriter = async function() {
             } catch (err) {
                 const errMsg = err.message || "";
                 // Agar Quota limit ka error hai, toh retry karo
-                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
                     attempt++;
                     if (attempt <= maxRetries) {
                         if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 10s... (Retry ${attempt})</span>`;
@@ -5752,6 +5753,224 @@ window.executeAiNameWriter = async function() {
         const prodId = Number(cb.value);
         const nameDispEl = document.getElementById(`ai-name-disp-${prodId}`);
         if(nameDispEl && nameDispEl.innerText.indexOf('(Failed)') === -1) {
+            cb.checked = false;
+        }
+    });
+
+    await loadProducts(prodCurrentPage); 
+};
+
+
+
+// --- BULK AI DESCRIPTION WRITER LOGIC ---
+
+window.aiTempDescProducts = []; 
+
+window.initBulkAiDescWriter = function() {
+    window.aiTempDescProducts = []; // Reset on init
+
+    let opts = '<option value="">Select Category...</option>';
+    const mainCats = State.categories.filter(c => !c.parent_id);
+    mainCats.forEach(main => {
+        opts += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+        const subCats = State.categories.filter(c => c.parent_id === main.id);
+        subCats.forEach(sub => {
+            opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+        });
+    });
+
+    document.getElementById('aiTargetCatDesc').innerHTML = opts;
+    document.getElementById('aiProductListDesc').innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>`;
+    document.getElementById('aiProgressTextDesc').innerText = "Waiting to start...";
+    document.getElementById('btnStartAiDesc').disabled = false;
+    document.getElementById('aiSelectAllDesc').checked = false;
+    
+    openModal('bulkAiDescModal');
+};
+
+window.loadAiProductsForCategoryDesc = async function() {
+    const catId = document.getElementById('aiTargetCatDesc').value;
+    const container = document.getElementById('aiProductListDesc');
+    
+    if (!catId) {
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>`;
+        return;
+    }
+
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px; font-weight: 600;">Loading Products...</div>`;
+
+    try {
+        const { data: catProducts, error } = await db.from('products')
+            .select('*')
+            .eq('cat_id', catId)
+            .order('sort_order', { ascending: true })
+            .order('id', { ascending: false });
+
+        if (error) throw error;
+
+        window.aiTempDescProducts = catProducts || [];
+
+        if (window.aiTempDescProducts.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">No products found in this category.</div>`;
+            return;
+        }
+
+        let html = '';
+        window.aiTempDescProducts.forEach(p => {
+            const imgSrc = (p.media && p.media.length > 0) ? p.media[0] : '';
+            const isVideo = imgSrc && typeof imgSrc === 'string' && imgSrc.toLowerCase().endsWith('.mp4');
+            let mediaTag = `<div style="width: 40px; height: 40px; background: #eee; border: 1px solid #ccc; border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size:8px;">No Pic</div>`;
+            
+            if (imgSrc) {
+                if (isVideo) {
+                    mediaTag = `<video src="${escapeHTML(imgSrc)}" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;" muted></video>`;
+                } else {
+                    mediaTag = `<img src="${escapeHTML(imgSrc)}" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">`;
+                }
+            }
+
+            // Uncheck default since description rewrites are more destructive than naming empty items
+            html += `
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #e2e8f0; background: #fff; margin-bottom: 4px; border-radius: 4px;">
+                <input type="checkbox" class="ai-prod-cb-desc" value="${p.id}" style="width: 16px; height: 16px; margin: 0;">
+                ${mediaTag}
+                <div style="flex: 1; font-size: 13px; font-weight: 500; word-break: break-word; font-family: 'Roboto Slab', serif;" id="ai-desc-disp-${p.id}">
+                    ${escapeHTML(p.name)} <br><span style="font-size: 10px; color: #666; font-weight: 400;">${p.description ? escapeHTML(p.description).substring(0, 40) + '...' : 'No existing description'}</span>
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+        document.getElementById('aiSelectAllDesc').checked = false; 
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); font-size: 12px; padding: 20px;">Error loading products: ${err.message}</div>`;
+    }
+};
+
+window.toggleAllAiDescProducts = function(masterCb) {
+    document.querySelectorAll('.ai-prod-cb-desc').forEach(cb => cb.checked = masterCb.checked);
+};
+
+window.executeAiDescWriter = async function() {
+    const checkedBoxes = Array.from(document.querySelectorAll('.ai-prod-cb-desc:checked'));
+    if (checkedBoxes.length === 0) return alert("Please select at least one product to process.");
+    
+    const promptText = document.getElementById('aiPromptTextDesc').value.trim();
+    if (!promptText) return alert("Prompt cannot be empty.");
+
+    const btn = document.getElementById('btnStartAiDesc');
+    const progressEl = document.getElementById('aiProgressTextDesc');
+    
+    btn.disabled = true;
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    const { data: { session } } = await db.auth.getSession();
+    const authToken = session?.access_token || SUPABASE_KEY;
+
+    for (let i = 0; i < checkedBoxes.length; i++) {
+        const prodId = Number(checkedBoxes[i].value);
+        const product = window.aiTempDescProducts.find(p => p.id === prodId);
+        
+        progressEl.innerText = `Processing ${i + 1} of ${checkedBoxes.length}...`;
+        
+        const descDispEl = document.getElementById(`ai-desc-disp-${prodId}`);
+        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning);">Generating...</span>`;
+
+        let maxRetries = 2;
+        let attempt = 0;
+        let isProcessed = false;
+
+        while (attempt <= maxRetries && !isProcessed) {
+            try {
+                if (!product || !product.media || product.media.length === 0) {
+                    throw new Error("No image found for this product.");
+                }
+
+                let imageUrl = product.media[0];
+                if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                    imageUrl = 'https://' + imageUrl;
+                }
+
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-desc`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}` 
+                    },
+                    body: JSON.stringify({ imageUrl, prompt: promptText })
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch(e) {
+                    throw new Error("Server returned a non-JSON response.");
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Unknown Edge Function Error");
+                }
+                
+                if (!data || !data.description) throw new Error("No description returned from AI.");
+
+                const generatedDesc = data.description;
+
+                // Update database
+                const { error: dbError } = await db.from('products').update({ description: generatedDesc }).eq('id', prodId);
+                if (dbError) throw dbError;
+
+                // Update local temp state
+                product.description = generatedDesc;
+                const stateProd = State.products.find(p => p.id === prodId);
+                if(stateProd) stateProd.description = generatedDesc;
+                
+                // Update UI
+                if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">Description Updated!</span>`;
+                successCount++;
+                isProcessed = true; 
+
+            } catch (err) {
+                const errMsg = err.message || "";
+                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+                    attempt++;
+                    if (attempt <= maxRetries) {
+                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 10s... (Retry ${attempt})</span>`;
+                        progressEl.innerText = `Cooling down API (10s)...`;
+                        await new Promise(r => setTimeout(r, 10000)); 
+                    } else {
+                        console.error(`Error on product ${prodId}:`, err);
+                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: API Limit</span>`;
+                        failCount++;
+                        break;
+                    }
+                } else {
+                    console.error(`Error on product ${prodId}:`, err);
+                    if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: ${escapeHTML(err.message)}</span>`;
+                    failCount++;
+                    break;
+                }
+            }
+        }
+
+        // Wait 6 seconds between requests to respect API limits
+        if (i < checkedBoxes.length - 1) {
+            progressEl.innerText = `Waiting for API rate limit (6s)... (${i + 1}/${checkedBoxes.length})`;
+            await new Promise(r => setTimeout(r, 6000));
+        }
+    }
+
+    progressEl.innerText = `Finished! ${successCount} successful, ${failCount} failed.`;
+    showToast(`AI Description Complete. Processed: ${successCount}`, 'success');
+    
+    btn.disabled = false;
+    document.getElementById('aiSelectAllDesc').checked = false;
+    
+    checkedBoxes.forEach(cb => {
+        const prodId = Number(cb.value);
+        const descDispEl = document.getElementById(`ai-desc-disp-${prodId}`);
+        if(descDispEl && descDispEl.innerText.indexOf('Failed') === -1) {
             cb.checked = false;
         }
     });
@@ -5802,6 +6021,53 @@ window.executeAiNameWriter = async function() {
         </div>
     </div>
 </div>
+
+
+
+<div id="bulkAiDescModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+            <h3 style="margin: 0; border: none; padding: 0; font-family: 'Roboto Slab', serif;">🤖 Bulk AI Description Writer</h3>
+            <button class="outline" style="width: auto; padding: 2px 8px; margin: 0;" onclick="closeModal('bulkAiDescModal')">X</button>
+        </div>
+        
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>1. Select Target Category</label>
+                <select id="aiTargetCatDesc" onchange="loadAiProductsForCategoryDesc()" style="font-family: 'Roboto Slab', serif;">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            
+            <div class="form-group full-width">
+                <label>2. Customize AI Prompt</label>
+                <textarea id="aiPromptTextDesc" rows="4" style="font-family: 'Roboto Slab', serif;">Write a highly engaging, SEO-friendly product description for this item in 2-3 sentences based on the provided image. Highlight its premium quality and minimalist aesthetic.</textarea>
+            </div>
+
+            <div class="form-group full-width">
+                <label style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 8px; margin-bottom: 10px;">
+                    <span>3. Select Products</span>
+                    <label class="checkbox-label" style="margin: 0; font-size: 12px;">
+                        <input type="checkbox" id="aiSelectAllDesc" onchange="toggleAllAiDescProducts(this)"> Select All
+                    </label>
+                </label>
+                <div id="aiProductListDesc" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px; background: #f8fafc;">
+                    <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>
+                </div>
+            </div>
+
+            <div class="form-group full-width" style="text-align: center; margin-top: 10px;">
+                <div id="aiProgressTextDesc" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 12px;">Waiting to start...</div>
+                <button type="button" id="btnStartAiDesc" onclick="executeAiDescWriter()" style="font-family: 'Roboto Slab', serif;">START AI WRITING</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
     <div id="universal-lightbox" class="lightbox-overlay">
 
         <span class="lightbox-close">&times;</span>
