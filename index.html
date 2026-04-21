@@ -91,7 +91,25 @@ main {
             display: flex;
             flex-direction: column;
         }
-
+        
+/* Smart Header Additions */
+        header {
+            transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            transform: translateY(0);
+        }
+        .announcement {
+            transition: max-height 0.8s ease-in-out, padding 0.8s ease-in-out, opacity 0.8s ease-in-out;
+            max-height: 50px; 
+            opacity: 1;
+            overflow: hidden;
+        }
+        .announcement.hidden-smart {
+            max-height: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            opacity: 0 !important;
+            border: none !important;
+        }
         .nav-bar {
             display: flex;
             align-items: center;
@@ -2059,6 +2077,7 @@ allowTransactions: row.accepting_payments !== false,
         bannerConfig: safeParseJSON(row.banner_config, { target: 'all', imageUrl: '' }),
         reviewsAutoScroll: row.reviews_auto_scroll !== false,
         reviewsScrollDirection: row.reviews_scroll_direction || 'left',
+        smartHeaderActive: parseBool(row.smart_header_active),
         homeSectionsConfig: safeParseJSON(row.home_sections_config, [
             { id: 'collections', title: 'Explore Collections' },
             { id: 'bestsellers', title: 'Best Sellers' }
@@ -2603,11 +2622,78 @@ if (appData.settings.instagramUrl) {
             announcementBar.innerHTML = appData.settings.announcementText;
         }
         announcementBar.style.display = 'flex';
-    } else {
-        announcementBar.style.display = 'none';
+} else {
+            announcementBar.style.display = 'none';
+        }
+        
+        initSmartHeader();
     }
-}
 
+
+
+// --- SMART HEADER LOGIC ---
+let lastScrollY = window.scrollY;
+let headerScrollHandler = null;
+
+function initSmartHeader() {
+    const header = document.querySelector('header');
+    const announcementBar = document.getElementById('announcement-bar');
+
+    if (headerScrollHandler) {
+        window.removeEventListener('scroll', headerScrollHandler);
+        header.style.transform = 'translateY(0)';
+        if (announcementBar) {
+            announcementBar.style.transition = 'max-height 0.5s ease, padding 0.5s ease, opacity 0.5s ease';
+            announcementBar.classList.remove('hidden-smart');
+        }
+    }
+
+    if (!appData.settings.smartHeaderActive) return;
+
+    headerScrollHandler = () => {
+        const currentScrollY = window.scrollY;
+
+        // 1. Absolute top: Show everything smoothly
+        if (currentScrollY <= 10) {
+            header.style.transform = 'translateY(0)';
+            if (announcementBar) {
+                announcementBar.style.transition = 'max-height 0.5s ease, padding 0.5s ease, opacity 0.5s ease';
+                announcementBar.classList.remove('hidden-smart');
+            }
+            lastScrollY = currentScrollY;
+            return; 
+        }
+
+        // 2. Tolerance Check: Increased to 40px! 
+        // Halka sa touch ab ignore hoga, proper swipe par hi action hoga.
+        if (Math.abs(currentScrollY - lastScrollY) < 40) {
+            return;
+        }
+
+        // 3. Scroll Down & Up Logic
+        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+            // Scroll Down: Hide header
+            header.style.transform = 'translateY(-100%)';
+            
+            if (announcementBar) {
+                // Delay increased to 500ms to match the new smoother CSS transition
+                setTimeout(() => {
+                    if (header.style.transform === 'translateY(-100%)') {
+                        announcementBar.style.transition = 'none';
+                        announcementBar.classList.add('hidden-smart');
+                    }
+                }, 500); 
+            }
+        } else if (currentScrollY < lastScrollY) {
+            // Scroll Up: Slide down gracefully
+            header.style.transform = 'translateY(0)';
+        }
+
+        lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener('scroll', headerScrollHandler, { passive: true });
+}
 // --- AUTH LOGIC ---
         function renderLogin(isSignUp = false) {
             navigate({view: 'login'});
