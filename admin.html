@@ -1291,6 +1291,7 @@
             
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-update-cost-price'; openModal('bulkCostPriceModal');">Bulk Update Cost Price</button>
 <button style="background: #0f172a; color: #fff; border: 1px solid #000; margin-bottom: 12px; font-weight: 600;" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-smart'; initBulkSmartEditor();">⚡ Smart Bulk Editor</button>
+<button class="outline" onclick="closeModal('bulkChoiceModal'); initBulkAiNameWriter();" style="border-color: #8b5cf6; color: #8b5cf6; margin-bottom: 12px; font-weight: 600; font-family: 'Roboto Slab', serif;">🤖 Bulk AI Name Writer</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-visibility'; openModal('bulkVisibilityModal');">Bulk Hide/Unhide By Category</button>
 <button class="outline" onclick="closeModal('bulkChoiceModal'); window.location.hash='bulk-monthly-count'; openModal('bulkMonthlyCountModal');">Bulk Toggle Monthly Count</button>
 
@@ -5527,10 +5528,260 @@ window.sendWaConfirmation = function() {
                 btn.disabled = false;
             }
         };
+// --- BULK AI NAME WRITER LOGIC ---
+
+// NEW: Global variable to hold all fetched products for the AI tool
+window.aiTempProducts = []; 
+
+window.initBulkAiNameWriter = function() {
+    window.aiTempProducts = []; // Reset on init
+
+    // Populate dropdown hierarchically
+    let opts = '<option value="">Select Category...</option>';
+    const mainCats = State.categories.filter(c => !c.parent_id);
+    mainCats.forEach(main => {
+        opts += `<option value="${main.id}">${escapeHTML(main.name)}</option>`;
+        const subCats = State.categories.filter(c => c.parent_id === main.id);
+        subCats.forEach(sub => {
+            opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;↳ ${escapeHTML(sub.name)}</option>`;
+        });
+    });
+
+    document.getElementById('aiTargetCat').innerHTML = opts;
+    document.getElementById('aiProductList').innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>`;
+    document.getElementById('aiProgressText').innerText = "Waiting to start...";
+    document.getElementById('btnStartAi').disabled = false;
+    document.getElementById('aiSelectAll').checked = false;
+    
+    openModal('bulkAiNameModal');
+};
+
+// FIX: Make this async and fetch from Supabase directly instead of State.products
+window.loadAiProductsForCategory = async function() {
+    const catId = document.getElementById('aiTargetCat').value;
+    const container = document.getElementById('aiProductList');
+    
+    if (!catId) {
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>`;
+        return;
+    }
+
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px; font-weight: 600;">Loading Products...</div>`;
+
+    try {
+        // Fetch ALL products for this specific category from DB
+        const { data: catProducts, error } = await db.from('products')
+            .select('*')
+            .eq('cat_id', catId)
+            .order('sort_order', { ascending: true })
+            .order('id', { ascending: false });
+
+        if (error) throw error;
+
+        // Save them locally for the AI tool to use
+        window.aiTempProducts = catProducts || [];
+
+        if (window.aiTempProducts.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">No products found in this category.</div>`;
+            return;
+        }
+
+        let html = '';
+        window.aiTempProducts.forEach(p => {
+            const imgSrc = (p.media && p.media.length > 0) ? p.media[0] : '';
+            const isVideo = imgSrc && typeof imgSrc === 'string' && imgSrc.toLowerCase().endsWith('.mp4');
+            let mediaTag = `<div style="width: 40px; height: 40px; background: #eee; border: 1px solid #ccc; border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size:8px;">No Pic</div>`;
+            
+            if (imgSrc) {
+                if (isVideo) {
+                    mediaTag = `<video src="${escapeHTML(imgSrc)}" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;" muted></video>`;
+                } else {
+                    mediaTag = `<img src="${escapeHTML(imgSrc)}" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">`;
+                }
+            }
+
+            // Auto-check if name starts with "Bulk Item"
+            const shouldBeChecked = p.name.startsWith("Bulk Item") ? "checked" : "";
+
+            html += `
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #e2e8f0; background: #fff; margin-bottom: 4px; border-radius: 4px;">
+                <input type="checkbox" class="ai-prod-cb" value="${p.id}" ${shouldBeChecked} style="width: 16px; height: 16px; margin: 0;">
+                ${mediaTag}
+                <div style="flex: 1; font-size: 13px; font-weight: 500; word-break: break-word; font-family: 'Roboto Slab', serif;" id="ai-name-disp-${p.id}">
+                    ${escapeHTML(p.name)}
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+        document.getElementById('aiSelectAll').checked = false; // Reset select all toggle
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); font-size: 12px; padding: 20px;">Error loading products: ${err.message}</div>`;
+    }
+};
+
+window.toggleAllAiProducts = function(masterCb) {
+    document.querySelectorAll('.ai-prod-cb').forEach(cb => cb.checked = masterCb.checked);
+};
+
+window.executeAiNameWriter = async function() {
+    const checkedBoxes = Array.from(document.querySelectorAll('.ai-prod-cb:checked'));
+    if (checkedBoxes.length === 0) return alert("Please select at least one product to process.");
+    
+    const promptText = document.getElementById('aiPromptText').value.trim();
+    if (!promptText) return alert("Prompt cannot be empty.");
+
+    const btn = document.getElementById('btnStartAi');
+    const progressEl = document.getElementById('aiProgressText');
+    
+    btn.disabled = true;
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    // Get the FRESH Live Logged-in Session Token (JWT)
+    const { data: { session } } = await db.auth.getSession();
+    const authToken = session?.access_token || SUPABASE_KEY;
+
+    for (let i = 0; i < checkedBoxes.length; i++) {
+        const prodId = Number(checkedBoxes[i].value);
+        
+        // FIX: Search inside our newly fetched aiTempProducts instead of the paginated State.products
+        const product = window.aiTempProducts.find(p => p.id === prodId);
+        
+        progressEl.innerText = `Processing ${i + 1} of ${checkedBoxes.length}...`;
+        
+        const nameDispEl = document.getElementById(`ai-name-disp-${prodId}`);
+        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning);">Generating...</span>`;
+
+        try {
+            if (!product || !product.media || product.media.length === 0) {
+                throw new Error("No image found for this product.");
+            }
+
+            let imageUrl = product.media[0];
+            
+            // Auto-add https:// if missing
+            if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+                imageUrl = 'https://' + imageUrl;
+            }
+
+            // Call the Edge Function
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-ai-name`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}` 
+                },
+                body: JSON.stringify({ imageUrl, prompt: promptText })
+            });
+
+            // Parse response
+            let data;
+            try {
+                data = await response.json();
+            } catch(e) {
+                throw new Error("Server returned a non-JSON response.");
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || "Unknown Edge Function Error");
+            }
+            
+            if (!data || !data.name) throw new Error("No name returned from AI.");
+
+            const generatedName = data.name;
+
+            // Update database
+            const { error: dbError } = await db.from('products').update({ name: generatedName }).eq('id', prodId);
+            if (dbError) throw dbError;
+
+            // Update local temp state
+            product.name = generatedName;
+            
+            // UPDATE MAIN STATE TOO if the product is currently visible on the main page
+            const stateProd = State.products.find(p => p.id === prodId);
+            if(stateProd) stateProd.name = generatedName;
+            
+            // Update UI
+            if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">${escapeHTML(generatedName)}</span>`;
+            successCount++;
+
+        } catch (err) {
+            console.error(`Error on product ${prodId}:`, err);
+            // Safely show error using the product name if it exists
+            const safeName = product ? escapeHTML(product.name) : 'Product';
+            if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">${safeName} (Failed: ${escapeHTML(err.message)})</span>`;
+            failCount++;
+        }
+
+        // Wait 4 seconds between requests to respect API limits
+        if (i < checkedBoxes.length - 1) {
+            progressEl.innerText = `Waiting for API rate limit (4s)... (${i + 1}/${checkedBoxes.length})`;
+            await new Promise(r => setTimeout(r, 4000));
+        }
+    }
+
+    progressEl.innerText = `Finished! ${successCount} successful, ${failCount} failed.`;
+    showToast(`AI Naming Complete. Processed: ${successCount}`, 'success');
+    
+    btn.disabled = false;
+    document.getElementById('aiSelectAll').checked = false;
+    
+    checkedBoxes.forEach(cb => {
+        const prodId = Number(cb.value);
+        const nameDispEl = document.getElementById(`ai-name-disp-${prodId}`);
+        if(nameDispEl && nameDispEl.innerText.indexOf('(Failed)') === -1) {
+            cb.checked = false;
+        }
+    });
+
+    await loadProducts(prodCurrentPage); // Refresh the background table just in case
+};
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
+        
     </script>
+    <div id="bulkAiNameModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+            <h3 style="margin: 0; border: none; padding: 0; font-family: 'Roboto Slab', serif;">🤖 Bulk AI Name Writer</h3>
+            <button class="outline" style="width: auto; padding: 2px 8px; margin: 0;" onclick="closeModal('bulkAiNameModal')">X</button>
+        </div>
+        
+        <div class="grid-form">
+            <div class="form-group full-width">
+                <label>1. Select Target Category</label>
+                <select id="aiTargetCat" onchange="loadAiProductsForCategory()" style="font-family: 'Roboto Slab', serif;">
+                    <option value="">Select Category...</option>
+                </select>
+            </div>
+            
+            <div class="form-group full-width">
+                <label>2. Customize AI Prompt</label>
+                <textarea id="aiPromptText" rows="3" style="font-family: 'Roboto Slab', serif;">Deeply analyze the photo, observe its color and design, and generate a product name. The product name should be exactly three words, and the last word must be 'Necklace'.</textarea>
+            </div>
+
+            <div class="form-group full-width">
+                <label style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 8px; margin-bottom: 10px;">
+                    <span>3. Select Products</span>
+                    <label class="checkbox-label" style="margin: 0; font-size: 12px;">
+                        <input type="checkbox" id="aiSelectAll" onchange="toggleAllAiProducts(this)"> Select All
+                    </label>
+                </label>
+                <div id="aiProductList" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px; background: #f8fafc;">
+                    <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 20px;">Select a category above to load products.</div>
+                </div>
+            </div>
+
+            <div class="form-group full-width" style="text-align: center; margin-top: 10px;">
+                <div id="aiProgressText" style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 12px;">Waiting to start...</div>
+                <button type="button" id="btnStartAi" onclick="executeAiNameWriter()" style="font-family: 'Roboto Slab', serif;">START AI NAMING</button>
+            </div>
+        </div>
+    </div>
+</div>
     <div id="universal-lightbox" class="lightbox-overlay">
 
         <span class="lightbox-close">&times;</span>
