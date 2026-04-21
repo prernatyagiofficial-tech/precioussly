@@ -5804,10 +5804,12 @@ window.loadAiProductsForCategoryDesc = async function() {
                 }
             }
 
-            // Uncheck default since description rewrites are more destructive than naming empty items
+            // Auto-check products that do not have a description
+            const shouldBeCheckedDesc = (!p.description || p.description.trim() === '') ? "checked" : "";
+
             html += `
             <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid #e2e8f0; background: #fff; margin-bottom: 4px; border-radius: 4px;">
-                <input type="checkbox" class="ai-prod-cb-desc" value="${p.id}" style="width: 16px; height: 16px; margin: 0;">
+                <input type="checkbox" class="ai-prod-cb-desc" value="${p.id}" ${shouldBeCheckedDesc} style="width: 16px; height: 16px; margin: 0;">
                 ${mediaTag}
                 <div style="flex: 1; font-size: 13px; font-weight: 500; word-break: break-word; font-family: 'Roboto Slab', serif;" id="ai-desc-disp-${p.id}">
                     ${escapeHTML(p.name)} <br><span style="font-size: 10px; color: #666; font-weight: 400;">${p.description ? escapeHTML(p.description).substring(0, 40) + '...' : 'No existing description'}</span>
