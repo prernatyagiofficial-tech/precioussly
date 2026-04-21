@@ -948,6 +948,7 @@
 </div>
 <div class="form-group">
     <label class="checkbox-label"><input type="checkbox" id="setAnnouncementScrolling"> Scroll Announcement (Marquee)</label>
+    <label class="checkbox-label" style="margin-top: 10px;"><input type="checkbox" id="setSmartHeaderActive"> Enable Smart Auto-Hiding Header</label>
     <div class="form-group" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
                                 <label>Customer Reviews Settings</label>
                                 <label class="checkbox-label" style="margin-top: 10px;">
@@ -2386,6 +2387,7 @@ document.getElementById('setHeaderIgOffsetY').value = data.instagram_header_offs
             // Announcement Settings
             document.getElementById('setAnnouncement').value = data.announcement_text || '';
             document.getElementById('setAnnouncementScrolling').checked = !!data.announcement_scrolling;
+            document.getElementById('setSmartHeaderActive').checked = !!data.smart_header_active;
             State.smartTags = data.smart_tags || [];
             document.getElementById('setReviewsAutoScroll').checked = data.reviews_auto_scroll !== false;
             document.getElementById('setReviewsScrollDirection').value = data.reviews_scroll_direction || 'left';
@@ -2468,6 +2470,7 @@ instagram_header_offset_y: Number(document.getElementById('setHeaderIgOffsetY').
             // Announcement
             announcement_text: document.getElementById('setAnnouncement').value.trim(),
             announcement_scrolling: document.getElementById('setAnnouncementScrolling').checked,
+            smart_header_active: document.getElementById('setSmartHeaderActive').checked,
             about_us_text: document.getElementById('setAboutUs').value.trim(),
             reviews_auto_scroll: document.getElementById('setReviewsAutoScroll').checked,
             reviews_scroll_direction: document.getElementById('setReviewsScrollDirection').value,
