@@ -5717,10 +5717,16 @@ window.executeAiNameWriter = async function() {
                 if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
                     attempt++;
                     if (attempt <= maxRetries) {
-                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Cooling down 1 min... (Retry ${attempt})</span>`;
-                        progressEl.innerText = `Cooling down API (1 min)...`;
-                        // SMART TRICK: If limit hit, wait 60 seconds before retry
-                        await new Promise(r => setTimeout(r, 60000)); 
+                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 5 mins... (Retry ${attempt})</span>`;
+                        
+                        // SMART TRICK: If limit hit, wait 5 minutes (300 seconds) with mm:ss countdown
+                        for(let w = 300; w > 0; w--) {
+                            let mins = Math.floor(w / 60);
+                            let secs = w % 60;
+                            let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                            progressEl.innerText = `Rate limit hit. Cooling down API (${timeDisplay} left)...`;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
                     } else {
                         // Retries khatam, error throw karo
                         console.error(`Error on product ${prodId}:`, err);
@@ -5740,14 +5746,16 @@ window.executeAiNameWriter = async function() {
             }
         }
 
-        // SMART TRICK: Wait 120 seconds (2 minutes) between requests to avoid limits completely
-        // Yeh sirf tab chalega agar agli photo processing ke liye bachi ho
+        // SMART TRICK: Wait 300 seconds (5 minutes) between requests to avoid limits completely
         if (i < checkedBoxes.length - 1) {
-            let waitSeconds = 190; // 2 minutes break
+            let waitSeconds = 300; // 5 minutes break
             
             // Yeh loop har second UI update karega taaki aapko freeze feel na ho
             for(let w = waitSeconds; w > 0; w--) {
-                progressEl.innerText = `Waiting for safe limit (${w}s left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                let mins = Math.floor(w / 60);
+                let secs = w % 60;
+                let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                progressEl.innerText = `Waiting for safe limit (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
@@ -5945,10 +5953,16 @@ window.executeAiDescWriter = async function() {
                 if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
                     attempt++;
                     if (attempt <= maxRetries) {
-                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Cooling down 1 min... (Retry ${attempt})</span>`;
-                        progressEl.innerText = `Cooling down API (1 min)...`;
-                        // SMART TRICK: If limit hit, wait 60 seconds before retry
-                        await new Promise(r => setTimeout(r, 60000)); 
+                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 5 mins... (Retry ${attempt})</span>`;
+                        
+                        // SMART TRICK: If limit hit, wait 5 minutes (300 seconds) with mm:ss countdown
+                        for(let w = 300; w > 0; w--) {
+                            let mins = Math.floor(w / 60);
+                            let secs = w % 60;
+                            let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                            progressEl.innerText = `Rate limit hit. Cooling down API (${timeDisplay} left)...`;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
                     } else {
                         console.error(`Error on product ${prodId}:`, err);
                         if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: API Limit</span>`;
@@ -5964,14 +5978,15 @@ window.executeAiDescWriter = async function() {
             }
         }
 
-        // SMART TRICK: Wait 120 seconds (2 minutes) between requests to avoid limits completely
-        // Yeh sirf tab chalega agar agli photo processing ke liye bachi ho
+        // SMART TRICK: Wait 300 seconds (5 minutes) between requests to avoid limits completely
         if (i < checkedBoxes.length - 1) {
-            let waitSeconds = 190; // 2 minutes break
+            let waitSeconds = 300; // 5 minutes break
             
-            // Yeh loop har second UI update karega taaki aapko freeze feel na ho
             for(let w = waitSeconds; w > 0; w--) {
-                progressEl.innerText = `Waiting for safe limit (${w}s left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                let mins = Math.floor(w / 60);
+                let secs = w % 60;
+                let timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                progressEl.innerText = `Waiting for safe limit (${timeDisplay} left)... Next: ${i + 2} of ${checkedBoxes.length}`;
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
