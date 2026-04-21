@@ -5717,9 +5717,10 @@ window.executeAiNameWriter = async function() {
                 if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
                     attempt++;
                     if (attempt <= maxRetries) {
-                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 10s... (Retry ${attempt})</span>`;
-                        progressEl.innerText = `Cooling down API (10s)...`;
-                        await new Promise(r => setTimeout(r, 10000)); // 10 second wait
+                        if(nameDispEl) nameDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Cooling down 1 min... (Retry ${attempt})</span>`;
+                        progressEl.innerText = `Cooling down API (1 min)...`;
+                        // SMART TRICK: If limit hit, wait 60 seconds before retry
+                        await new Promise(r => setTimeout(r, 60000)); 
                     } else {
                         // Retries khatam, error throw karo
                         console.error(`Error on product ${prodId}:`, err);
@@ -5739,10 +5740,16 @@ window.executeAiNameWriter = async function() {
             }
         }
 
-        // Wait 6 seconds between requests to respect Free API limits
+        // SMART TRICK: Wait 120 seconds (2 minutes) between requests to avoid limits completely
+        // Yeh sirf tab chalega agar agli photo processing ke liye bachi ho
         if (i < checkedBoxes.length - 1) {
-            progressEl.innerText = `Waiting for API rate limit (6s)... (${i + 1}/${checkedBoxes.length})`;
-            await new Promise(r => setTimeout(r, 6000));
+            let waitSeconds = 120; // 2 minutes break
+            
+            // Yeh loop har second UI update karega taaki aapko freeze feel na ho
+            for(let w = waitSeconds; w > 0; w--) {
+                progressEl.innerText = `Waiting for safe limit (${w}s left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
     }
 
@@ -5762,7 +5769,6 @@ window.executeAiNameWriter = async function() {
 
     await loadProducts(prodCurrentPage); 
 };
-
 
 
 // --- BULK AI DESCRIPTION WRITER LOGIC ---
@@ -5936,12 +5942,13 @@ window.executeAiDescWriter = async function() {
 
             } catch (err) {
                 const errMsg = err.message || "";
-                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("503") || errMsg.includes("demand")) {
                     attempt++;
                     if (attempt <= maxRetries) {
-                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Waiting 10s... (Retry ${attempt})</span>`;
-                        progressEl.innerText = `Cooling down API (10s)...`;
-                        await new Promise(r => setTimeout(r, 10000)); 
+                        if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--warning); font-size: 11px;">Rate Limit Hit. Cooling down 1 min... (Retry ${attempt})</span>`;
+                        progressEl.innerText = `Cooling down API (1 min)...`;
+                        // SMART TRICK: If limit hit, wait 60 seconds before retry
+                        await new Promise(r => setTimeout(r, 60000)); 
                     } else {
                         console.error(`Error on product ${prodId}:`, err);
                         if(descDispEl) descDispEl.innerHTML = `<span style="color: var(--danger); font-size: 11px;">Failed: API Limit</span>`;
@@ -5957,10 +5964,16 @@ window.executeAiDescWriter = async function() {
             }
         }
 
-        // Wait 6 seconds between requests to respect API limits
+        // SMART TRICK: Wait 120 seconds (2 minutes) between requests to avoid limits completely
+        // Yeh sirf tab chalega agar agli photo processing ke liye bachi ho
         if (i < checkedBoxes.length - 1) {
-            progressEl.innerText = `Waiting for API rate limit (6s)... (${i + 1}/${checkedBoxes.length})`;
-            await new Promise(r => setTimeout(r, 6000));
+            let waitSeconds = 120; // 2 minutes break
+            
+            // Yeh loop har second UI update karega taaki aapko freeze feel na ho
+            for(let w = waitSeconds; w > 0; w--) {
+                progressEl.innerText = `Waiting for safe limit (${w}s left)... Next: ${i + 2} of ${checkedBoxes.length}`;
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
     }
 
