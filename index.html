@@ -2108,6 +2108,7 @@ function mapProduct(row) {
         isAlphabet: parseBool(row.is_alphabet), 
         variant_prices: safeParseJSON(row.variant_prices, {}),
         variantLabel: row.variant_label || 'Color',
+        sizeLabel: row.size_label,
             showSizeChart: parseBool(row.show_size_chart),
             smart_tag: row.smart_tag || null,
             show_purchase_count: parseBool(row.show_purchase_count), 
@@ -4109,7 +4110,7 @@ async function fetchAndDisplayPurchaseCount(prodId) {
 let sizeHtml = '';
             if (prod.sizes && prod.sizes.length > 0) {
                 let guideLink = prod.showSizeChart ? `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>` : '';
-                let titleLabel = 'Select ';
+                let titleLabel = prod.sizeLabel ? prod.sizeLabel + ' ' : 'Select ';
 
                 // FIX: Only default to the first size if a size wasn't already selected via the cart
                 if (!selectedProductSize) {
