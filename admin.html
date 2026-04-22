@@ -800,14 +800,14 @@
 
 
 <div id="view-bulk-smart" class="view-section">
-    <div class="section-header" style="position: sticky; top: -30px; background: var(--bg-body); z-index: 10; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); margin-top: -10px; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 16px;">
-        <h1 style="margin: 0;">Smart Bulk Editor</h1>
-        <div style="display: flex; gap: 10px; align-items: center; flex: 1; justify-content: flex-end;">
-            <select id="bulkSmartCatFilter" onchange="renderBulkSmartProducts()" style="margin-bottom: 0; min-width: 250px; max-width: 300px;">
-                <option value="">Select Category to Edit...</option>
-            </select>
-            <button onclick="saveAllBulkSmart()" id="btnSaveBulkSmart" style="margin-bottom: 0; width: auto;">SAVE ALL CHANGES</button>
+    <div class="section-header" style="position: sticky; top: -10px; background: var(--bg-body); z-index: 10; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); margin-top: -10px; padding-top: 10px; display: flex; flex-direction: column; align-items: stretch; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 style="margin: 0; font-size: 16px;">Smart Bulk Editor</h1>
+            <button onclick="saveAllBulkSmart()" id="btnSaveBulkSmart" style="margin-bottom: 0; width: auto; padding: 6px 12px; font-size: 11px;">SAVE ALL</button>
         </div>
+        <select id="bulkSmartCatFilter" onchange="renderBulkSmartProducts()" style="margin-bottom: 0; width: 100%; padding: 8px 10px; font-size: 13px;">
+            <option value="">Select Category to Edit...</option>
+        </select>
     </div>
     <div id="bulkSmartContainer" style="margin-top: 20px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
@@ -5116,12 +5116,9 @@ window.renderBulkSmartProducts = async function() {
     const catId = document.getElementById('bulkSmartCatFilter').value;
     const container = document.getElementById('bulkSmartContainer');
     
-    // --- FIX: Save the selected category to browser memory ---
-    if (catId) {
-        localStorage.setItem('savedBulkSmartCat', catId);
-    } else {
-        localStorage.removeItem('savedBulkSmartCat'); // Clear memory if they select the empty default
-    }
+    // Save to browser memory
+    if (catId) localStorage.setItem('savedBulkSmartCat', catId);
+    else localStorage.removeItem('savedBulkSmartCat'); 
     
     if (!catId) {
         container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">Please select a category from the dropdown above to load products for editing.</div>`;
@@ -5130,7 +5127,6 @@ window.renderBulkSmartProducts = async function() {
 
     container.innerHTML = `<div style="text-align: center; padding: 40px; font-weight: 600;">Loading Products...</div>`;
 
-    // Fetch fresh data for the selected category
     try {
         const { data, error } = await db.from('products').select('*').eq('cat_id', catId).order('sort_order', { ascending: true }).order('id', { ascending: false });
         if (error) throw error;
@@ -5156,7 +5152,6 @@ window.renderBulkSmartProducts = async function() {
                 imagesHtml = `<div class="smart-bulk-img" style="display:flex; align-items:center; justify-content:center; color:#999; font-size:12px; font-weight:600;">NO PIC</div>`;
             }
 
-            // NEW: Add Main Product Media Input here
             const mainMediaStr = p.media && Array.isArray(p.media) ? p.media.join(', ') : '';
             imagesHtml += `
                 <div style="margin-top: 12px; width: 100%; text-align: left;">
@@ -5166,18 +5161,22 @@ window.renderBulkSmartProducts = async function() {
                 </div>
             `;
 
-            let variantsHtml = '';
+            let variantsHtml = `<div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <label style="font-weight: 600; font-size: 13px; color: var(--text-main); margin: 0;">Product Variants</label>
+                    <button class="outline" onclick="addSmartBulkVariant(${p.id})" style="padding: 4px 10px; font-size: 10px; width: auto; margin: 0;">+ ADD VARIANT</button>
+                </div>
+                <div id="sb_variants_container_${p.id}">`;
+
             if (p.variants && p.variants.length > 0) {
-                variantsHtml += `<div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 16px; text-align: left;">
-                    <label style="font-weight: 600; font-size: 13px; color: var(--text-main); display: block; margin-bottom: 12px;">Product Variants</label>`;
-                
                 p.variants.forEach((v, idx) => {
                     const vImg = (v.media && v.media.length > 0) ? escapeHTML(v.media[0]) : '';
                     const vMediaStr = (v.media && Array.isArray(v.media)) ? v.media.join(', ') : '';
                     const vMediaTag = vImg ? (vImg.endsWith('.mp4') ? `<video src="${vImg}" class="smart-variant-media" muted playsinline></video>` : `<img src="${vImg}" class="smart-variant-media">`) : `<div class="smart-variant-media" style="display:flex; align-items:center; justify-content:center; font-size:9px; color:#999;">NO PIC</div>`;
                     
                     variantsHtml += `
-                    <div class="smart-variant-box" data-vindex="${idx}" style="align-items: flex-start;">
+                    <div class="smart-variant-box" data-vindex="${idx}" style="align-items: flex-start; position: relative;">
+                        <button type="button" class="danger" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 2px 6px; font-size: 10px; margin: 0; z-index: 2;" onclick="this.closest('.smart-variant-box').remove()">X</button>
                         ${vMediaTag}
                         <div class="sb-grid" style="margin-bottom:0; flex:1;">
                             <div class="form-group" style="margin-bottom:0;">
@@ -5196,15 +5195,15 @@ window.renderBulkSmartProducts = async function() {
                             <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0; margin-top: 8px;">
                                 <label style="font-family: 'Roboto Slab', serif; font-size: 11px;">Variant Media URLs</label>
                                 <div style="display: flex; gap: 8px; align-items: flex-start;">
-                                    <textarea class="sb-var-media-input" id="sb_var_media_${p.id}_${idx}" rows="1" style="font-family: 'Roboto Slab', serif; flex: 1; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; box-shadow: var(--shadow-sm); margin-bottom: 0; text-align: left;">${escapeHTML(vMediaStr)}</textarea>
+                                    <textarea class="sb-var-media-input" id="sb_var_media_${p.id}_${idx}" rows="1" oninput="updateSmartVariantPreview(this)" style="font-family: 'Roboto Slab', serif; flex: 1; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; box-shadow: var(--shadow-sm); margin-bottom: 0; text-align: left;">${escapeHTML(vMediaStr)}</textarea>
                                     <button class="outline" onclick="triggerFileUpload('fileVariantMedia', 'sb_var_media_${p.id}_${idx}')" style="font-family: 'Roboto Slab', serif; padding: 6px 10px; font-size: 10px; margin-bottom: 0;">UPLOAD</button>
                                 </div>
                             </div>
                         </div>
                     </div>`;
                 });
-                variantsHtml += `</div>`;
             }
+            variantsHtml += `</div></div>`;
 
             html += `
             <div class="smart-bulk-card" data-id="${p.id}" style="position: relative; text-align: left;">
@@ -5240,9 +5239,15 @@ window.renderBulkSmartProducts = async function() {
                         </div>
                     </div>
                     
-                    <div class="form-group" style="margin-top: 16px;">
-                        <label>Description</label>
-                        <textarea class="sb-desc" rows="2" style="margin-bottom:0; text-align: left;">${escapeHTML(p.description || '')}</textarea>
+                    <div class="sb-grid" style="margin-top: 16px; margin-bottom: 0;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Sizes (Comma separated)</label>
+                            <input type="text" class="sb-sizes" value="${p.sizes ? escapeHTML(p.sizes.join(', ')) : ''}" placeholder="S, M, L, XL" style="margin-bottom:0; text-align: left;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Description</label>
+                            <textarea class="sb-desc" rows="1" style="margin-bottom:0; text-align: left;">${escapeHTML(p.description || '')}</textarea>
+                        </div>
                     </div>
 
                     <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
@@ -5257,7 +5262,6 @@ window.renderBulkSmartProducts = async function() {
             </div>`;
         });
 
-        // Attach original data to the container securely so we can map variants properly on save
         container.setAttribute('data-raw', JSON.stringify(data));
         container.innerHTML = html;
 
@@ -5278,7 +5282,6 @@ window.saveAllBulkSmart = async function() {
     showToast("Saving all changes, please wait...", "success");
 
     try {
-        // Retrieve original data to map variants safely
         const originalData = JSON.parse(container.getAttribute('data-raw') || '[]');
         const updates = [];
 
@@ -5287,9 +5290,11 @@ window.saveAllBulkSmart = async function() {
             const origProd = originalData.find(p => p.id === id);
             if (!origProd) return;
 
-            // NEW: Read the main product media textarea
             const mainMediaStr = card.querySelector('.sb-media-input').value.trim();
             const mainMediaArr = mainMediaStr ? mainMediaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+            
+            const sizesStr = card.querySelector('.sb-sizes') ? card.querySelector('.sb-sizes').value.trim() : '';
+            const sizesArr = sizesStr ? sizesStr.split(',').map(s => s.trim()).filter(Boolean) : [];
 
             const payload = {
                 smart_tag: card.querySelector('.sb-smart-tag').value || null,
@@ -5297,67 +5302,133 @@ window.saveAllBulkSmart = async function() {
                 price: Number(card.querySelector('.sb-price').value),
                 cost_price: Number(card.querySelector('.sb-cost').value) || 0,
                 stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
-                description: card.querySelector('.sb-desc').value.trim(),
+                description: card.querySelector('.sb-desc') ? card.querySelector('.sb-desc').value.trim() : '',
+                sizes: sizesArr,
                 is_best_seller: card.querySelector('.sb-bestseller').checked,
                 is_alphabet: card.querySelector('.sb-alphabet').checked,
                 is_hidden: card.querySelector('.sb-hidden').checked,
                 show_size_chart: card.querySelector('.sb-sizechart').checked,
-                media: mainMediaArr // NEW: Saving the updated media array
+                media: mainMediaArr
             };
 
-            // Handle Variants safely
-            if (origProd.variants && origProd.variants.length > 0) {
-                const varBoxes = card.querySelectorAll('.smart-variant-box');
-                const newVariants = [];
+            // Process Variants seamlessly
+            const varBoxes = card.querySelectorAll('.smart-variant-box');
+            const newVariants = [];
+            
+            varBoxes.forEach(vBox => {
+                const vName = vBox.querySelector('.sb-var-name').value.trim();
+                const vPriceStr = vBox.querySelector('.sb-var-price').value.trim();
+                const vCostStr = vBox.querySelector('.sb-var-cost').value.trim();
+                const vMediaStr = vBox.querySelector('.sb-var-media-input').value.trim();
+                const vMediaArr = vMediaStr ? vMediaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
                 
-                varBoxes.forEach(vBox => {
-                    const vIdx = Number(vBox.getAttribute('data-vindex'));
-                    const origVar = origProd.variants[vIdx];
-                    
-                    if (origVar) {
-                        const vPriceStr = vBox.querySelector('.sb-var-price').value.trim();
-                        const vCostStr = vBox.querySelector('.sb-var-cost').value.trim();
-                        
-                        // NEW: Read the variant media textarea
-                        const vMediaStr = vBox.querySelector('.sb-var-media-input').value.trim();
-                        const vMediaArr = vMediaStr ? vMediaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
-                        
-                        newVariants.push({
-                            ...origVar, // Preserve other original keys
-                            name: vBox.querySelector('.sb-var-name').value.trim(),
-                            price: vPriceStr !== '' ? Number(vPriceStr) : null,
-                            cost_price: vCostStr !== '' ? Number(vCostStr) : null,
-                            media: vMediaArr // NEW: Override original media
-                        });
-                    }
-                });
-                payload.variants = newVariants;
-            }
+                if (vName || vMediaStr) {
+                    newVariants.push({
+                        name: vName,
+                        price: vPriceStr !== '' ? Number(vPriceStr) : null,
+                        cost_price: vCostStr !== '' ? Number(vCostStr) : null,
+                        media: vMediaArr
+                    });
+                }
+            });
+            payload.variants = newVariants;
 
             updates.push(db.from('products').update(payload).eq('id', id));
         });
 
-        // Execute all updates concurrently
         await Promise.all(updates);
 
         showToast("All products updated successfully!", "success");
         
         const savedScroll = window.scrollY;
         const smartContainer = document.getElementById('bulkSmartContainer');
-        smartContainer.style.minHeight = smartContainer.offsetHeight + 'px'; // Prevent collapsing
+        smartContainer.style.minHeight = smartContainer.offsetHeight + 'px'; 
 
-        await loadProducts(prodCurrentPage); // Refresh background state
-        await renderBulkSmartProducts(); // Re-render the smart grid to show fresh saved data
+        await loadProducts(prodCurrentPage); 
+        await renderBulkSmartProducts(); 
         
-        smartContainer.style.minHeight = ''; // Remove fixed height
-        window.scrollTo(0, savedScroll); // Restore exact scroll position
+        smartContainer.style.minHeight = ''; 
+        window.scrollTo(0, savedScroll); 
 
     } catch (err) {
         alert("Failed to save some products: " + err.message);
     } finally {
-        btn.innerText = "SAVE ALL CHANGES";
+        btn.innerText = "SAVE ALL"; 
         btn.disabled = false;
     }
+};
+
+
+
+window.addSmartBulkVariant = function(productId) {
+    const container = document.getElementById(`sb_variants_container_${productId}`);
+
+    const vBox = document.createElement('div');
+    vBox.className = 'smart-variant-box';
+    vBox.style.cssText = 'align-items: flex-start; position: relative;';
+
+    const uniqueId = Date.now(); // Create a unique ID so image uploads link properly
+
+    vBox.innerHTML = `
+        <button type="button" class="danger" style="position: absolute; top: 10px; right: 10px; width: auto; padding: 2px 6px; font-size: 10px; margin: 0; z-index: 2;" onclick="this.closest('.smart-variant-box').remove()">X</button>
+        <div class="smart-variant-media" style="display:flex; align-items:center; justify-content:center; font-size:9px; color:#999;">NO PIC</div>
+        <div class="sb-grid" style="margin-bottom:0; flex:1;">
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size: 11px;">Variant Name</label>
+                <input type="text" class="sb-var-name" value="" placeholder="e.g. Red" style="margin-bottom:0; text-align: left;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size: 11px;">Selling Price (₹)</label>
+                <input type="number" class="sb-var-price" value="" placeholder="Fallback to Base" style="margin-bottom:0; text-align: left;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size: 11px;">Cost Price (₹)</label>
+                <input type="number" class="sb-var-cost" value="" placeholder="Fallback to Base" style="margin-bottom:0; text-align: left;">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0; margin-top: 8px;">
+                <label style="font-family: 'Roboto Slab', serif; font-size: 11px;">Variant Media URLs</label>
+                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <textarea class="sb-var-media-input" id="sb_var_media_${productId}_new_${uniqueId}" rows="1" oninput="updateSmartVariantPreview(this)" style="font-family: 'Roboto Slab', serif; flex: 1; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 6px; box-shadow: var(--shadow-sm); margin-bottom: 0; text-align: left;"></textarea>
+                    <button class="outline" onclick="triggerFileUpload('fileVariantMedia', 'sb_var_media_${productId}_new_${uniqueId}')" style="font-family: 'Roboto Slab', serif; padding: 6px 10px; font-size: 10px; margin-bottom: 0;">UPLOAD</button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(vBox);
+};
+
+window.updateSmartVariantPreview = function(textarea) {
+    const container = textarea.closest('.smart-variant-box');
+    if (!container) return;
+    
+    const mediaContainer = container.querySelector('.smart-variant-media');
+    let url = textarea.value.split(',')[0].trim(); // Always grabs the first image
+    
+    if (!url) {
+        // If empty, revert back to the NO PIC box
+        const newMedia = document.createElement('div');
+        newMedia.className = 'smart-variant-media';
+        newMedia.style.cssText = 'display:flex; align-items:center; justify-content:center; font-size:9px; color:#999;';
+        newMedia.innerText = 'NO PIC';
+        mediaContainer.replaceWith(newMedia);
+        return;
+    }
+
+    const isVideo = url.toLowerCase().endsWith('.mp4');
+    let newMedia;
+    if (isVideo) {
+        newMedia = document.createElement('video');
+        newMedia.muted = true;
+        newMedia.playsInline = true;
+    } else {
+        newMedia = document.createElement('img');
+    }
+    
+    newMedia.src = url;
+    newMedia.className = 'smart-variant-media'; 
+    // Because it gets the 'smart-variant-media' class, your Lightbox code will automatically make it clickable for full screen!
+    
+    mediaContainer.replaceWith(newMedia);
 };
 
 
