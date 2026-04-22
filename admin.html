@@ -1244,6 +1244,7 @@
             </div>
 
             <div class="form-group full-width"><label>Sizes (Comma separated)</label><input type="text" id="prodSizes" placeholder="S, M, L, XL"></div>
+            <div class="form-group full-width"><label>Size/Option Label (e.g., Select Size, Choose Weight)</label><input type="text" id="prodSizeLabel" placeholder="Select"></div>
             
             <div class="form-group full-width"><label>Variant Label (e.g., Color, Style, Material)</label><input type="text" id="prodVariantLabel" placeholder="Color"></div>
             
@@ -3058,6 +3059,7 @@ window.executeBulkAction = async function(action) {
                 document.getElementById('prodDesc').value = p.description || '';
                 document.getElementById('prodMedia').value = (p.media || []).join(', ');
                 document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
+                document.getElementById('prodSizeLabel').value = p.size_label || '';
                 document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
                 document.getElementById('variantsContainer').innerHTML = '';
                 variantCounter = 0;
@@ -3136,6 +3138,7 @@ window.executeBulkAction = async function(action) {
             description: document.getElementById('prodDesc').value.trim(),
             media: mediaArr,
             sizes: sizesArr,
+            size_label: document.getElementById('prodSizeLabel').value.trim() || null,
             variants: variantsObj,
             variant_stock: compiledVariantStock,
             is_best_seller: document.getElementById('prodBestSeller').checked,
@@ -5245,6 +5248,10 @@ window.renderBulkSmartProducts = async function() {
                             <input type="text" class="sb-sizes" value="${p.sizes ? escapeHTML(p.sizes.join(', ')) : ''}" placeholder="S, M, L, XL" style="margin-bottom:0; text-align: left;">
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
+                            <label>Size Label</label>
+                            <input type="text" class="sb-sizelabel" value="${escapeHTML(p.size_label || '')}" placeholder="Select" style="margin-bottom:0; text-align: left;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
                             <label>Description</label>
                             <textarea class="sb-desc" rows="1" style="margin-bottom:0; text-align: left;">${escapeHTML(p.description || '')}</textarea>
                         </div>
@@ -5295,6 +5302,7 @@ window.saveAllBulkSmart = async function() {
             
             const sizesStr = card.querySelector('.sb-sizes') ? card.querySelector('.sb-sizes').value.trim() : '';
             const sizesArr = sizesStr ? sizesStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const sizeLabelStr = card.querySelector('.sb-sizelabel') ? card.querySelector('.sb-sizelabel').value.trim() : '';
 
             const payload = {
                 smart_tag: card.querySelector('.sb-smart-tag').value || null,
@@ -5304,6 +5312,7 @@ window.saveAllBulkSmart = async function() {
                 stock: card.querySelector('.sb-stock').value.trim() === '' ? null : Number(card.querySelector('.sb-stock').value),
                 description: card.querySelector('.sb-desc') ? card.querySelector('.sb-desc').value.trim() : '',
                 sizes: sizesArr,
+                size_label: sizeLabelStr || null,
                 is_best_seller: card.querySelector('.sb-bestseller').checked,
                 is_alphabet: card.querySelector('.sb-alphabet').checked,
                 is_hidden: card.querySelector('.sb-hidden').checked,
