@@ -4109,7 +4109,7 @@ async function fetchAndDisplayPurchaseCount(prodId) {
 let sizeHtml = '';
             if (prod.sizes && prod.sizes.length > 0) {
                 let guideLink = prod.showSizeChart ? `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>` : '';
-                let titleLabel = 'Select Size';
+                let titleLabel = 'Select ';
 
                 // FIX: Only default to the first size if a size wasn't already selected via the cart
                 if (!selectedProductSize) {
