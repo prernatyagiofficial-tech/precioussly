@@ -805,9 +805,12 @@
             <h1 style="margin: 0; font-size: 16px;">Smart Bulk Editor</h1>
             <button onclick="saveAllBulkSmart()" id="btnSaveBulkSmart" style="margin-bottom: 0; width: auto; padding: 6px 12px; font-size: 11px;">SAVE ALL</button>
         </div>
-        <select id="bulkSmartCatFilter" onchange="renderBulkSmartProducts()" style="margin-bottom: 0; width: 100%; padding: 8px 10px; font-size: 13px;">
-            <option value="">Select Category to Edit...</option>
-        </select>
+<div style="display: flex; gap: 10px; width: 100%;">
+            <select id="bulkSmartCatFilter" onchange="renderBulkSmartProducts()" style="margin-bottom: 0; flex: 1; padding: 8px 10px; font-size: 13px;">
+                <option value="">Select Category to Edit...</option>
+            </select>
+            <input type="text" id="bulkSmartSearch" placeholder="Search products..." oninput="filterSmartBulkProducts()" style="margin-bottom: 0; flex: 1; padding: 8px 10px; font-size: 13px;">
+        </div>
     </div>
     <div id="bulkSmartContainer" style="margin-top: 20px;">
         <div style="text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
@@ -6015,6 +6018,53 @@ window.executeAiDescWriter = async function() {
 
     await loadProducts(prodCurrentPage); 
 };
+
+// --- LIVE SEARCH LOGIC FOR BULK EDITORS ---
+        window.filterSmartBulkProducts = function() {
+            const query = document.getElementById('bulkSmartSearch').value.toLowerCase();
+            const cards = document.querySelectorAll('#bulkSmartContainer .smart-bulk-card');
+            
+            cards.forEach(card => {
+                const nameInput = card.querySelector('.sb-name');
+                if (nameInput && nameInput.value.toLowerCase().includes(query)) {
+                    card.style.display = 'flex'; 
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        };
+
+        window.filterAiNameProducts = function() {
+            const query = document.getElementById('aiNameSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#aiProductList > div'); 
+            
+            rows.forEach(row => {
+                const nameEl = row.querySelector('div[id^="ai-name-disp-"]');
+                if (nameEl) {
+                    if (nameEl.innerText.toLowerCase().includes(query)) {
+                        row.style.display = 'flex';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        };
+
+        window.filterAiDescProducts = function() {
+            const query = document.getElementById('aiDescSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#aiProductListDesc > div'); 
+            
+            rows.forEach(row => {
+                const nameEl = row.querySelector('div[id^="ai-desc-disp-"]');
+                if (nameEl) {
+                    if (nameEl.innerText.toLowerCase().includes(query)) {
+                        row.style.display = 'flex';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        };
         // Boot
         db.auth.onAuthStateChange(() => { checkSession(); });
         checkSession();
@@ -6029,10 +6079,13 @@ window.executeAiDescWriter = async function() {
         
         <div class="grid-form">
             <div class="form-group full-width">
-                <label>1. Select Target Category</label>
-                <select id="aiTargetCat" onchange="loadAiProductsForCategory()" style="font-family: 'Roboto Slab', serif;">
-                    <option value="">Select Category...</option>
-                </select>
+                <label>1. Select Target Category & Search</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="aiTargetCat" onchange="loadAiProductsForCategory()" style="font-family: 'Roboto Slab', serif; margin-bottom: 0; flex: 1;">
+                        <option value="">Select Category...</option>
+                    </select>
+                    <input type="text" id="aiNameSearch" placeholder="Search products..." oninput="filterAiNameProducts()" style="font-family: 'Roboto Slab', serif; margin-bottom: 0; flex: 1;">
+                </div>
             </div>
             
             <div class="form-group full-width">
@@ -6070,11 +6123,14 @@ window.executeAiDescWriter = async function() {
         </div>
         
         <div class="grid-form">
-            <div class="form-group full-width">
-                <label>1. Select Target Category</label>
-                <select id="aiTargetCatDesc" onchange="loadAiProductsForCategoryDesc()" style="font-family: 'Roboto Slab', serif;">
-                    <option value="">Select Category...</option>
-                </select>
+<div class="form-group full-width">
+                <label>1. Select Target Category & Search</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="aiTargetCatDesc" onchange="loadAiProductsForCategoryDesc()" style="font-family: 'Roboto Slab', serif; margin-bottom: 0; flex: 1;">
+                        <option value="">Select Category...</option>
+                    </select>
+                    <input type="text" id="aiDescSearch" placeholder="Search products..." oninput="filterAiDescProducts()" style="font-family: 'Roboto Slab', serif; margin-bottom: 0; flex: 1;">
+                </div>
             </div>
             
             <div class="form-group full-width">
