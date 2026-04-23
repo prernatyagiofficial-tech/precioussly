@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -686,39 +685,26 @@ main {
         .carousel-btn.next { right: 20px; }
         .carousel-btn svg { width: 22px; height: 22px; stroke: var(--text-dark); }
         
-.carousel-indicators { 
-            position: absolute; 
-            bottom: 10px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            display: flex; 
+.image-counter {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            color: #ffffff;
+            font-family: 'Roboto Slab', serif;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 12px;
+            border-radius: 20px;
+            z-index: 10;
+            pointer-events: none;
+            letter-spacing: 1px;
+            display: flex;
             align-items: center;
-            
-            /* Thinner, tighter capsule */
-            gap: 6px; 
-            padding: 4px 10px; 
-            
-            background: rgba(255, 255, 255, 0.15); 
-            backdrop-filter: blur(8px); 
-            -webkit-backdrop-filter: blur(8px); 
-            border-radius: 50px; 
-            border: 1px solid rgba(255, 255, 255, 0.3); /* Crisp, sharp edge */
-            z-index: 10; 
-            /* Box-shadow removed entirely for a clean, matte finish */
-        }
-        
-        .indicator { 
-            width: 5px; /* Much smaller, minimal dots */
-            height: 5px; 
-            border-radius: 50%; 
-            background: rgba(255, 255, 255, 0.4); 
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
-            cursor: pointer; 
-        }
-        
-        .indicator.active { 
-            background: #ffffff; 
-            transform: scale(1.2); /* Very subtle pop instead of a large jump */
+            justify-content: center;
         }
 
         .hero-back-btn, .hero-wishlist-btn { position: absolute; top: 20px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: none; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
@@ -3810,7 +3796,6 @@ function switchPolicyTab(tabId) {
 
         function updateCarousel(index, instant = false) {
             const track = document.getElementById('carouselTrack');
-            const indicators = document.querySelectorAll('.indicator');
             if(!track || totalSlides <= 1) return;
             
             if (isTransitioning && !instant) return;
@@ -3831,10 +3816,11 @@ function switchPolicyTab(tabId) {
             if (currentSlide === -1) activeIndex = totalSlides - 1;
             if (currentSlide === totalSlides) activeIndex = 0;
             
-            indicators.forEach((ind, i) => {
-                if(i === activeIndex) ind.classList.add('active');
-                else ind.classList.remove('active');
-            });
+            // --- NEW: Update the Instagram-style text counter ---
+            const imageCounter = document.getElementById('imageCounter');
+            if (imageCounter) {
+                imageCounter.innerText = `${activeIndex + 1}/${totalSlides}`;
+            }
             
             track.querySelectorAll('video').forEach(vid => vid.pause());
             const activeSlideEl = track.children[currentSlide + 1];
@@ -3884,7 +3870,6 @@ function switchPolicyTab(tabId) {
             currentSlide = 0;
             
             let slidesHtml = '';
-            let indicatorsHtml = '';
             
             const buildSlide = (src) => {
                 const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
@@ -3899,7 +3884,6 @@ function switchPolicyTab(tabId) {
                 slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[mediaArr.length - 1])}</div>`;
                 mediaArr.forEach((src, i) => {
                     slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
-                    indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
                 });
                 slidesHtml += `<div class="carousel-slide cloned">${buildSlide(mediaArr[0])}</div>`;
             }
@@ -3913,10 +3897,11 @@ function switchPolicyTab(tabId) {
                 track.style.transition = '';
             }
             
-            const indicatorsContainer = document.querySelector('.carousel-indicators');
-            if (indicatorsContainer) {
-                indicatorsContainer.innerHTML = indicatorsHtml;
-                indicatorsContainer.style.display = totalSlides > 1 ? 'flex' : 'none';
+            // --- NEW: Update the image counter instead of dots ---
+            const imageCounter = document.getElementById('imageCounter');
+            if (imageCounter) {
+                imageCounter.innerText = `1/${totalSlides}`;
+                imageCounter.style.display = totalSlides > 1 ? 'flex' : 'none';
             }
 
             document.querySelectorAll('.color-option-btn').forEach((btn, idx) => {
@@ -4111,7 +4096,6 @@ async function fetchAndDisplayPurchaseCount(prodId) {
             currentSlide = 0;
             
             let slidesHtml = '';
-            let indicatorsHtml = '';
             
             const buildSlide = (src) => {
                 const isVideo = src && typeof src === 'string' && src.toLowerCase().endsWith('.mp4');
@@ -4126,13 +4110,12 @@ async function fetchAndDisplayPurchaseCount(prodId) {
                 slidesHtml += `<div class="carousel-slide cloned">${buildSlide(initialMediaArr[initialMediaArr.length - 1])}</div>`;
                 initialMediaArr.forEach((src, i) => {
                     slidesHtml += `<div class="carousel-slide">${buildSlide(src)}</div>`;
-                    indicatorsHtml += `<div class="indicator ${i === 0 ? 'active' : ''}" onclick="updateCarousel(${i})"></div>`;
                 });
                 slidesHtml += `<div class="carousel-slide cloned">${buildSlide(initialMediaArr[0])}</div>`;
             }
 
             const controlsHtml = `
-                <div class="carousel-indicators" style="display: ${totalSlides > 1 ? 'flex' : 'none'};">${indicatorsHtml}</div>
+                <div class="image-counter" id="imageCounter" style="display: ${totalSlides > 1 ? 'flex' : 'none'};">1/${totalSlides}</div>
             `;
 
             let variantsHtml = '';
@@ -4157,7 +4140,7 @@ async function fetchAndDisplayPurchaseCount(prodId) {
                 variantsHtml = `<div class="color-selection-wrapper"><div class="color-selection-title">${prod.variantLabel}: <span class="selected-color-name" id="selectedColorNameText">${activeVariantName}</span></div><div class="color-options-scroll">${optionsHtml}</div></div>`;
             }
 
-let sizeHtml = '';
+            let sizeHtml = '';
             if (prod.sizes && prod.sizes.length > 0) {
                 let guideLink = prod.showSizeChart ? `<span class="size-chart-link" onclick="openSizeChartModal()">Size Chart</span>` : '';
                 let titleLabel = prod.sizeLabel ? prod.sizeLabel + ' ' : 'Select ';
@@ -4168,8 +4151,8 @@ let sizeHtml = '';
                 }
                 let sizeOptions = `<div class="size-options">` + prod.sizes.map(size => `<button class="size-option-btn ${size === selectedProductSize ? 'selected' : ''}" onclick="changeProductSize('${size}', this)">${size}</button>`).join('') + `</div>`;
 
-    sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
-}
+                sizeHtml = `<div class="size-selection-wrapper"><div class="size-selection-header"><span class="size-selection-title">${titleLabel}</span>${guideLink}</div>${sizeOptions}</div>`;
+            }
 
             let alphabetHtml = '';
             if (prod.isAlphabet) {
@@ -4178,79 +4161,74 @@ let sizeHtml = '';
                 alphabetHtml = `<div class="alphabet-selection-wrapper" id="alphabetSelectionWrapper"><div class="alphabet-selection-header"><span class="alphabet-selection-title">Select Alphabet</span></div><div class="alphabet-options">${optionsHtml}</div></div>`;
             }
 
-      // --- NEW: Generate Related Products ---
+            // --- NEW: Generate Related Products ---
             // Find up to 8 products in the same category, excluding the currently viewed product
             const relatedProducts = appData.products
                 .filter(p => String(p.catId) === String(prod.catId) && String(p.id) !== String(prod.id))
                 .slice(0, 8);
                 
             let relatedProductsHtml = '';
-        if (relatedProducts.length > 0) {
-            // Formatting updated to use the standard vertical grid layout
-            relatedProductsHtml = `
-                <div style="max-width: 1100px; margin: 20px auto 40px;">
-                    <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600; padding: 0 20px;">You May Also Like</h3>
-                    <div class="grid-container">
-                        ${relatedProducts.map(p => getProductCardHTML(p)).join('')}
-                    </div>
-                </div>
-            `;
-        }
-            // ---------------------------------------
-            
-            
-            
-            let customizationHtml = '';
-if (prod.customTextLabel || prod.customPhotoLabel) {
-    customizationHtml += `<div style="margin: 20px 0; padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--secondary-bg);">`;
-    
-    if (prod.customTextLabel) {
-        customizationHtml += `
-            <div style="margin-bottom: ${prod.customPhotoLabel ? '20px' : '0'};">
-                <label style="font-size: 14px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 10px;">${escapeHTML(prod.customTextLabel)}</label>
-                <input type="text" id="customCustomerTextInput" placeholder="Type here..." style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; outline: none; background: #fff;">
-            </div>
-        `;
-    }
-    
-    if (prod.customPhotoLabel) {
-        window.currentCustomerPhotoUrl = ""; // Reset on page load
-        customizationHtml += `
-            <div>
-                <label style="font-size: 14px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 10px;">${escapeHTML(prod.customPhotoLabel)}</label>
-                
-                <div id="customPhotoUploadWrapper" data-original-label="${escapeHTML(prod.customPhotoLabel)}">
-                    <button class="btn-primary" style="background: #000; color: #fff; border: none; padding: 12px 20px; font-size: 13px; display: inline-flex; justify-content: center;" onclick="document.getElementById('customCustomerPhotoInput').click()">
-                        <span class="btn-text" id="customPhotoBtnText">${escapeHTML(prod.customPhotoLabel)}</span>
-                    </button>
-                    <input type="file" id="customCustomerPhotoInput" accept="image/*" style="display: none;" onchange="handleCustomerPhotoUpload(event)">
-                </div>
-
-                <div id="customPhotoPreviewWrapper" style="display: none; align-items: center; justify-content: flex-start; gap: 15px;">
-                    <div style="position: relative; display: inline-block;">
-                        <img id="customPhotoPreviewImg" src="" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: pointer;" onclick="openLightbox([this.src], 0)">
-                        <div style="position: absolute; top: 0; right: 0; background: #fff; border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; display: flex;" onclick="document.getElementById('customCustomerPhotoInput').click()">
-                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            if (relatedProducts.length > 0) {
+                // Formatting updated to use the standard vertical grid layout
+                relatedProductsHtml = `
+                    <div style="max-width: 1100px; margin: 20px auto 40px;">
+                        <h3 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text-dark); margin-bottom: 20px; font-weight: 600; padding: 0 20px;">You May Also Like</h3>
+                        <div class="grid-container">
+                            ${relatedProducts.map(p => getProductCardHTML(p)).join('')}
                         </div>
                     </div>
-                    <button style="font-family: 'Roboto Slab', serif; font-size: 11px; font-weight: 600; color: var(--error-color); text-transform: uppercase; letter-spacing: 0.5px; padding: 5px 14px; border: 1px solid var(--error-color); background-color: transparent; border-radius: 30px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 4px;" onclick="removeCustomerPhoto()" onmouseover="this.style.backgroundColor='var(--error-color)'; this.style.color='#ffffff';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--error-color)';">
-    REMOVE
-</button>
-                </div>
-            </div>
-        `;
-    }
-    customizationHtml += `</div>`;
-}
+                `;
+            }
+            // ---------------------------------------
             
-            
-            
+            let customizationHtml = '';
+            if (prod.customTextLabel || prod.customPhotoLabel) {
+                customizationHtml += `<div style="margin: 20px 0; padding: 20px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--secondary-bg);">`;
+                
+                if (prod.customTextLabel) {
+                    customizationHtml += `
+                        <div style="margin-bottom: ${prod.customPhotoLabel ? '20px' : '0'};">
+                            <label style="font-size: 14px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 10px;">${escapeHTML(prod.customTextLabel)}</label>
+                            <input type="text" id="customCustomerTextInput" placeholder="Type here..." style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; outline: none; background: #fff;">
+                        </div>
+                    `;
+                }
+                
+                if (prod.customPhotoLabel) {
+                    window.currentCustomerPhotoUrl = ""; // Reset on page load
+                    customizationHtml += `
+                        <div>
+                            <label style="font-size: 14px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 10px;">${escapeHTML(prod.customPhotoLabel)}</label>
+                            
+                            <div id="customPhotoUploadWrapper" data-original-label="${escapeHTML(prod.customPhotoLabel)}">
+                                <button class="btn-primary" style="background: #000; color: #fff; border: none; padding: 12px 20px; font-size: 13px; display: inline-flex; justify-content: center;" onclick="document.getElementById('customCustomerPhotoInput').click()">
+                                    <span class="btn-text" id="customPhotoBtnText">${escapeHTML(prod.customPhotoLabel)}</span>
+                                </button>
+                                <input type="file" id="customCustomerPhotoInput" accept="image/*" style="display: none;" onchange="handleCustomerPhotoUpload(event)">
+                            </div>
 
-          let html = `
+                            <div id="customPhotoPreviewWrapper" style="display: none; align-items: center; justify-content: flex-start; gap: 15px;">
+                                <div style="position: relative; display: inline-block;">
+                                    <img id="customPhotoPreviewImg" src="" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); cursor: pointer;" onclick="openLightbox([this.src], 0)">
+                                    <div style="position: absolute; top: 0; right: 0; background: #fff; border-radius: 50%; padding: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; display: flex;" onclick="document.getElementById('customCustomerPhotoInput').click()">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                    </div>
+                                </div>
+                                <button style="font-family: 'Roboto Slab', serif; font-size: 11px; font-weight: 600; color: var(--error-color); text-transform: uppercase; letter-spacing: 0.5px; padding: 5px 14px; border: 1px solid var(--error-color); background-color: transparent; border-radius: 30px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 4px;" onclick="removeCustomerPhoto()" onmouseover="this.style.backgroundColor='var(--error-color)'; this.style.color='#ffffff';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--error-color)';">
+                REMOVE
+            </button>
+                            </div>
+                        </div>
+                    `;
+                }
+                customizationHtml += `</div>`;
+            }
+
+            let html = `
                 <div class="product-layout-wrapper">
-<div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-    <div id="monthlyPurchaseBadge" class="purchase-count-badge" style="display: none;"></div>
-    <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
+                    <div class="product-hero" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
+                        <div id="monthlyPurchaseBadge" class="purchase-count-badge" style="display: none;"></div>
+                        <button class="hero-wishlist-btn" onclick="toggleWishlist(event, '${prod.id}')">
                             ${getHeartSvg(prod.id)}
                         </button>
                         <div class="carousel-track" id="carouselTrack" style="transform: ${totalSlides > 1 ? 'translateX(-100%)' : 'translateX(0)'};">${slidesHtml}</div>
@@ -4259,27 +4237,22 @@ if (prod.customTextLabel || prod.customPhotoLabel) {
                     <div class="product-body">
                         ${prod.isBestSeller ? '<span class="product-badge">Best Seller</span>' : ''}
                         <div class="product-title-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
-    <h2 class="product-detail-title" style="margin-bottom: 0;">${prod.name}</h2>
-    <button class="share-btn" onclick="shareProduct('${prod.id}')" title="Share Product">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18" cy="5" r="3"></circle>
-            <circle cx="6" cy="12" r="3"></circle>
-            <circle cx="18" cy="19" r="3"></circle>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-        </svg>
-    </button>
-</div>
-
-
-
-
-
-                       <div class="product-detail-price-box">
-    <span class="product-detail-price">${formatPrice(prod.price)}</span>
-    <span class="tax-info">MRP incl. of all taxes</span>
-</div>
-${customizationHtml}
+                            <h2 class="product-detail-title" style="margin-bottom: 0;">${prod.name}</h2>
+                            <button class="share-btn" onclick="shareProduct('${prod.id}')" title="Share Product">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="18" cy="5" r="3"></circle>
+                                    <circle cx="6" cy="12" r="3"></circle>
+                                    <circle cx="18" cy="19" r="3"></circle>
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="product-detail-price-box">
+                            <span class="product-detail-price">${formatPrice(prod.price)}</span>
+                            <span class="tax-info">MRP incl. of all taxes</span>
+                        </div>
+                        ${customizationHtml}
                         ${variantsHtml}
                         ${sizeHtml}
                         ${alphabetHtml}
@@ -4295,27 +4268,27 @@ ${customizationHtml}
                             <p class="product-detail-desc">${prod.desc}</p>
                         </div>
                         
-<div class="product-bottom-bar">
+                        <div class="product-bottom-bar">
                             <button id="btnAddToCart" class="btn-secondary" onclick="addToCart(this, '${prod.id}')"><span class="btn-text">Add to Cart</span></button>
                             <button id="btnBuyNow" class="btn-primary" onclick="buyNow(this, '${prod.id}')"><span class="btn-text">Buy Now</span></button>
                         </div>
                     </div>
                 </div>
 
-${relatedProductsHtml}
+                ${relatedProductsHtml}
             `;
             requestAnimationFrame(() => {
-    mainContent.innerHTML = html;
-    window.scrollTo(0, 0);
-    
-    // Check stock immediately when the product page loads
-    updateStockUI(prod); 
-    
-    // Trigger the optimized purchase count fetch asynchronously so it doesn't block the UI load
-    if (prod.show_purchase_count) {
-        fetchAndDisplayPurchaseCount(prod.id);
-    }
-});
+                mainContent.innerHTML = html;
+                window.scrollTo(0, 0);
+                
+                // Check stock immediately when the product page loads
+                updateStockUI(prod); 
+                
+                // Trigger the optimized purchase count fetch asynchronously so it doesn't block the UI load
+                if (prod.show_purchase_count) {
+                    fetchAndDisplayPurchaseCount(prod.id);
+                }
+            });
         }
 
 // --- CART LOGIC ---
