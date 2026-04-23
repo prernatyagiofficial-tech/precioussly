@@ -1250,6 +1250,13 @@
             <div class="form-group full-width"><label>Size/Option Label (e.g., Select Size, Choose Weight)</label><input type="text" id="prodSizeLabel" placeholder="Select"></div>
             
             <div class="form-group full-width"><label>Variant Label (e.g., Color, Style, Material)</label><input type="text" id="prodVariantLabel" placeholder="Color"></div>
+            <div class="form-group full-width" style="border-top: 1px dashed #000; padding-top: 15px; margin-top: 10px;">
+    <label style="font-weight: 700; color: var(--brand-color);">Customization Options (Leave empty to disable)</label>
+    <div class="flex-row">
+        <div style="flex: 1;"><label>Custom Text Label (e.g., Write your name)</label><input type="text" id="prodCustomText" placeholder="Leave empty to disable"></div>
+        <div style="flex: 1;"><label>Custom Photo Label (e.g., Upload photo)</label><input type="text" id="prodCustomPhoto" placeholder="Leave empty to disable"></div>
+    </div>
+</div>
             
             <div class="form-group full-width">
                 <label style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px; display: block;">Product Variants</label>
@@ -3064,6 +3071,8 @@ window.executeBulkAction = async function(action) {
                 document.getElementById('prodSizes').value = (p.sizes || []).join(', ');
                 document.getElementById('prodSizeLabel').value = p.size_label || '';
                 document.getElementById('prodVariantLabel').value = p.variant_label || 'Color';
+                document.getElementById('prodCustomText').value = p.custom_text_label || '';
+document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
                 document.getElementById('variantsContainer').innerHTML = '';
                 variantCounter = 0;
                 if (p.variants && Array.isArray(p.variants)) {
@@ -3149,7 +3158,10 @@ is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
             show_size_chart: document.getElementById('prodShowSizeChart').checked,
             show_purchase_count: document.getElementById('prodShowPurchaseCount').checked,
-            variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color'
+            variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color',
+custom_text_label: document.getElementById('prodCustomText').value.trim() || null,
+custom_photo_label: document.getElementById('prodCustomPhoto').value.trim() || null
+            
         };
 
         if(!payload.name || !payload.price || !payload.cat_id) throw new Error("Name, Price, and Category are required");
@@ -3830,15 +3842,27 @@ window.viewOrderItems = async function(orderId) {
             if (item.size) specs.push(`Size: ${item.size}`);
             if (item.alphabet) specs.push(`Alphabet: ${item.alphabet}`);
             const variantDisplay = specs.length > 0 ? `<div style="font-size:11px; color:#555; margin-top:4px;">${specs.join(' | ')}</div>` : '';
+            let customDetailsHtml = '';
+if (item.custom_text) {
+    customDetailsHtml += `<div style="font-size: 12px; color: #d84372; margin-top: 4px; font-weight: 600;">Custom Text: <span style="color:#000;">${escapeHTML(item.custom_text)}</span></div>`;
+}
+if (item.custom_photo) {
+    customDetailsHtml += `<div style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 12px; color: #d84372; font-weight: 600;">Custom Photo:</span>
+        <img src="${escapeHTML(item.custom_photo)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #000; cursor: pointer;" onclick="openLightbox(['${escapeHTML(item.custom_photo)}'], 0)" title="Click to view full size">
+    </div>`;
+}
 
             // Build Item Row (Mobile friendly flexbox)
             itemsHtml += `
             <div style="display: flex; gap: 12px; align-items: flex-start; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">
                 ${mediaTag}
                 <div style="flex: 1; min-width: 0;">
-                    <div style="font-weight: 700; font-size: 13px; word-wrap: break-word;">${escapeHTML(item.name)}</div>
-                    ${variantDisplay}
-                    <div style="font-size: 11px; color: #555; margin-top: 6px;">₹${item.price.toLocaleString()} x ${item.qty}</div>
+<div style="font-weight: 700; font-size: 13px; word-wrap: break-word;">${escapeHTML(item.name)}</div>
+${variantDisplay}
+${customDetailsHtml}
+<div style="font-size: 11px; color: #555; margin-top: 6px;">₹${item.price.toLocaleString()} x ${item.qty}</div>
+                    
                 </div>
                 <div style="text-align: right; flex-shrink: 0;">
                     <div style="font-size: 14px; font-weight: 700;">₹${(item.price * item.qty).toLocaleString()}</div>
