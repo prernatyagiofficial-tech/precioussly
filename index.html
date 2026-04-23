@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1898,7 +1899,7 @@ window.handleCustomerPhotoUpload = async function(event) {
 
     const btnText = document.getElementById('customPhotoBtnText');
     const originalText = btnText.innerText;
-    btnText.innerHTML = `Uploading`; // Sirf text rakha gaya hai
+    btnText.innerHTML = `Uploading...`; // Sirf text rakha gaya hai
     
     try {
         const fileName = `custom_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
