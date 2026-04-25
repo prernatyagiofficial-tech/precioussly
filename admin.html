@@ -1277,6 +1277,7 @@
                 <label class="checkbox-label"><input type="checkbox" id="prodHidden"> Hide Product</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodShowSizeChart"> Show Size Chart</label>
                 <label class="checkbox-label"><input type="checkbox" id="prodShowPurchaseCount"> Show Monthly Count</label>
+                <label class="checkbox-label"><input type="checkbox" id="prodQuickAdd"> Show in Quick Add To Cart</label>
             </div>
             
             <div class="form-group full-width">
@@ -3089,6 +3090,7 @@ document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
         document.getElementById('prodHidden').checked = !!p.is_hidden;
         document.getElementById('prodShowSizeChart').checked = !!p.show_size_chart;
         document.getElementById('prodShowPurchaseCount').checked = !!p.show_purchase_count;
+        document.getElementById('prodQuickAdd').checked = !!p.is_quick_add;
         window._tempVariantStock = p.variant_stock || {};
         window._tempVariantPrices = p.variant_prices || {};
         setTimeout(() => generateStockGrid(), 50);
@@ -3158,6 +3160,7 @@ is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
             show_size_chart: document.getElementById('prodShowSizeChart').checked,
             show_purchase_count: document.getElementById('prodShowPurchaseCount').checked,
+            is_quick_add: document.getElementById('prodQuickAdd').checked,
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color',
 custom_text_label: document.getElementById('prodCustomText').value.trim() || null,
 custom_photo_label: document.getElementById('prodCustomPhoto').value.trim() || null
@@ -5284,11 +5287,12 @@ window.renderBulkSmartProducts = async function() {
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+<div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                         <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-bestseller" ${p.is_best_seller ? 'checked' : ''}> Best Seller</label>
                         <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-alphabet" ${p.is_alphabet ? 'checked' : ''}> Alphabet</label>
                         <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-hidden" ${p.is_hidden ? 'checked' : ''}> Hide Product</label>
                         <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-sizechart" ${p.show_size_chart ? 'checked' : ''}> Size Chart</label>
+                        <label class="checkbox-label" style="margin-bottom:0;"><input type="checkbox" class="sb-quickadd" ${p.is_quick_add ? 'checked' : ''}> Quick Add</label>
                     </div>
 
                     ${variantsHtml}
@@ -5344,6 +5348,7 @@ window.saveAllBulkSmart = async function() {
                 is_alphabet: card.querySelector('.sb-alphabet').checked,
                 is_hidden: card.querySelector('.sb-hidden').checked,
                 show_size_chart: card.querySelector('.sb-sizechart').checked,
+                is_quick_add: card.querySelector('.sb-quickadd').checked,
                 media: mainMediaArr
             };
 
