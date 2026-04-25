@@ -3,11 +3,11 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const userAgent = request.headers.get('User-Agent') || '';
 
-    // 1. Identify common social media and link preview bots
-    const isBot = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|TelegramBot|Pinterest/i.test(userAgent);
+    // 1. Yahan humne Googlebot, Bingbot aur baaki search engines ko add kar diya hai
+    const isBot = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|TelegramBot|Pinterest|Googlebot|bingbot|yandex|duckduckbot|slurp/i.test(userAgent);
     const productSlug = url.searchParams.get('product');
 
-    // 2. If it's a human OR not a product link, serve the normal index.html SPA
+    // 2. Agar bot nahi hai ya product link nahi hai, toh normal website load hone do
     if (!isBot || !productSlug) {
         return next();
     }
@@ -15,7 +15,6 @@ export async function onRequest(context) {
     const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM';
 
-    // FIX: Properly URL Encode the search string so the fetch doesn't crash
     const exactSearchString = `*${productSlug.replace(/-/g, '%')}*`;
     const searchQuery = encodeURIComponent(exactSearchString);
 
@@ -44,24 +43,34 @@ export async function onRequest(context) {
             const rawDesc = product.description || product.desc || "Shop curated collections tailored for elegance.";
             const cleanDesc = rawDesc.replace(/(<([^>]+)>)/gi, "").substring(0, 150) + "...";
 
+            // 3. Yahan humne <body> tag mein product ka naam, photo aur price daal diya hai
+            // taaki Google usko padh sake aur apne search results mein dikha sake!
             return new Response(`
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <title>${product.name} | Precioussly</title>
+                    <meta name="description" content="${cleanDesc}">
                     <meta property="og:type" content="website">
                     <meta property="og:title" content="${product.name} | Precioussly">
                     <meta property="og:description" content="${cleanDesc}">
                     <meta property="og:image" content="${mediaUrl}">
                     <meta property="og:url" content="${url.href}">
                     <meta name="twitter:card" content="summary_large_image">
-                    <meta name="twitter:title" content="${product.name} | Precioussly">
-                    <meta name="twitter:description" content="${cleanDesc}">
-                    <meta name="twitter:image" content="${mediaUrl}">
                 </head>
                 <body>
-                    <p>Redirecting to Precioussly store...</p>
+                    <header>
+                        <h1>${product.name}</h1>
+                    </header>
+                    <main>
+                        <img src="${mediaUrl}" alt="${product.name}">
+                        <p>${cleanDesc}</p>
+                        <p>Price: ₹${product.price}</p>
+                    </main>
+                    <footer>
+                        <p><a href="/">Go to Precioussly Homepage</a></p>
+                    </footer>
                 </body>
                 </html>
             `, {
