@@ -12,17 +12,16 @@ export async function onRequest(context) {
         return next();
     }
 
-    // 3. It's a bot! Fetch the product details directly from your Supabase REST API
     const SUPABASE_URL = 'https://gahkjnfiltfcqqdjnxnx.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhaGtqbmZpbHRmY3FxZGpueG54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ2MTMsImV4cCI6MjA5MTMyMDYxM30.r1jhJlkk0KR7V6qFFotATUhyQfcxYc7ZadpbfOXDFCM';
 
-    // Since the URL uses a slug (e.g., golden-bow-necklace), we replace hyphens with wildcards (%) 
-    // to match the actual product name in your database (e.g., Golden Bow Necklace)
-    const searchQuery = productSlug.replace(/-/g, '%');
+    // FIX: Properly URL Encode the search string so the fetch doesn't crash
+    const exactSearchString = `*${productSlug.replace(/-/g, '%')}*`;
+    const searchQuery = encodeURIComponent(exactSearchString);
 
     try {
         const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/products?select=*&name=ilike.*${searchQuery}*&limit=1`,
+            `${SUPABASE_URL}/rest/v1/products?select=*&name=ilike.${searchQuery}&limit=1`,
             {
                 headers: {
                     'apikey': SUPABASE_KEY,
@@ -36,18 +35,15 @@ export async function onRequest(context) {
         if (data && data.length > 0) {
             const product = data[0];
             
-            // Extract the first image from the media array
-            let mediaUrl = "https://i.postimg.cc/d3YGXnwC/file-0000000036707208a9cc7d7524fe0927-(1).webp"; // Fallback image
+            let mediaUrl = "https://i.postimg.cc/d3YGXnwC/file-0000000036707208a9cc7d7524fe0927-(1).webp"; 
             try {
                 const mediaArr = typeof product.media === 'string' ? JSON.parse(product.media) : product.media;
                 if (mediaArr && mediaArr.length > 0) mediaUrl = mediaArr[0];
             } catch(e) {}
 
-            // Clean up the description to remove HTML tags for the preview text
             const rawDesc = product.description || product.desc || "Shop curated collections tailored for elegance.";
             const cleanDesc = rawDesc.replace(/(<([^>]+)>)/gi, "").substring(0, 150) + "...";
 
-            // 4. Return a hardcoded meta-tag response exclusively for the bot
             return new Response(`
                 <!DOCTYPE html>
                 <html lang="en">
@@ -76,6 +72,5 @@ export async function onRequest(context) {
         console.error("Bot intercept failed:", err);
     }
 
-    // 5. Fallback: If the database fetch fails, let Cloudflare load the normal index.html
     return next();
 }
