@@ -1799,10 +1799,11 @@ db.channel('live-orders')
                     const hash = window.location.hash.replace('#', '');
                     
                     const validViews = [
-                        'dashboard', 'orders', 'products', 'categories', 'coupons', 
-                        'reviews', 'settings', 'users', 'daily-orders', 'revenue-tags', 
-                        'status-checker', 'monthly-earnings', 'bulk-smart', 'bulk-checker'
-                    ];
+                        'dashboard', 'orders', 'products', 'categories', 'coupons', 
+                        'reviews', 'settings', 'users', 'daily-orders', 'revenue-tags', 
+                        'status-checker', 'monthly-earnings', 'bulk-smart', 'bulk-checker',
+                        'smart-layouts'
+                    ];
 
                     // Dictionary mapping the new URL slugs to their specific modal IDs
                     const bulkModals = {
@@ -4678,28 +4679,98 @@ window.renderMonthlyEarnings = async function() {
     const tbody = document.getElementById('monthlyEarningsTableBody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching historical data...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching strictly delivered orders...</td></tr>';
 
     try {
-        const { data, error } = await db.rpc('get_monthly_earnings');
-        if (error) throw error;
+        // 1. Fetch ONLY Delivered orders directly from the database (added actual_shipping_cost)
+        const { data: deliveredOrders, error: orderError } = await db.from('orders')
+            .select('id, created_at, items, total_amount, customer_details, actual_shipping_cost')
+            .eq('status', 'Delivered')
+            .limit(10000);
+
+        if (orderError) throw orderError;
+
+        // 2. Fetch products to map smart tags accurately
+        const { data: products, error: prodError } = await db.from('products')
+            .select('id, smart_tag');
+            
+        if (prodError) throw prodError;
 
         let overallTotal = 0;
+        const monthlyStats = {};
+
+        // 3. Process each delivered order individually
+        (deliveredOrders || []).forEach(order => {
+            const dateObj = new Date(order.created_at);
+            // Create a format like "2026-04"
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const monthKey = `${year}-${month}`;
+
+            if (!monthlyStats[monthKey]) {
+                monthlyStats[monthKey] = { total: 0, tags: {} };
+            }
+
+            const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+            const c = order.customer_details || {};
+            
+            // Calculate exactly how much money was received
+            let amountReceived = 0;
+            if (c.paymentMethod === 'cod') {
+                amountReceived = Number(c.amountPaid || 0) + Number(c.amountDue || 0);
+            } else {
+                amountReceived = Number(order.total_amount || 0);
+            }
+
+            // ---- NEW: MINUS ACTUAL SHIPPING COST ----
+            const actualShipping = Number(order.actual_shipping_cost) || 0;
+            const netReceived = amountReceived - actualShipping;
+
+            // Add the deducted amount to the totals
+            monthlyStats[monthKey].total += netReceived;
+            overallTotal += netReceived;
+
+            // Figure out base value to divide revenue logically across multiple tags
+            let orderBaseSubtotal = 0;
+            items.forEach(item => {
+                orderBaseSubtotal += (Number(item.price) || 0) * (Number(item.qty) || 1);
+            });
+
+            items.forEach(item => {
+                const prod = products.find(p => String(p.id) === String(item.id));
+                const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
+                
+                const qty = Number(item.qty) || 1;
+                const baseItemRev = (Number(item.price) || 0) * qty;
+                
+                // Weight of this item in the entire order
+                const weight = orderBaseSubtotal > 0 ? (baseItemRev / orderBaseSubtotal) : 0;
+                
+                // Distribute the NET received (after shipping deduction) to the tags
+                const actualItemRev = netReceived * weight;
+
+                if (!monthlyStats[monthKey].tags[tag]) {
+                    monthlyStats[monthKey].tags[tag] = 0;
+                }
+                monthlyStats[monthKey].tags[tag] += actualItemRev;
+            });
+        });
+
         let html = '';
 
-        if (!data || data.length === 0) {
-            html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No earnings data found.</td></tr>`;
+        // Sort months from Newest to Oldest
+        const sortedMonths = Object.keys(monthlyStats).sort((a, b) => b.localeCompare(a));
+
+        if (sortedMonths.length === 0) {
+            html = `<tr><td colspan="2" style="text-align:center; padding: 20px;">No delivered earnings data found.</td></tr>`;
         } else {
-            const sortedData = data.sort((a, b) => b.month_key.localeCompare(a.month_key));
-
-            sortedData.forEach(monthData => {
-                overallTotal += monthData.total;
-
-                const dateObj = new Date(monthData.month_key + '-01');
+            sortedMonths.forEach(monthKey => {
+                const monthData = monthlyStats[monthKey];
+                const dateObj = new Date(monthKey + '-01');
                 const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
                 let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
-                const tagsObj = monthData.tags || {};
+                const tagsObj = monthData.tags;
                 const sortedTags = Object.keys(tagsObj).sort((a, b) => tagsObj[b] - tagsObj[a]);
 
                 if (sortedTags.length === 0) {
@@ -4723,8 +4794,10 @@ window.renderMonthlyEarnings = async function() {
                 </tr>`;
             });
         }
+        
         document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
         tbody.innerHTML = html;
+
     } catch (err) {
         console.error("Monthly Earnings Error:", err);
         tbody.innerHTML = `<tr><td colspan="2" style="text-align:center; padding: 20px; color: red;">Failed to load data.</td></tr>`;
