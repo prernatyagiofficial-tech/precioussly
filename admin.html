@@ -3100,7 +3100,7 @@ document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
 };
         
 
-  // NEW REPLACEMENT
+// NEW REPLACEMENT
   async function saveProduct() {
     const btn = document.getElementById('saveProdBtn');
     btn.disabled = true; 
@@ -3129,9 +3129,10 @@ document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
             }
         });
 
+        // NAYA LOGIC: Agar box khali hai, toh automatically 999999 (Unlimited) ho jayega
         let compiledVariantStock = {};
         document.querySelectorAll('.stock-input').forEach(input => {
-            compiledVariantStock[input.dataset.key] = input.value.trim() === '' ? null : Number(input.value);
+            compiledVariantStock[input.dataset.key] = input.value.trim() === '' ? 999999 : Number(input.value);
         });
 
         let compiledVariantPrices = {};
@@ -3148,7 +3149,8 @@ document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
             price: Number(document.getElementById('prodPrice').value),
             cost_price: Number(document.getElementById('prodCostPrice').value) || 0,
 // END OF NEW REPLACEMENT
-            stock: document.getElementById('prodStock').value.trim() === '' ? null : Number(document.getElementById('prodStock').value),
+            // NAYA LOGIC: Global stock ke liye bhi same unlimited logic
+            stock: document.getElementById('prodStock').value.trim() === '' ? 999999 : Number(document.getElementById('prodStock').value),
             cat_id: Number(document.getElementById('prodCat').value),
             description: document.getElementById('prodDesc').value.trim(),
             media: mediaArr,
@@ -3157,14 +3159,14 @@ document.getElementById('prodCustomPhoto').value = p.custom_photo_label || '';
             variants: variantsObj,
             variant_stock: compiledVariantStock,
             is_best_seller: document.getElementById('prodBestSeller').checked,
-is_alphabet: document.getElementById('prodAlphabet').checked,
+            is_alphabet: document.getElementById('prodAlphabet').checked,
             is_hidden: document.getElementById('prodHidden').checked, 
             show_size_chart: document.getElementById('prodShowSizeChart').checked,
             show_purchase_count: document.getElementById('prodShowPurchaseCount').checked,
             is_quick_add: document.getElementById('prodQuickAdd').checked,
             variant_label: document.getElementById('prodVariantLabel').value.trim() || 'Color',
-custom_text_label: document.getElementById('prodCustomText').value.trim() || null,
-custom_photo_label: document.getElementById('prodCustomPhoto').value.trim() || null
+            custom_text_label: document.getElementById('prodCustomText').value.trim() || null,
+            custom_photo_label: document.getElementById('prodCustomPhoto').value.trim() || null
             
         };
 
