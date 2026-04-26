@@ -4682,7 +4682,6 @@ window.renderMonthlyEarnings = async function() {
     tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">Fetching strictly delivered orders...</td></tr>';
 
     try {
-        // 1. Fetch ONLY Delivered orders directly from the database (added actual_shipping_cost)
         const { data: deliveredOrders, error: orderError } = await db.from('orders')
             .select('id, created_at, items, total_amount, customer_details, actual_shipping_cost')
             .eq('status', 'Delivered')
@@ -4690,31 +4689,30 @@ window.renderMonthlyEarnings = async function() {
 
         if (orderError) throw orderError;
 
-        // 2. Fetch products to map smart tags accurately
         const { data: products, error: prodError } = await db.from('products')
-            .select('id, smart_tag');
+            .select('id, smart_tag, cost_price');
             
         if (prodError) throw prodError;
 
-        let overallTotal = 0;
+        let overallGross = 0;
+        let overallShipping = 0;
+        let overallCost = 0;
+        let overallProfit = 0;
         const monthlyStats = {};
 
-        // 3. Process each delivered order individually
         (deliveredOrders || []).forEach(order => {
             const dateObj = new Date(order.created_at);
-            // Create a format like "2026-04"
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const year = dateObj.getFullYear();
             const monthKey = `${year}-${month}`;
 
             if (!monthlyStats[monthKey]) {
-                monthlyStats[monthKey] = { total: 0, tags: {} };
+                monthlyStats[monthKey] = { gross: 0, shipping: 0, cost: 0, profit: 0, tags: {} };
             }
 
             const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
             const c = order.customer_details || {};
             
-            // Calculate exactly how much money was received
             let amountReceived = 0;
             if (c.paymentMethod === 'cod') {
                 amountReceived = Number(c.amountPaid || 0) + Number(c.amountDue || 0);
@@ -4722,19 +4720,29 @@ window.renderMonthlyEarnings = async function() {
                 amountReceived = Number(order.total_amount || 0);
             }
 
-            // ---- NEW: MINUS ACTUAL SHIPPING COST ----
             const actualShipping = Number(order.actual_shipping_cost) || 0;
-            const netReceived = amountReceived - actualShipping;
 
-            // Add the deducted amount to the totals
-            monthlyStats[monthKey].total += netReceived;
-            overallTotal += netReceived;
-
-            // Figure out base value to divide revenue logically across multiple tags
+            let totalItemsCost = 0;
             let orderBaseSubtotal = 0;
+            
             items.forEach(item => {
+                const prod = products.find(p => String(p.id) === String(item.id));
+                const itemCost = (prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
+                totalItemsCost += (itemCost * (Number(item.qty) || 1));
                 orderBaseSubtotal += (Number(item.price) || 0) * (Number(item.qty) || 1);
             });
+
+            const orderProfit = amountReceived - actualShipping - totalItemsCost;
+
+            monthlyStats[monthKey].gross += amountReceived;
+            monthlyStats[monthKey].shipping += actualShipping;
+            monthlyStats[monthKey].cost += totalItemsCost;
+            monthlyStats[monthKey].profit += orderProfit;
+            
+            overallGross += amountReceived;
+            overallShipping += actualShipping;
+            overallCost += totalItemsCost;
+            overallProfit += orderProfit;
 
             items.forEach(item => {
                 const prod = products.find(p => String(p.id) === String(item.id));
@@ -4742,23 +4750,21 @@ window.renderMonthlyEarnings = async function() {
                 
                 const qty = Number(item.qty) || 1;
                 const baseItemRev = (Number(item.price) || 0) * qty;
-                
-                // Weight of this item in the entire order
                 const weight = orderBaseSubtotal > 0 ? (baseItemRev / orderBaseSubtotal) : 0;
                 
-                // Distribute the NET received (after shipping deduction) to the tags
-                const actualItemRev = netReceived * weight;
+                const itemGross = amountReceived * weight;
+                const itemShipping = actualShipping * weight;
+                const itemCostTotal = ((prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0)) * qty;
+                const itemProfit = itemGross - itemShipping - itemCostTotal;
 
                 if (!monthlyStats[monthKey].tags[tag]) {
-                    monthlyStats[monthKey].tags[tag] = 0;
+                    monthlyStats[monthKey].tags[tag] = { profit: 0 };
                 }
-                monthlyStats[monthKey].tags[tag] += actualItemRev;
+                monthlyStats[monthKey].tags[tag].profit += itemProfit;
             });
         });
 
         let html = '';
-
-        // Sort months from Newest to Oldest
         const sortedMonths = Object.keys(monthlyStats).sort((a, b) => b.localeCompare(a));
 
         if (sortedMonths.length === 0) {
@@ -4771,16 +4777,20 @@ window.renderMonthlyEarnings = async function() {
 
                 let tagsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">`;
                 const tagsObj = monthData.tags;
-                const sortedTags = Object.keys(tagsObj).sort((a, b) => tagsObj[b] - tagsObj[a]);
+                const sortedTags = Object.keys(tagsObj).sort((a, b) => tagsObj[b].profit - tagsObj[a].profit);
 
                 if (sortedTags.length === 0) {
                     tagsHtml += `<span style="font-size: 11px; color: #666;">No tags recorded</span>`;
                 } else {
                     sortedTags.forEach(tag => {
-                        tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: ₹${Math.round(tagsObj[tag]).toLocaleString()}</span>`;
+                        const tagProfit = tagsObj[tag].profit;
+                        const profitColor = tagProfit >= 0 ? '#2ecc71' : '#ff4757';
+                        tagsHtml += `<span class="badge" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; font-size:11px; padding: 6px 10px;">${escapeHTML(tag)}: Profit <strong style="color:${profitColor};">₹${Math.round(tagProfit).toLocaleString()}</strong></span>`;
                     });
                 }
                 tagsHtml += `</div>`;
+
+                const monthProfitColor = monthData.profit >= 0 ? '#2ecc71' : '#ff4757';
 
                 html += `
                 <tr style="background: #fff;">
@@ -4788,14 +4798,31 @@ window.renderMonthlyEarnings = async function() {
                         <strong style="font-size: 14px; text-transform: uppercase;">${monthLabel}</strong>
                         ${tagsHtml}
                     </td>
-                    <td style="text-align: right; vertical-align: middle;">
-                        <strong style="font-size: 18px; color: var(--primary);">₹${Math.round(monthData.total).toLocaleString()}</strong>
+                    <td style="text-align: right; vertical-align: middle; min-width: 180px;">
+                        <div style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Net Profit</div>
+                        <strong style="font-size: 18px; color: ${monthProfitColor};">₹${Math.round(monthData.profit).toLocaleString()}</strong>
+                        <div style="font-size: 11px; color: #555; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #ccc;">Gross Rev: <strong>₹${Math.round(monthData.gross).toLocaleString()}</strong></div>
+                        <div style="font-size: 11px; color: #e74c3c; margin-top: 2px;">- Shipping: ₹${Math.round(monthData.shipping).toLocaleString()}</div>
+                        <div style="font-size: 11px; color: #e74c3c; margin-top: 2px;">- Item Cost: ₹${Math.round(monthData.cost).toLocaleString()}</div>
                     </td>
                 </tr>`;
             });
         }
         
-        document.getElementById('overallEarningsTotal').innerText = `₹${Math.round(overallTotal).toLocaleString()}`;
+        const overallLabel = document.querySelector('#overallEarningsTotal').previousElementSibling;
+        if(overallLabel) overallLabel.innerText = "All-Time Financial Overview";
+
+        const overallProfitColor = overallProfit >= 0 ? '#2ecc71' : '#ff4757';
+        document.getElementById('overallEarningsTotal').innerHTML = `
+            <div style="font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase;">Net Profit</div>
+            <span style="color: ${overallProfitColor}; font-size: 36px;">₹${Math.round(overallProfit).toLocaleString()}</span>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #555; font-weight: 500; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #000;">
+                <div>Gross: <strong>₹${Math.round(overallGross).toLocaleString()}</strong></div>
+                <div style="color: #e74c3c;">Ship: -₹${Math.round(overallShipping).toLocaleString()}</div>
+                <div style="color: #e74c3c;">Cost: -₹${Math.round(overallCost).toLocaleString()}</div>
+            </div>
+        `;
+        
         tbody.innerHTML = html;
 
     } catch (err) {
@@ -4804,10 +4831,7 @@ window.renderMonthlyEarnings = async function() {
     }
 };
 
-    
-
-
-        // --- SMART TAGS & REVENUE LOGIC ---
+// --- SMART TAGS & REVENUE LOGIC ---
 State.smartTags = [];
 
 function renderSmartTagsUI() {
@@ -4816,7 +4840,6 @@ function renderSmartTagsUI() {
     const filterSelect = document.getElementById('prodSmartTagFilter');
     const revenueSelect = document.getElementById('revenueTagFilter');
     
-    // Render Settings List
     list.innerHTML = State.smartTags.map((tag, i) => `
         <div style="display:flex; justify-content:space-between; align-items:center; border:1px solid #000; padding:8px 12px; background:#f9f9f9;">
             <span style="font-weight:600; font-size:12px; text-transform:uppercase;">${escapeHTML(tag)}</span>
@@ -4824,12 +4847,10 @@ function renderSmartTagsUI() {
         </div>
     `).join('');
 
-    // Update Dropdowns
     const optionsHtml = State.smartTags.map(tag => `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`).join('');
     prodSelect.innerHTML = `<option value="">None</option>` + optionsHtml;
     document.getElementById('bulkProdSmartTag').innerHTML = `<option value="">None</option>` + optionsHtml;
     
-    // Retain current filter selections
     const currentProdFilter = filterSelect.value;
     filterSelect.innerHTML = `<option value="">All Tags</option><option value="uncategorized">Uncategorized (No Tag)</option>` + optionsHtml;
     filterSelect.value = currentProdFilter;
@@ -4865,10 +4886,22 @@ window.calculateTagRevenue = async function() {
     const selectedTag = document.getElementById('revenueTagFilter').value;
     const tbody = document.getElementById('revenueTagsTableBody');
 
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">Calculating revenue...</td></tr>`;
+    const thead = tbody.previousElementSibling;
+    thead.innerHTML = `
+        <tr>
+            <th>Product Name</th>
+            <th>Tag</th>
+            <th>Units</th>
+            <th>Gross Rev</th>
+            <th>- Shipping</th>
+            <th>- Cost</th>
+            <th>Net Profit</th>
+        </tr>
+    `;
+
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px;">Calculating detailed revenue...</td></tr>`;
 
     try {
-        // 1. Fetch ONLY Delivered orders, grabbing full financial data this time
         const { data: deliveredOrders, error: orderError } = await db.from('orders')
             .select('id, items, total_amount, customer_details, actual_shipping_cost')
             .eq('status', 'Delivered')
@@ -4876,34 +4909,30 @@ window.calculateTagRevenue = async function() {
 
         if (orderError) throw orderError;
 
-        // 2. Fetch products to map the smart tags and base costs
         const { data: products, error: prodError } = await db.from('products')
             .select('id, name, smart_tag, cost_price');
             
         if (prodError) throw prodError;
 
-        let totalRev = 0;
-        let totalProfitGlobal = 0;
+        let totalGross = 0;
+        let totalShipping = 0;
+        let totalCost = 0;
+        let totalProfit = 0;
         const statsMap = {};
 
-        // 3. Process the exact actual money received per order
         deliveredOrders.forEach(order => {
             const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
             const c = order.customer_details || {};
             
-            // Determine exactly how much cash/payment was received for this specific delivered order
             let amountReceived = 0;
             if (c.paymentMethod === 'cod') {
-                // For delivered COD, we collect advance + amount due
                 amountReceived = Number(c.amountPaid || 0) + Number(c.amountDue || 0);
             } else {
-                // Online payments
                 amountReceived = Number(order.total_amount || 0);
             }
             
             const actualShipping = Number(order.actual_shipping_cost) || 0;
 
-            // Find the base subtotal to calculate the proportional share of each item
             let orderBaseSubtotal = 0;
             items.forEach(item => {
                 orderBaseSubtotal += (Number(item.price) || 0) * (Number(item.qty) || 1);
@@ -4913,7 +4942,6 @@ window.calculateTagRevenue = async function() {
                 const prod = products.find(p => String(p.id) === String(item.id));
                 const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
 
-                // Filter by the dropdown selection
                 if (selectedTag === 'All' || tag === selectedTag) {
                     const key = item.id;
                     if (!statsMap[key]) {
@@ -4921,26 +4949,28 @@ window.calculateTagRevenue = async function() {
                             name: item.name || (prod ? prod.name : 'Unknown Product'),
                             tag: tag,
                             units: 0,
-                            rev: 0,
+                            gross: 0,
+                            shipping: 0,
+                            cost: 0,
                             profit: 0
                         };
                     }
                     
                     const qty = Number(item.qty) || 1;
                     const baseItemRev = (Number(item.price) || 0) * qty;
-                    
-                    // Calculate this item's percentage of the total order value
                     const weight = orderBaseSubtotal > 0 ? (baseItemRev / orderBaseSubtotal) : 0;
                     
-                    // Calculate exact actual revenue and profit assigned to this specific item
-                    const actualItemRev = amountReceived * weight;
-                    const cost = (prod && prod.cost_price !== undefined) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
-                    const actualItemCost = cost * qty;
-                    const actualItemProfit = ((amountReceived - actualShipping) * weight) - actualItemCost;
+                    const itemGross = amountReceived * weight;
+                    const itemShipping = actualShipping * weight;
+                    const itemCostValue = (prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
+                    const itemCostTotal = itemCostValue * qty;
+                    const itemProfit = itemGross - itemShipping - itemCostTotal;
 
                     statsMap[key].units += qty;
-                    statsMap[key].rev += actualItemRev;
-                    statsMap[key].profit += actualItemProfit;
+                    statsMap[key].gross += itemGross;
+                    statsMap[key].shipping += itemShipping;
+                    statsMap[key].cost += itemCostTotal;
+                    statsMap[key].profit += itemProfit;
                 }
             });
         });
@@ -4949,32 +4979,66 @@ window.calculateTagRevenue = async function() {
         let html = '';
 
         if (!data || data.length === 0) {
-            html = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No delivered revenue data found for this tag.</td></tr>`;
+            html = `<tr><td colspan="7" style="text-align:center; padding: 20px;">No delivered revenue data found for this tag.</td></tr>`;
         } else {
-            const sortedData = data.sort((a, b) => b.rev - a.rev);
+            const sortedData = data.sort((a, b) => b.profit - a.profit);
 
             sortedData.forEach(stat => {
-                totalRev += stat.rev;
-                totalProfitGlobal += stat.profit;
+                totalGross += stat.gross;
+                totalShipping += stat.shipping;
+                totalCost += stat.cost;
+                totalProfit += stat.profit;
 
                 html += `
                 <tr>
                     <td><strong>${escapeHTML(stat.name)}</strong></td>
                     <td><span class="badge" style="background:#f0f0f0; color:#000; border:1px solid #000;">${escapeHTML(stat.tag)}</span></td>
                     <td>${stat.units}</td>
-                    <td><strong>₹${Math.round(stat.rev).toLocaleString()}</strong></td>
+                    <td><strong>₹${Math.round(stat.gross).toLocaleString()}</strong></td>
+                    <td style="color:#e74c3c;">-₹${Math.round(stat.shipping).toLocaleString()}</td>
+                    <td style="color:#e74c3c;">-₹${Math.round(stat.cost).toLocaleString()}</td>
                     <td><strong style="color: ${stat.profit >= 0 ? '#2ecc71' : '#ff4757'};">₹${Math.round(stat.profit).toLocaleString()}</strong></td>
                 </tr>`;
             });
         }
 
-        document.getElementById('filteredRevenueTotal').innerText = `₹${Math.round(totalRev).toLocaleString()}`;
-        document.getElementById('filteredProfitTotal').innerText = `₹${Math.round(totalProfitGlobal).toLocaleString()}`;
+        // Fix to prevent destroying IDs dynamically on refresh
+        let summaryContainer = document.getElementById('revenueSummaryContainerBox');
+        if (!summaryContainer) {
+            const revEl = document.getElementById('filteredRevenueTotal');
+            if (revEl) {
+                summaryContainer = revEl.parentNode.parentNode;
+                summaryContainer.id = 'revenueSummaryContainerBox';
+            }
+        }
+        
+        if (summaryContainer) {
+            summaryContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
+            summaryContainer.innerHTML = `
+                <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; text-align: center;">
+                    <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Gross Rev</div>
+                    <div id="filteredRevenueTotal" style="font-size:22px; font-weight:bold; color: #000;">₹${Math.round(totalGross).toLocaleString()}</div>
+                </div>
+                <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; text-align: center;">
+                    <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Shipping Deducted</div>
+                    <div style="font-size:22px; font-weight:bold; color: #e74c3c;">-₹${Math.round(totalShipping).toLocaleString()}</div>
+                </div>
+                <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; text-align: center;">
+                    <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Cost Price Deducted</div>
+                    <div style="font-size:22px; font-weight:bold; color: #e74c3c;">-₹${Math.round(totalCost).toLocaleString()}</div>
+                </div>
+                <div style="background:#fff; border:1px solid #000; padding:15px; box-shadow: 2px 2px 0px #000; text-align: center;">
+                    <div style="font-size:11px; text-transform:uppercase; font-weight: 600; margin-bottom: 5px;">Net Profit</div>
+                    <div id="filteredProfitTotal" style="font-size:22px; font-weight:bold; color: ${totalProfit >= 0 ? '#2ecc71' : '#ff4757'};">₹${Math.round(totalProfit).toLocaleString()}</div>
+                </div>
+            `;
+        }
+
         tbody.innerHTML = html;
 
     } catch (err) {
         console.error("Tag Revenue Error:", err);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: red;">Failed to load revenue.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color: red;">Failed to load revenue. Error: ${err.message}</td></tr>`;
     }
 };
 
