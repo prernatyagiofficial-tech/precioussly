@@ -4727,7 +4727,13 @@ window.renderMonthlyEarnings = async function() {
             
             items.forEach(item => {
                 const prod = products.find(p => String(p.id) === String(item.id));
-                const itemCost = (prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
+                
+                // LOGIC FIX: Always prefer the cost price saved in the order item (receipt). 
+                // Fall back to live product only if missing. If product is deleted, fall back to 0.
+                const itemCost = (item.cost_price !== undefined && item.cost_price !== null) 
+                                 ? Number(item.cost_price) 
+                                 : (prod && prod.cost_price !== undefined && prod.cost_price !== null ? Number(prod.cost_price) : 0);
+                                 
                 totalItemsCost += (itemCost * (Number(item.qty) || 1));
                 orderBaseSubtotal += (Number(item.price) || 0) * (Number(item.qty) || 1);
             });
@@ -4746,7 +4752,9 @@ window.renderMonthlyEarnings = async function() {
 
             items.forEach(item => {
                 const prod = products.find(p => String(p.id) === String(item.id));
-                const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
+                
+                // LOGIC FIX: Lock tag to order receipt if available
+                const tag = item.smart_tag ? item.smart_tag : (prod && prod.smart_tag ? prod.smart_tag : 'uncategorized');
                 
                 const qty = Number(item.qty) || 1;
                 const baseItemRev = (Number(item.price) || 0) * qty;
@@ -4754,7 +4762,13 @@ window.renderMonthlyEarnings = async function() {
                 
                 const itemGross = amountReceived * weight;
                 const itemShipping = actualShipping * weight;
-                const itemCostTotal = ((prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0)) * qty;
+                
+                // LOGIC FIX: Lock item cost to order receipt
+                const itemCostValue = (item.cost_price !== undefined && item.cost_price !== null) 
+                                      ? Number(item.cost_price) 
+                                      : (prod && prod.cost_price !== undefined && prod.cost_price !== null ? Number(prod.cost_price) : 0);
+                                      
+                const itemCostTotal = itemCostValue * qty;
                 const itemProfit = itemGross - itemShipping - itemCostTotal;
 
                 if (!monthlyStats[monthKey].tags[tag]) {
@@ -4940,13 +4954,16 @@ window.calculateTagRevenue = async function() {
 
             items.forEach(item => {
                 const prod = products.find(p => String(p.id) === String(item.id));
-                const tag = (prod && prod.smart_tag) ? prod.smart_tag : 'uncategorized';
+                
+                // LOGIC FIX: Lock historical name and tag from receipt
+                const itemName = item.name || (prod ? prod.name : 'Unknown Product');
+                const tag = item.smart_tag ? item.smart_tag : (prod && prod.smart_tag ? prod.smart_tag : 'uncategorized');
 
                 if (selectedTag === 'All' || tag === selectedTag) {
-                    const key = item.id;
+                    const key = item.id + '_' + itemName; // Use name to prevent clashes if IDs match but products differ
                     if (!statsMap[key]) {
                         statsMap[key] = {
-                            name: item.name || (prod ? prod.name : 'Unknown Product'),
+                            name: itemName,
                             tag: tag,
                             units: 0,
                             gross: 0,
@@ -4962,7 +4979,12 @@ window.calculateTagRevenue = async function() {
                     
                     const itemGross = amountReceived * weight;
                     const itemShipping = actualShipping * weight;
-                    const itemCostValue = (prod && prod.cost_price !== undefined && prod.cost_price !== null) ? Number(prod.cost_price) : (Number(item.cost_price) || 0);
+                    
+                    // LOGIC FIX: Lock historical cost price from receipt
+                    const itemCostValue = (item.cost_price !== undefined && item.cost_price !== null) 
+                                          ? Number(item.cost_price) 
+                                          : (prod && prod.cost_price !== undefined && prod.cost_price !== null ? Number(prod.cost_price) : 0);
+                                          
                     const itemCostTotal = itemCostValue * qty;
                     const itemProfit = itemGross - itemShipping - itemCostTotal;
 
@@ -5002,7 +5024,6 @@ window.calculateTagRevenue = async function() {
             });
         }
 
-        // Fix to prevent destroying IDs dynamically on refresh
         let summaryContainer = document.getElementById('revenueSummaryContainerBox');
         if (!summaryContainer) {
             const revEl = document.getElementById('filteredRevenueTotal');
